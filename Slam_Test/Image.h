@@ -187,7 +187,6 @@ typedef struct Line_1 {		//重做直线结构，全部用浮点表示
 }Line_1;
 
 //一些通用函数
-unsigned long long iGet_Tick_Count();
 void Get_Image_Info(const char* pcFile, Image* poImage);
 void Init_Image(Image* poImage, int iWidth, int iHeight, Image::Type iType, int iBit_Count);
 int bLoad_Image(const char* pcFile, Image* poImage, int iWidth = 0, int iHeight = 0, int iFrame = 0, int bNeed_Malloc = 1, Mem_Mgr* poMem_Mgr=NULL);

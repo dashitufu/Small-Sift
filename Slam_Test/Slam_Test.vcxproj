@@ -308,14 +308,17 @@
     <ClCompile Include="Buddy_System.c" />
     <ClCompile Include="Common.cpp" />
     <ClCompile Include="Image.cpp" />
+    <ClCompile Include="Matrix.cpp" />
+    <ClCompile Include="Reconstruct.cpp" />
     <ClCompile Include="sift.cpp" />
-    <ClCompile Include="sift_example.cpp" />
     <ClCompile Include="Slam_Test.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Buddy_System.h" />
     <ClInclude Include="Common.h" />
     <ClInclude Include="Image.h" />
+    <ClInclude Include="Matrix.h" />
+    <ClInclude Include="Reconstruct.h" />
     <ClInclude Include="sift.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -27,10 +27,13 @@
     <ClCompile Include="sift.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="sift_example.cpp">
+    <ClCompile Include="Buddy_System.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Buddy_System.c">
+    <ClCompile Include="Matrix.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Reconstruct.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -45,6 +48,12 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="Buddy_System.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Matrix.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Reconstruct.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

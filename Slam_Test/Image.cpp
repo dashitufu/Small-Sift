@@ -27,12 +27,6 @@ float fNaN()
 	unsigned int iRet = 0x7FFFFFFF;
 	return *(float*)(&iRet);
 }
-unsigned long long iGet_Tick_Count()
-{//求当前的毫秒级Tick Count。之所以不搞微秒级是因为存在时间片问题，即使毫秒级也不准，很有可能Round到16毫秒一个时间片，聊胜于无
-	timeb tp;
-	ftime(&tp);
-	return (unsigned long long) ((unsigned long long)tp.time * 1000 + tp.millitm);
-}
 void Init_Image(Image* poImage, int iWidth, int iHeight, Image::Type iType, int iBit_Count)
 {
 	int i, iSize, iSize_With_Remain;;

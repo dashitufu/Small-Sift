@@ -106,3 +106,24 @@ int iUpper_Triangle_Cord_2_Index(int x, int y, int w)
 	iPos = ((w - 1) + (w - y)) * y / 2 + x - y - 1;
 	return iPos;
 }
+unsigned long long iGet_File_Length(char* pcFile)
+{//return: >-0 if success; -1 if fail
+	FILE* pFile = fopen(pcFile, "rb");
+	__int64 iLen;
+	if (!pFile)
+	{
+		int iResult = GetLastError();
+		return -1;
+	}
+	_fseeki64(pFile, 0, SEEK_END);
+	iLen = _ftelli64(pFile);
+	fclose(pFile);
+	return iLen;
+}
+
+unsigned long long iGet_Tick_Count()
+{//求当前的毫秒级Tick Count。之所以不搞微秒级是因为存在时间片问题，即使毫秒级也不准，很有可能Round到16毫秒一个时间片，聊胜于无
+	timeb tp;
+	ftime(&tp);
+	return (unsigned long long) ((unsigned long long)tp.time * 1000 + tp.millitm);
+}

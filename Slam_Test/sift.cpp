@@ -84,6 +84,12 @@ typedef struct Neighbour_K {
 	Neighbour_Item_1 m_Buffer[2];
 }Neighbour_K;
 
+void SB_sift()
+{
+	Sift_Match_2_Image("", "", (float(**)[2])NULL, (float(**)[2])NULL, NULL);
+	Sift_Match_2_Image("", "", (double(**)[2])NULL, (double(**)[2])NULL, NULL);
+}
+
 int iGet_Sift_Match_Size(Sift_Image Sift_Image_Arr[], int iImage_Count)
 {//图匹配阶段，预计峰值大概要用多少内存
 	int i, iSize;
@@ -1629,7 +1635,6 @@ static void Copy_Desc(Sift_Image Sift_Image_Arr[], int iImage_Count, unsigned ch
 int iGet_Distance_AVX512(unsigned char A[], unsigned char  B[])
 {//计算欧氏距离
 	__m512i Value_32;
-	int iResult;
 	union {
 		__m512i Sum;
 		__m256i Sum_1[2];
@@ -1840,10 +1845,10 @@ void Sift_Match_2_Image(Sift_Image oImage_A, Sift_Image oImage_B, int iA_Index, 
 	*poMatch = oMatch;
 	return;
 }
-
-void Sift_Match_2_Image(const char* pcFile_1, const char* pcFile_2, float(**ppPoint_1)[2], float(**ppPoint_2)[2], int* piCount, int o_min)
-{
-	float(*pPoint_1)[2] = NULL, (*pPoint_2)[2];
+template<typename _T>void Sift_Match_2_Image(const char* pcFile_1, const char* pcFile_2, _T(**ppPoint_1)[2], _T(**ppPoint_2)[2], int* piCount, int o_min)
+{//比较两张图的关键点，找出匹配对
+	//return pPoint_1, pPoint_2， 但是调用函数只需释放pPoint_1即可
+	_T(*pPoint_1)[2] = NULL, (*pPoint_2)[2];
 	Mem_Mgr oMem_Mgr;
 	Image oImage;
 	float* pImage;
@@ -1918,16 +1923,17 @@ void Sift_Match_2_Image(const char* pcFile_1, const char* pcFile_2, float(**ppPo
 	printf("Match_Count:%d \n", oMatch_Item.m_iMatch_Count);
 
 
-	pPoint_1 = (float(*)[2])malloc(oMatch_Item.m_iMatch_Count * 4 * sizeof(float));
+	pPoint_1 = (_T(*)[2])malloc(oMatch_Item.m_iMatch_Count * 4 * sizeof(_T));
 	pPoint_2 = pPoint_1 + oMatch_Item.m_iMatch_Count;
 	Sift_Feature* pFeature_1 = pSift_Image_Arr[0].m_pFeature,
 		* pFeature_2 = pSift_Image_Arr[1].m_pFeature;
 	for (i = 0; i < oMatch_Item.m_iMatch_Count; i++)
 	{
-		pPoint_1[i][0] = pFeature_1[i].x;
-		pPoint_1[i][1] = pFeature_1[i].y;
-		pPoint_2[i][0] = pFeature_2[i].x;
-		pPoint_2[i][1] = pFeature_2[i].y;
+		int Index[2] = { oMatch_Item.m_Match[i][0],oMatch_Item.m_Match[i][1] };
+		pPoint_1[i][0] = pFeature_1[Index[0]].x;
+		pPoint_1[i][1] = pFeature_1[Index[0]].y;
+		pPoint_2[i][0] = pFeature_2[Index[1]].x;
+		pPoint_2[i][1] = pFeature_2[Index[1]].y;
 	}
 	//Disp_Mem(&oMem_Mgr, 0);
 	Free_Mem_Mgr(&oMem_Mgr);

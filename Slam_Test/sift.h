@@ -62,8 +62,10 @@ void Get_Sift_Feature(const char* pcFile, float(**ppFeature)[2], int* piCount, i
 //要特征的完整信息
 void Get_Sift_Feature(const char* pcFile, Sift_Feature** ppFeature, int* piCount, int o_min = -1);
 //两图比较，得匹配点
-void Sift_Match_2_Image(const char* pcFile_1, const char* pcFile_2, float(**ppPoint_1)[2], float(**ppPoint_2)[2], int* piCount, int o_min = -1);
+//void Sift_Match_2_Image(const char* pcFile_1, const char* pcFile_2, float(**ppPoint_1)[2], float(**ppPoint_2)[2], int* piCount, int o_min = -1);
+template<typename _T>void Sift_Match_2_Image(const char* pcFile_1, const char* pcFile_2, _T(**ppPoint_1)[2], _T(**ppPoint_2)[2], int* piCount, int o_min=-1);
 //遍历目录，两两匹配
 void Sift_Match_Path(const char* pcPath, Sift_Match_Map* poMap, Mem_Mgr* poMem_Mgr, int o_min = -1);
+
 //如果不想沾Mem_Mgr，以下接口更清爽
 void Sift_Match_Path(const char* pcPath, Sift_Match_Map* poMap, int o_min = -1);
