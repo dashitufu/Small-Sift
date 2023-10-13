@@ -32,4 +32,4 @@ static int iRandom(int iStart, int iEnd)
 	return iStart + iGet_Random_No() % (iEnd - iStart + 1);
 }
 
-template<typename _T> void Ransac_Estimate_H(_T Point_1[][2], _T Point_2[][2], int iCount, Report* poReport_H, Mem_Mgr* pMem_Mgr);
+template<typename _T> void Ransac_Estimate_H(_T Point_1[][2], _T Point_2[][2], int iCount, Report* poReport_H, Mem_Mgr* pMem_Mgr=NULL);

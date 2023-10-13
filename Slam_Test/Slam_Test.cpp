@@ -10,7 +10,7 @@ extern "C"
 {
 #include "Buddy_System.h"
 }
-void Free_Report(Report oReport, Mem_Mgr* poMem_Mgr)
+void Free_Report(Report oReport, Mem_Mgr* poMem_Mgr=NULL)
 {
     if (oReport.m_pInlier_Mask)
     {
@@ -110,7 +110,7 @@ void Ransac_Test()
 {
     typedef double _T;
     _T (*pPoint_1)[2], (*pPoint_2)[2];
-    int i,iCount;
+    int iCount;
     Report oReport_H;
     Mem_Mgr oMem_Mgr;
     Init_Mem_Mgr(&oMem_Mgr, 100000000, 1024, 997);
@@ -118,14 +118,13 @@ void Ransac_Test()
     Sift_Match_2_Image("C:\\Users\\Administrator\\Desktop\\colmap-dev\\ComputerVisionDatasets-master\\Datasets\\ET\\bmp\\et000.bmp",
         "C:\\Users\\Administrator\\Desktop\\colmap-dev\\ComputerVisionDatasets-master\\Datasets\\ET\\bmp\\et003.bmp", &pPoint_1, &pPoint_2, &iCount);
 
-    Ransac_Estimate_H(pPoint_1, pPoint_2, iCount, &oReport_H, &oMem_Mgr);
+    Ransac_Estimate_H(pPoint_1, pPoint_2, iCount, &oReport_H);
     Disp_Report(oReport_H);
     
     free(pPoint_1);
     //如果是读入的点，此处要释放
     //free(pPoint_2);
-
-    Free_Report(oReport_H, &oMem_Mgr);
+    Free_Report(oReport_H);
     Disp_Mem(&oMem_Mgr, 0);
     Free_Mem_Mgr(&oMem_Mgr);
 }

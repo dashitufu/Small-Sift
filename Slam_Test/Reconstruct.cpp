@@ -204,27 +204,32 @@ template<typename _T> void Ransac_Estimate_H(_T Point_1[][2], _T Point_2[][2], i
 	unsigned char* pCur;
 	int iSize;
 
+	iSize = ALIGN_SIZE_128(iCount * sizeof(short) + iCount * 5 * sizeof(_T) + iCount * iCount + iCount * sizeof(unsigned char) + 128 * 4);
 	if (pMem_Mgr)
 		poMem_Mgr = pMem_Mgr;
 	else
 	{
 		poMem_Mgr = (Mem_Mgr*)malloc(sizeof(Mem_Mgr));
-		iSize = ALIGN_SIZE_128(iCount * sizeof(short) + iCount * 5 * sizeof(_T) + iCount * iCount + 128 * 4);
+		//iSize = ALIGN_SIZE_128(iCount * sizeof(short) + iCount * 5 * sizeof(_T) + iCount * iCount + 128 * 4);
 		Init_Mem_Mgr(poMem_Mgr, iSize, 1024, 997);
 		if (!poMem_Mgr->m_pBuffer)
 			return;
 	}
-	iSize = ALIGN_SIZE_128(iCount * sizeof(short) + iCount * 5 * sizeof(_T) + iCount * iCount + 128 * 4);
 	Attach_Light_Ptr(oPtr, (unsigned char*)pMalloc(poMem_Mgr, iSize), iSize, -1);
-	Malloc(oPtr, iCount * sizeof(short), pCur);
+	Malloc(oPtr, iCount * sizeof(short), pCur);		//Sample Index
 	pSample_Index = (short*)pCur;
-	Malloc(oPtr, iCount * sizeof(_T), pCur);
+	Malloc(oPtr, iCount * sizeof(_T), pCur);		//Residual
 	pResidual = (_T*)pCur;
-	Malloc(oPtr, iCount * 2 * sizeof(_T), pCur);
+	Malloc(oPtr, iCount * 2 * sizeof(_T), pCur);	//Norm_Point_1
 	pNorm_Point_1 = pX_Inlier = (_T(*)[2])pCur;
-	Malloc(oPtr, iCount * 2 * sizeof(_T), pCur);
+	Malloc(oPtr, iCount * 2 * sizeof(_T), pCur);	//Norm_Point_2
 	pNorm_Point_2 = pY_Inlier = (_T(*)[2])pCur;
-
+	Malloc(oPtr, iCount * sizeof(unsigned char), pCur);
+	if (pMem_Mgr)
+		oReport.m_pInlier_Mask = (unsigned char*)pCur;	//oReport.m_pInlier_Mask
+	else
+		oReport.m_pInlier_Mask = (unsigned char*)malloc(iCount * sizeof(unsigned char));
+	
 	for (i = 0; i < iCount; i++)
 		pSample_Index[i] = i;
 
@@ -302,7 +307,6 @@ template<typename _T> void Ransac_Estimate_H(_T Point_1[][2], _T Point_2[][2], i
 	if (oReport.m_oSupport.m_iInlier_Count > 8)
 		oReport.m_bSuccess = 1;
 
-	oReport.m_pInlier_Mask = (unsigned char*)pMalloc(poMem_Mgr,iCount * sizeof(unsigned char));
 	for (i = 0; i < iCount; i++)
 	{
 		if (pResidual[i] <= fMax_Residual)
