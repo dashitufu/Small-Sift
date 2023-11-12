@@ -30,10 +30,13 @@
     <ClCompile Include="Buddy_System.c">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="Reconstruct.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="Matrix.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Reconstruct.cpp">
+    <ClCompile Include="Example.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
