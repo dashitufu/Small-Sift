@@ -1052,6 +1052,9 @@ void Fill_Region(Image oImage, int iSeed_x, int iSeed_y, int iBack_Color)
 }
 void Draw_Point(Image oImage, int x, int y, int r, int R, int G, int B)
 {//平面上画一个点
+	if (x < 0 || x >= oImage.m_iWidth || y < 0 || y >= oImage.m_iHeight)
+		return;
+
 	Draw_Arc(oImage, r, x, y, 0, 2 * PI, R, G, B);
 	//Fill_Region(oImage, x, y);
 	if(oImage.m_pChannel[0])
@@ -1092,6 +1095,7 @@ void Gen_Gauss_Filter(int r, float** ppFilter)
 
 	return;
 }
+
 void Gen_Gauss_Filter(int r, float fSigma,float **ppFilter)
 {//fSigma对应正态分布中的sigma, 这样就能构造出一个完美的高斯核，其和为1
 //此处还要进一步搞，fSigma的取值决定了核大小

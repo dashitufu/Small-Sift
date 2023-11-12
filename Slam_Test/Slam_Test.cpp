@@ -1,184 +1,185 @@
 ﻿// Slam_Test.cpp : 此文件包含 "main" 函数。程序执行将在此处开始并结束。
 //
+#pragma once
 #include <iostream>
 #include "Common.h"
 #include "Image.h"
 #include "sift.h"
+#include "Matrix.h"
 #include "Reconstruct.h"
+
+extern void Test_Main();
 
 extern "C"
 {
 #include "Buddy_System.h"
 }
-void Free_Report(Report oReport, Mem_Mgr* poMem_Mgr=NULL)
+template<typename _T>void Temp_Load_Data(_T (**ppPoint_2D)[2], _T (**ppPoint_3D)[3], int* piCount)
 {
-    if (oReport.m_pInlier_Mask)
+    int iCount = (int)(iGet_File_Length((char*)"c:\\tmp\\1.bin") / (5 * sizeof(float)));
+    FILE* pFile = fopen("c:\\tmp\\1.bin", "rb");
+    _T(*pPoint_2D)[2], (*pPoint_3D)[3];
+    if (!pFile)
     {
-        if (poMem_Mgr)
-            Free(poMem_Mgr, oReport.m_pInlier_Mask);
-        else
-            free(oReport.m_pInlier_Mask);
+        printf("Fail to open file\n");
+        return;
     }
-    return;
-}
-void Disp_Report(Report oReport)
-{
-    printf("%s\n", oReport.m_bSuccess ? "Success" : "Fail");
-    printf("Sample Count:%d Trial_Count:%d\n", oReport.m_iSample_Count,oReport.m_iTrial_Count);
-    printf("Inlier Count:%d Residual:%f\n", oReport.m_oSupport.m_iInlier_Count, oReport.m_oSupport.m_fResidual_Sum);
-    if (oReport.m_iFloat_Size == 4)
-        Disp(oReport.m_Modal_f, 3, 3, "Modal");
-    else
-        Disp(oReport.m_Modal_d, 3, 3, "Modal");
-    return;
-}
-static void Sift_Test_1()
-{//Sift实验，给出一张黑白图，求所有的特征点
-    float(*pPoint)[2];
-    int iCount;
-    unsigned long long tStart = iGet_Tick_Count();
-    Get_Sift_Feature("c:\\tmp\\Screen_Cut_A.bmp", &pPoint, &iCount, 0);
-    printf("%lld\n", iGet_Tick_Count() - tStart);
-    free(pPoint);
-    return;
-}
-static void Sift_Test_2()
-{//两张图的匹配，返回两组匹配点位置
-    float(*pPoint_1)[2] = NULL, (*pPoint_2)[2];
-    int iMatch_Count;
-
-    Sift_Match_2_Image("C:\\Users\\Administrator\\Desktop\\colmap-dev\\ComputerVisionDatasets-master\\Datasets\\Ajay\\A16.bmp",
-        "C:\\Users\\Administrator\\Desktop\\colmap-dev\\ComputerVisionDatasets-master\\Datasets\\Ajay\\A17.bmp", &pPoint_1, &pPoint_2, &iMatch_Count);
-
-    for (int i = 0; i < iMatch_Count; i++)
-        printf("%f %f %f %f\n", pPoint_1[i][0], pPoint_1[i][1], pPoint_2[i][0], pPoint_2[i][1]);
-    free(pPoint_1);
-    return;
-}
-static void Sift_Test_3()
-{//整个目录遍历，此处用Mem_Mgr
-    Sift_Match_Map oMatch_Map;
-    Sift_Simple_Match_Item oMatch;
-    Mem_Mgr oMem_Mgr;
-    Init_Mem_Mgr(&oMem_Mgr, 128000000, 1024, 997);
-    Sift_Match_Path("C:\\Users\\Administrator\\Desktop\\colmap-dev\\ComputerVisionDatasets-master\\Datasets\\ET\\bmp", &oMatch_Map, &oMem_Mgr);
-    int y, x, iIndex;
-    for (y = 0; y < oMatch_Map.m_iImage_Count; y++)
+    pPoint_2D = (_T(*)[2])malloc(iCount * 2 * sizeof(_T));
+    pPoint_3D = (_T(*)[3])malloc(iCount * 3 * sizeof(_T));
+    for (int i = 0; i < iCount; i++)
     {
-        for (x = y + 1; x < oMatch_Map.m_iImage_Count; x++)
-        {
-            iIndex = iUpper_Triangle_Cord_2_Index(x, y, oMatch_Map.m_iImage_Count);
-            oMatch = oMatch_Map.m_pMatch[iIndex];
-            printf("Image Pair:%d %d Match Count:%d\n", oMatch.m_iImage_A, oMatch.m_iImage_B, oMatch.m_iMatch_Count);
-            /* for (int k = 0; k < oMatch.m_iMatch_Count; k++)
-                 printf("%f %f %f %f\n", oMatch.m_pPoint_1[k][0], oMatch.m_pPoint_1[k][1],
-                     oMatch.m_pPoint_2[k][0], oMatch.m_pPoint_2[k][1]);*/
-        }
+        float Data[5];
+        fread(Data, 1, 5 * sizeof(float), pFile);
+        pPoint_2D[i][0] = Data[0];
+        pPoint_2D[i][1] = Data[1];
+        pPoint_3D[i][0] = Data[2];
+        pPoint_3D[i][1] = Data[3];
+        pPoint_3D[i][2] = Data[4];
     }
-    Free_Mem_Mgr(&oMem_Mgr);
+    fclose(pFile);
+    *ppPoint_2D = pPoint_2D;
+    *ppPoint_3D = pPoint_3D;
+    *piCount = iCount;
     return;
 }
-static void Sift_Test_4()
-{//整个目录遍历，最简接口
-    Sift_Match_Map oMatch_Map;
-    Sift_Simple_Match_Item oMatch;
 
-    Sift_Match_Path("C:\\Users\\Administrator\\Desktop\\colmap-dev\\ComputerVisionDatasets-master\\Datasets\\Ajay", &oMatch_Map);
-    int y, x, iIndex;
-    for (y = 0; y < oMatch_Map.m_iImage_Count; y++)
-    {
-        for (x = y + 1; x < oMatch_Map.m_iImage_Count; x++)
-        {
-            iIndex = iUpper_Triangle_Cord_2_Index(x, y, oMatch_Map.m_iImage_Count);
-            oMatch = oMatch_Map.m_pMatch[iIndex];
-            printf("Image Pair:%d %d Match Count:%d\n", oMatch.m_iImage_A, oMatch.m_iImage_B, oMatch.m_iMatch_Count);
-            //for (int k = 0; k < oMatch.m_iMatch_Count; k++)
-                //printf("%f %f %f %f\n", oMatch.m_pPoint_1[k][0], oMatch.m_pPoint_1[k][1], oMatch.m_pPoint_2[k][0], oMatch.m_pPoint_2[k][1]);
-        }
-    }
-    free(oMatch_Map.m_pBuffer);
-    return;
-}
-void Sift_Example()
-{
-    Sift_Test_1();
-    Sift_Test_2();
-    Sift_Test_3();
-    Sift_Test_4();
-}
-void Ransac_Test()
-{
+void PnP_Test()
+{//尚不知何物，干就完了
     typedef double _T;
-    _T (*pPoint_1)[2], (*pPoint_2)[2];
-    int iCount;
-    Report oReport_H;
-    Mem_Mgr oMem_Mgr;
-    Init_Mem_Mgr(&oMem_Mgr, 100000000, 1024, 997);
-    //Temp_Load_Match_Point(&pPoint_1,&pPoint_2,&iCount);
-    Sift_Match_2_Image("C:\\Users\\Administrator\\Desktop\\colmap-dev\\ComputerVisionDatasets-master\\Datasets\\ET\\bmp\\et000.bmp",
-        "C:\\Users\\Administrator\\Desktop\\colmap-dev\\ComputerVisionDatasets-master\\Datasets\\ET\\bmp\\et003.bmp", &pPoint_1, &pPoint_2, &iCount);
+    //已知相机二所观察到的点
+    _T(*pPoint_2D)[2], (*pPoint_3D)[3];
+    _T K[3 * 3] = { 520.9, 0, 325.1, 0, 521.0, 249.7, 0, 0, 1 };    //已知条件相机内参
 
-    Ransac_Estimate_H(pPoint_1, pPoint_2, iCount, &oReport_H);
-    Disp_Report(oReport_H);
-    
-    free(pPoint_1);
-    //如果是读入的点，此处要释放
-    //free(pPoint_2);
-    Free_Report(oReport_H);
-    Disp_Mem(&oMem_Mgr, 0);
-    Free_Mem_Mgr(&oMem_Mgr);
+    int iCount=0;
+    Temp_Load_Data(&pPoint_2D, &pPoint_3D, &iCount);
+
+    Disp((_T*)pPoint_3D, iCount, 3, "Point_3D");
+    return;
 }
 
-void SVD_Test_1()
-{//搞一个2000x10的矩阵
-#define _T float
-    const int w = 9, h = 8;
-    int bFull_UV = 1;
-    _T M[w * h]
-    = { -1.11092001, 1.09082501, -1.00000000, 0.00000000, 0.00000000, 0.00000000, 0.34592309, -0.33966582, 0.31138433,
-        0.44694880, -1.33252455, -1.00000000, 0.00000000, 0.00000000, 0.00000000, -0.07166018, 0.21364628, 0.16033197,
-        1.61034985, 0.32395583, -1.00000000, 0.00000000, 0.00000000, 0.00000000, 3.06228775, 0.61604377, -1.90162886,
-        -0.94637863, -0.08225629, -1.00000000, 0.00000000, 0.00000000, 0.00000000, 1.35323869, 0.11761930, 1.42991256,
-        0.00000000, 0.00000000, 0.00000000, -1.11092001, 1.09082501, -1.00000000, -1.16227131, 1.14124742, -1.04622411,
-        0.00000000, 0.00000000, 0.00000000, 0.44694880, -1.33252455, -1.00000000, -0.45111539, 1.34494674, 1.00932230,
-        0.00000000, 0.00000000, 0.00000000, 1.61034985, 0.32395583, -1.00000000, 0.33483522, 0.06735917, -0.20792701,
-        0.00000000, 0.00000000, 0.00000000, -0.94637863, -0.08225629, -1.00000000, 0.23170076, 0.02013871, 0.24482882 };
+int bSave_PLY(const char* pcFile, float Point[][3], int iPoint_Count, int bText)
+{//存点云，最简形式，用于实验，连结构都不要
+    FILE* pFile = fopen(pcFile, "wb");
+    char Header[512];
+    int i;
+    float* pPos;
 
-    //可以自动赋值，这是个不满秩的矩阵，能很好的测出问题
-   /* for (int i = 0; i < w * h; i++)
-        M[i] = i;*/
+    if (!pFile)
+    {
+        printf("Fail to open file:%s\n", pcFile);
+        return 0;
+    }   
 
-    SVD_Info oSVD;
+    //先写入Header
+    sprintf(Header, "ply\r\n");
+    if (bText)
+        sprintf(Header + strlen(Header), "format ascii 1.0\r\n");
+    else
+        sprintf(Header + strlen(Header), "format binary_little_endian 1.0\r\n");
+    sprintf(Header + strlen(Header), "comment HQYT generated\r\n");
+    sprintf(Header + strlen(Header), "element vertex %d\r\n", iPoint_Count);
+    sprintf(Header + strlen(Header), "property float x\r\n");
+    sprintf(Header + strlen(Header), "property float y\r\n");
+    sprintf(Header + strlen(Header), "property float z\r\n");
 
-    /*_T* U, * S, * Vt;
-    int U_h, U_w, S_w, Vt_h, Vt_w;
-    SVD_Allocate(h, w, &U, &S, &Vt, &U_h, &U_w, &S_w, &Vt_h, &Vt_w);*/
-    //Disp_Mem(&oMatrix_Mem, 0);
-    SVD_Allocate(M, h, w, &oSVD);
+    sprintf(Header + strlen(Header), "end_header\r\n");
+    fwrite(Header, 1, strlen(Header), pFile);
 
-    //Disp(M, 8, 9, "M");
-    int iResult;
-      
-    svd_3(M,oSVD,&iResult,0.000001);
-    //Disp((_T*)oSVD.U, oSVD.h_Min_U, oSVD.w_Min_U, "U");
-    //Disp((_T*)oSVD.S, 1, oSVD.w_Min_S, "S");
-    //Disp((_T*)oSVD.Vt, oSVD.h_Min_Vt, oSVD.w_Min_Vt,"Vt");
+    for (i = 0; i <iPoint_Count; i++)
+    {
+        pPos = Point[i];
+        if (bText)
+            fprintf(pFile, "%f %f %f\r\n", pPos[0], pPos[1], pPos[2]);
+        else
+            printf("Not implemented\n");
+    }
+    fclose(pFile);
+    return 1;
+}
+void Lease_Square_Test_3()
+{//搞个二维曲面拟合实验， z= a (x/w)^2 + b(y/h)^2 搞一组添加了随机噪声的样本，用这些样本来做实验
+//至此，由样本拟合参数的牛顿法OK了，但是梯度法还没行
+    const int w = 10, h = 10;
+    const int iSample_Count = w*h;
+    const float eps = (float)1e-6;
+    float *pCur_Point, (*pPoint_3D)[3] = (float(*)[3])malloc(iSample_Count * 3 * sizeof(float));
+    float a0 = 4, b0 = 5, 
+        xa,xb;  //待求参数
     
-    //验算SVD结果
-    Test_SVD(M,oSVD,&iResult,0.000001);
+    //造样本集
+    int y, x;
+    for (y = 0; y < h; y++)
+    {
+        for (x = 0; x < w; x++)
+        {
+            pCur_Point = pPoint_3D[y * w + x];
+            pCur_Point[0] = (float)x;
+            pCur_Point[1] = (float)y;
+            pCur_Point[2] = a0 * (float)pow((float)x/w,2) + b0 * (float)pow((float)y/h,2);
+            //printf("x:%f y:%f z:%f\n", pCur_Point[0], pCur_Point[1], pCur_Point[2]);
+            pCur_Point[2] += (float)pow(-1, y * w + x) * iGet_Random_No_cv(0, 10) / 50.f;
+            //printf("x:%f y:%f z1:%f\n", pCur_Point[0], pCur_Point[1], pCur_Point[2]);
+        }
+    }
+    //存个盘看图像
+    //bSave_PLY("c:\\tmp\\1.ply", pPoint_3D, iSample_Count, 1);
 
-    //基础行变换，可以看秩
-    Elementary_Row_Operation_1(M, h, w, M, &iResult);
+    //目标是求 min(yi - fi(x))^2 这个是最小二乘的一般形式，yi好办，每个样本的函数值，问题是， xk在此处对应的是什么？
+    //显然我们要求的是a,b，所以， f(x)不再视为关于向量x的函数，而是视为 关于a,b的函数，所以
+    //此处，我们讲a,b改为 xa,xb，这样可能好看些。故此， xk就是(xa,xb)在迭代过程中的一个取值，
+    //目标是建立迭代格 x=(xa,xb)= (J'J)(-1) * J'*e + xk
+    //先对fi(x)在xk处进行一阶泰勒展开 = fi(xk) + J(xk)(x-xk) 二元为 fi(x,y)= fi(xk,yk) + f'xk(xk,yk)*(x-xk) + f'yk(xk,yk)(y-yk)
+    //于是，原来求解问题变成 min Sigma[ (yi-fi(x))^2 ] , x=(xa,xb)
+    //泰勒展开 = min Sigma [ yi- fi(xk) - J(xk)(x-xk)]^2 , 等于只将yi-fi(x)展开
+    //将前面两项合并为一项 ei = yi - fi(xk) 则上式=
+    // min Sigma [ (ei - J(xk)(x-xk))^2] 
+    //即求解 ei - J(xk)(x-xk) = 0 矛盾方程组，求x, 此时，将J视为fi(x)关于x的一阶偏导矩阵，
+    // J (x-xk)=ei => J'J (x-xk) = J'ei
+    // (J'J)(-1)(J'J) (x-xk) = (J'J)(-1) * J' ei
+    // x-xk=  (J'J)(-1) * J' ei
+    //x = (J'J)(-1) * J' ei + xk
 
-    //Disp((_T*)oSVD.U, oSVD.h_Min_U, oSVD.w_Min_U);
+    xa = 1, xb = 1;               //xk初值
+    float J[iSample_Count][2];  //Jacob
+    float Jt[2][iSample_Count]; //J'
+    float e[iSample_Count];     
+    float Temp[iSample_Count * 2];  //搞个足够大的临时空间
+    int i,iResult;
+    while (1)
+    {
+        for (i = 0; i < iSample_Count; i++)
+        {
+            pCur_Point = pPoint_3D[i];
+            //逐个求一阶偏导 f(a,b)= a (x/w)^2 + b(y/h)^2
+            //fi'a (对a求偏导)  = (x/w)^2
+            J[i][0] = (float)pow(pCur_Point[0] / w, 2);
+            //fi'b (对b求偏导) = (y/h)^2
+            J[i][1] = (float)pow(pCur_Point[1] / h, 2);
+
+            //ei = yi - fi(xk) 要特别留意此处，fi(xk)作为一个整体，要加括号，否则发散
+            e[i] = pCur_Point[2] - (xa * (float)pow(pCur_Point[0] / w, 2) + xb * (float)pow(pCur_Point[1] / h, 2));
+        }
+
+        Matrix_Transpose((float*)J, iSample_Count, 2, (float*)Jt);          //= J' 2*n
+        Matrix_Multiply((float*)Jt, 2, iSample_Count, (float*)J, 2, Temp);  //=J'J 2x2
+        Get_Inv_Matrix_Row_Op(Temp, Temp, 2, &iResult);                     //(J'J)(-1) 逆矩阵 2x2
+        Matrix_Multiply(Temp, 2, 2,(float*)Jt, iSample_Count, Temp);        //=(J'J)(-1)*J' 2xn
+        Matrix_Multiply(Temp, 2, iSample_Count, e, 1, Temp);                //=(J'J)(-1)*J'*e 2x1
+                
+        xa = Temp[0] + xa;
+        xb = Temp[1] + xb;
+        if (abs(Temp[0]) < eps && abs(Temp[1]) < eps)
+            break;
+        printf("%f %f\n", Temp[0], Temp[1]);
+    }
+
     return;
-#undef _T
 }
 int main()
 {
     Init_Env();
-
-    Ransac_Test();
+    Lease_Square_Test_3();
+    
     Free_Env();
 #ifdef WIN32
     _CrtDumpMemoryLeaks();

@@ -1,9 +1,9 @@
-//此文件搞搞house holder等矩阵
-#include "stdio.h"
+#include "stdio.h"	//此文件搞搞house holder等矩阵
 #include <iostream>
 #include "assert.h"
 #include "memory.h"
 #include "math.h"
+#include <stdarg.h>
 #include "Common.h"
 #include "Matrix.h"
 
@@ -13,31 +13,12 @@
 	L[0][1] = L[0][2] = L[1][2] = 0; \
 	U[1][0] = U[2][0] = U[2][1] = 0; \
 }
-int iCur = 0;
+//int iCur = 0;
 
 //Light_Ptr oMatrix_Mem = { 0 };	//这块内存专用于Matrix倒腾数据，离开函数即释放
 Mem_Mgr oMatrix_Mem = {};
 //暂时只能应对单线程
 
-int iRandom()
-{//尝试搞一个无参数获得随机数的函数，计算办法为 iRandom_No= iRandom_No*a + c; 最后取模 0x7FFFFFFF
-#define m 1999999973			//基于模为素数能令散列更均匀的理论
-	static unsigned int a = (unsigned int)iGet_Tick_Count(); //1103515245;		//1103515245为很好的初始值，但选取静态值变成了确定问题
-	static unsigned int c = 2347;	// 12345;
-	static unsigned long long iRandom_No = 1;
-	iRandom_No = (iRandom_No * a + c) % m;	//求和不溢出，再求模
-	return (int)iRandom_No;
-#undef m
-}
-unsigned int iGet_Random_No()
-{//伪随机	(789, 123)	(389,621) 已通过，可以自定义自己的种子
-#define b 389
-#define c 621
-	static unsigned int iNum = 0xFFFFFFF;	//GetTickCount();	//种子
-	return iNum = iNum * b + c;
-#undef b
-#undef c
-}
 unsigned long long iGet_Random_No_cv(unsigned long long* piState)
 {
 	*piState = (unsigned long long)(unsigned) * piState * 4164903690U + (unsigned)(*piState >> 32);
@@ -54,9 +35,9 @@ int iGet_Random_No_cv(int a, int b)
 	unsigned iNum = (unsigned)iGet_Random_No_cv();
 	return a == b ? a : (int)(iNum % (b - a) + a);
 }
-float fGet_Mod(float V[], int n)
+template<typename _T> _T fGet_Mod(_T V[], int n)
 {
-	float fMod;
+	_T fMod;
 	int i;
 	for (fMod = 0, i = 0; i < n; i++)
 		fMod += V[i] * V[i];
@@ -90,20 +71,19 @@ void Normalize_Col(float M[], int m, int n, float M_1[])
 	}
 	return;
 }
-void Normalize(float V[], int n, float V_1[])
+template<typename _T> void Normalize(_T V[], int n, _T V_1[])
 {//对向量进行规格化
 //并非每种向量都能规格化，当向量是0向量时，规定还是0向量
-	float fMod;
+	_T fMod;
 	int i;
 #define eps 1e-10
-	fMod = fGet_Mod(V, n);
+	fMod = (_T)fGet_Mod(V, n);
 	if (fMod > eps)
 	{
 		for (i = 0; i < n; i++)
 			V_1[i] = V[i] / fMod;
-	}
-	else
-		memset(V_1, 0, n * sizeof(float));
+	}else
+		memset(V_1, 0, n * sizeof(_T));
 #undef eps
 }
 void Disp(float* M, int iHeight, int iWidth, const char* pcCaption)
@@ -340,12 +320,12 @@ void QR_Decompose(double A1[3][3], double Q[3][3], double R[3][3])
 	//			A2[y][x]+= Q[y][i] * R[i][x];
 	return;
 }
-void Vector_Minus(float A[], float B[], int n, float C[])
+template<typename _T>void Vector_Minus(_T A[], _T B[], int n, _T C[])
 {
 	for (int i = 0; i < n; i++)
 		C[i] = A[i] - B[i];
 }
-void Vector_Add(float A[], float B[], int n, float C[])
+template<typename _T>void Vector_Add(_T A[], _T B[], int n, _T C[])
 {
 	for (int i = 0; i < n; i++)
 		C[i] = A[i] + B[i];
@@ -532,9 +512,9 @@ void Solve_Homo_3x3(double A[3][3], double fEigen_Value, double x[3])
 
 	////临时代码验算 Ax=0
 	//double Temp[3];
-	double A2[3][3] = { {A[0][0] - fEigen_Value,A[0][1],A[0][2]},
+	/*double A2[3][3] = { {A[0][0] - fEigen_Value,A[0][1],A[0][2]},
 						{A[1][0],A[1][1] - fEigen_Value,A[1][2]},
-						{A[2][0],A[2][1],A[2][2] - fEigen_Value} };
+						{A[2][0],A[2][1],A[2][2] - fEigen_Value} };*/
 
 	x[2] = 1;//强行置零，变为自由元
 	//Matrix_x_Vector(A2, x, Temp);
@@ -573,7 +553,7 @@ int bEigen_Value_3x3(double A[3][3], double Ramda[3], double Eigen_Vector[3][3])
 //如果成功，返回1，否则，返回0
 #define MAX_ITER_COUNT 120
 	double Q[3][3], A1[3][3], fMax;
-	static double R[3][3] = { 0 };
+	static double R[3][3] = {};
 	//实践证明，分解前先来一次整体/最大分量会减少迭代次数
 
 	Scale_Matrix(A, A1, fMax);
@@ -1142,7 +1122,7 @@ void Solve_Eigen(double A[3][3], Complex_d Root[3], int* piRoot_Count)
 void Solve_Cubic(double A[3][3], double Root[3], int* piRoot_Count)
 {//解一元三次方程，未搞定
 	double aa, a, b, bb, c, d, p, q/*, det*/;	//特征值一元三次方程的系数
-	double r = 2;	//假设ramda
+	//double r = 2;	//假设ramda
 	double fPart_1;
 	Disp((double*)A, "A");
 	// -r ^ 3 + (a00 + a11 + a22) * r ^ 2 + (a01 * a10 - a00 * a11 - a00 * a22 + a02 * a20 - a11 * a22 + a12 * a21) * r + a00 * a11 * a22 - a00 * a12 * a21 - a01 * a10 * a22 + a01 * a12 * a20 + a02 * a10 * a21 - a02 * a11 * a20
@@ -1220,17 +1200,17 @@ void Matrix_Test()
 	Disp(Eigen_Vector, "Eigen_Vector");
 	return;
 }
-float fGet_Determinant(float* A, int iOrder)
+template<typename _T>_T fGet_Determinant(_T* A, int iOrder)
 {//求行列式，M为方阵，iOrder为行列式的阶,iStrike为M的行大小，一行元素个数， Get n-order determinant
 //此算法不求速度，但求验证数学原理，所以采用按行展开法则。 D=ai1*Ai1+ai2*Ai2+...+ainAin
 //优化思路：对行列式用列主元法进行初等行变换，转换为上三角方阵，再求其对角线乘积
-	float* pCur, * pCofactor; //余子式
+	_T* pCur, * pCofactor; //余子式
 	int i, j, k;
-	float fDeterminant, fTotal;
+	_T fDeterminant, fTotal;
 	if (iOrder == 2)//递归到最深一层， 2阶行列式
 		return A[0] * A[3] - A[1] * A[2];
 
-	pCofactor = (float*)malloc((iOrder - 1) * (iOrder - 1) * sizeof(float)); //余子式
+	pCofactor = (_T*)malloc((iOrder - 1) * (iOrder - 1) * sizeof(_T)); //余子式
 	A -= (iOrder + 1);	//为了与数学原理相对应，此处改变地址令下标从1开始
 	//按第一行展开
 	for (fTotal = 0, i = 1; i <= iOrder; i++)
@@ -1246,7 +1226,7 @@ float fGet_Determinant(float* A, int iOrder)
 			}
 		}
 		fDeterminant = fGet_Determinant(pCofactor, iOrder - 1);
-		fTotal += (float)(A[1 * iOrder + i] * pow(-1, 1 + i) * fDeterminant);
+		fTotal += (_T)(A[1 * iOrder + i] * pow(-1, 1 + i) * fDeterminant);
 		//Disp((float*)pCofactor, iOrder - 1, iOrder - 1);
 	}
 	free(pCofactor);
@@ -1303,7 +1283,7 @@ template<typename _T> void Get_Inv_Matrix_Row_Op(_T* pM, _T* pInv, int iOrder, i
 {//由于用伴随矩阵求逆矩阵太慢，此处用初等行变换搞，其实就是高斯求方程的一种
 	//用一个大Buffer装好了M再行变换
 	_T* pAux;
-	int y, x, i, iRow_Size = iOrder * 2, iPos;
+	int y, x, i, iRow_Size = iOrder * 2, iPos,bRet=1;
 	_T fMax, * pfCur_Row, fValue;
 	//Light_Ptr oPtr = oMatrix_Mem;
 	if (iOrder > 256)
@@ -1327,11 +1307,16 @@ template<typename _T> void Get_Inv_Matrix_Row_Op(_T* pM, _T* pInv, int iOrder, i
 			pAux[iPos + x] = y == x ? 1.f : 0.f;
 	}
 	//Disp(pAux, iOrder, iOrder * 2,"\n");
-
+	const _T eps = (_T)1e-10;
 	for (y = 0; y < iOrder; y++)
 	{
 		pfCur_Row = &pAux[y * iRow_Size];
 		fMax = pAux[y * iRow_Size + y];
+		if (fMax < eps)
+		{
+			bRet = 0;
+			goto END;
+		}
 		pfCur_Row[y] = 1.f;
 		for (x = y + 1; x < iRow_Size; x++)
 			pfCur_Row[x] /= fMax;
@@ -1342,7 +1327,7 @@ template<typename _T> void Get_Inv_Matrix_Row_Op(_T* pM, _T* pInv, int iOrder, i
 		{//i表示第i行
 			//iPos = Q[i] * iRow_Size;
 			iPos = i * iRow_Size;
-			if (fValue = pAux[iPos + y])
+			if ( (fValue = pAux[iPos + y])!=0)
 			{//对于对应元不为0才有算的意义
 				for (x = y + 1; x < iRow_Size; x++)
 					pAux[iPos + x] -= fValue * pfCur_Row[x];
@@ -1372,14 +1357,15 @@ template<typename _T> void Get_Inv_Matrix_Row_Op(_T* pM, _T* pInv, int iOrder, i
 		}
 	}
 	//最后抄到目标矩阵
-
 	for (y = 0; y < iOrder; y++)
 	{
 		iPos = y * iRow_Size + iOrder;
 		for (x = 0; x < iOrder; x++, iPos++, pInv++)
 			*pInv = pAux[iPos];
 	}
-	*pbSuccess = 1;	//此处有问题，如果非奇异矩阵那么必然找不到逆矩阵
+END:
+	if (pbSuccess)
+		*pbSuccess = bRet;	
 	Free(&oMatrix_Mem, pAux);
 	//free(pAux);
 	return;
@@ -1457,16 +1443,16 @@ void Solve_Linear_Contradictory(float* A, int m, int n, float* B, float* X, int*
 	*pbSuccess = bResult;
 	free(At);
 }
-int iGet_Rank(float* A, int m, int n)
+template<typename _T>int iGet_Rank(_T* A, int m, int n)
 {//利用高斯列主元法求矩阵的秩，用初等行变换法
 	int iRank = 0;
 	int iMax, iTemp, iPos, Q[256];
 	int y, x, i, iRow_To_Test;
-	float* Ai = (float*)malloc(m * n * sizeof(float));
-	float fMax, * pfMax_Row, fValue;
+	_T* Ai = (_T*)malloc(m * n * sizeof(_T));
+	_T fMax, * pfMax_Row, fValue;
 	iPos = 0;
 	if (Ai)
-		memcpy(Ai, A, m * n * sizeof(float));
+		memcpy(Ai, A, m * n * sizeof(_T));
 	else
 	{
 		printf("Fail to malloc in fGet_Rank\n");
@@ -1513,7 +1499,7 @@ int iGet_Rank(float* A, int m, int n)
 		for (i = y + 1; i < m; i++)
 		{//i表示第i行
 			iPos = Q[i] * n;
-			if (fValue = Ai[iPos + y])
+			if ( (fValue = Ai[iPos + y])!=0)
 			{//对于对应元不为0才有算的意义
 				for (x = y + 1; x < n; x++)
 					Ai[iPos + x] -= fValue * pfMax_Row[x];
@@ -1589,7 +1575,7 @@ void Solve_Linear_Gause(float* A, int iOrder, float* B, float* X, int* pbSuccess
 		for (i = y + 1; i < iOrder; i++)
 		{//i表示第i行
 			iPos = Q[i] * iRow_Size;
-			if (fValue = Ai[iPos + y])
+			if ( (fValue = Ai[iPos + y])!=0)
 			{//对于对应元不为0才有算的意义
 				for (x = y + 1; x < iRow_Size; x++)
 					Ai[iPos + x] -= fValue * pfMax_Row[x];
@@ -1651,9 +1637,9 @@ void Solve_Linear_Cramer(float* A, int iOrder, float* B, float* X, int* pbSucces
 	*pbSuccess = 1;
 	return;
 }
-float fDot(float V0[], float V1[], int iDim)
+template<typename _T>_T fDot(_T V0[], _T V1[], int iDim)
 {//求内积
-	float fTotal = 0;
+	_T fTotal = 0;
 	for (int i = 0; i < iDim; i++)
 		fTotal += V0[i] * V1[i];
 	return fTotal;
@@ -1915,8 +1901,8 @@ void Get_Householder_2(float X[], int iDim, int l, float* Q)
 	float delta, tau;
 	float* V = (float*)malloc((iDim - l) * sizeof(float));
 	float* H_Dup = (float*)malloc((iDim - l) * (iDim - l) * sizeof(float));
-	int i, j, iH_Dim;
-	iH_Dim = iDim - l;
+	int i, j;
+	//iH_Dim = iDim - l;
 
 	//算个delta
 	for (delta = 0, i = l; i < iDim; i++)
@@ -2045,7 +2031,7 @@ int bIs_Unit_Vector(float* V, int na, int iStrike)
 }
 
 void QR_Decompose(float* A, int na, float* R, float* Q, int* pbSuccess, int* pbDup_Root)
-{//求出特征值R,特征向量Q. A=R*Q
+{//求出特征值R,特征向量Q. A=R*Q	
 #define MAX_ITERATE_COUNT 200
 //#define eps 2.2204460492503131e-15
 	float* R_Dup = (float*)malloc(na * na * sizeof(float));
@@ -2383,14 +2369,14 @@ void Conjugate_Gradient(float* A, const int n, float B[], float X[])
 #define eps 0.0001
 	float* pBuffer, * r0, r0_dot_r0,	//r0.r0，内积
 		r1_dot_r1,	//r1.r1, 内积
-		* r1, * p0, * p1, * Aux, alpha, beta, fValue_0;
+		* r1, * p0,/* * p1,*/ * Aux, alpha, beta, fValue_0;
 
 	int i, iCount = 0;
 	pBuffer = (float*)malloc(n * 5 * sizeof(float));
 	r0 = pBuffer;
 	r1 = pBuffer + n;
 	p0 = r1 + n;
-	p1 = p0 + n;
+	//p1 = p0 + n;
 	Aux = r0 + n;
 
 	for (i = 0; i < n; i++)
@@ -2523,7 +2509,7 @@ void Matrix_Multiply(Sparse_Matrix A, Sparse_Matrix B, Sparse_Matrix* poC)
 {
 	int y, x, i0_Count = 0, iNew_Item_Count = 0;
 	float fValue;
-	Sparse_Matrix::Item* poRow_Cur, * poCol_Cur, * poNew_Col_Pre = NULL, * poNew_Row_Pre = NULL, oNew_Item;
+	Sparse_Matrix::Item* poRow_Cur, * poCol_Cur,  * poNew_Row_Pre = NULL, oNew_Item;//* poNew_Col_Pre = NULL,
 	Sparse_Matrix oC;
 	//pNew_Col_Pre实际上是一行Item, 从以存放上次各列的最后一个Item,以便加快速度
 	Sparse_Matrix::Item** pNew_Col_Pre = (Sparse_Matrix::Item**)malloc(B.m_iCol_Count * sizeof(Sparse_Matrix::Item*));
@@ -2584,6 +2570,8 @@ void Matrix_Multiply(Sparse_Matrix A, Sparse_Matrix B, Sparse_Matrix* poC)
 	*poC = oC;
 	free(pNew_Col_Pre);
 	return;
+	if (i0_Count)
+		printf("Here");
 }
 void Matrix_Transpose_1(Sparse_Matrix A, Sparse_Matrix* poAt)
 {
@@ -2689,7 +2677,7 @@ void Matrix_Add(Sparse_Matrix* poA, float a, Sparse_Matrix* poB, float b, float*
 	}
 	return;
 }
-void Matrix_Add(float A[], float B[], int iOrder, float C[])
+template<typename _T>void Matrix_Add(_T A[], _T B[], int iOrder, _T C[])
 {//矩阵加法，此处是方阵
 	int i;
 	for (i = 0; i < iOrder * iOrder; i++)
@@ -2701,7 +2689,7 @@ void Matrix_Add(Sparse_Matrix* poA, float a, Sparse_Matrix* poB, float b)
 	Sparse_Matrix A = *poA, B = *poB;
 	//pNew_Col_Pre实际上是一行Item, 从以存放上次各列的最后一个Item,以便加快速度
 	Sparse_Matrix::Item** pNew_Col_Pre = (Sparse_Matrix::Item**)malloc(B.m_iCol_Count * sizeof(Sparse_Matrix::Item*));
-	Sparse_Matrix::Item oNew, * poNew, * poItem_A, * poItem_B, * poRow_Pre_B, oHead = { 0 };
+	Sparse_Matrix::Item oNew, * poNew, * poItem_A, * poItem_B, * poRow_Pre_B;	// , oHead = { };
 	int y/*,iItem_Count=B.m_iItem_Count*/, bAdd;
 	memset(pNew_Col_Pre, 0, B.m_iCol_Count * sizeof(Sparse_Matrix::Item*));
 	for (y = 0; y < A.m_iRow_Count; y++)
@@ -2884,11 +2872,10 @@ unsigned int iGet_Combination(int n, int m)
 		return 0;
 	return iGet_Perm(n, m) / iFactorial(m);
 }
-
-float fGet_Tr(float M[], int iOrder)
+template<typename _T>_T fGet_Tr(_T M[], int iOrder)
 {//求N阶方阵的迹，即对角线之和
 	int i;
-	float fTotal = 0;
+	_T fTotal = 0;
 	for (i = 0; i < iOrder; i++)
 		fTotal += M[i * iOrder + i];
 	return fTotal;
@@ -2900,19 +2887,21 @@ void Vee(float M[], float V[3])
 	V[2] = M[3];
 	return;
 }
-void Hat(float V[], float M[])
+template<typename _T>void Hat(_T V[], _T M[])
 {//根据给定的向量构造反对称矩阵，改回与书中一致
-	M[0] = M[4] = M[8] = 0;
-	M[1] = -V[2], M[3] = V[2];
-	M[2] = V[1], M[6] = -V[1];
-	M[5] = -V[0], M[7] = V[0];
+	_T M1[3 * 3];
+	M1[0] = M1[4] = M1[8] = 0;
+	M1[1] = -V[2], M1[3] = V[2];
+	M1[2] = V[1], M1[6] = -V[1];
+	M1[5] = -V[0], M1[7] = V[0];
+	memcpy(M, M1, 3 * 3 * sizeof(_T));
 	return;
 }
-void Rotation_Matrix_2_Vector(float R[], float V[])
+template<typename _T>void Rotation_Matrix_2_Vector(_T R[], _T V[])
 {//从旋转矩阵到旋转向量就是解 Rn=n，其中n就是待求的转轴，显然特征值为1， 求解特征方程
 	//由于特征值=1， 代入(A-rI)x=0, 求得x便是特征向量。而r=1,所以解(A-I)x=0即可
-	float I[3][3] = { 1,0,0,0,1,0,0,0,1 };
-	double R_1[3][3], B[3] = { 0 }, V_1[3];
+	//_T I[3][3] = { 1,0,0,0,1,0,0,0,1 };
+	double R_1[3][3], V_1[3];// B[3] = { 0 },
 	int y, x, iPos;
 	//R_1=R-I
 	for (iPos = 0, y = 0; y < 3; y++)
@@ -2922,21 +2911,21 @@ void Rotation_Matrix_2_Vector(float R[], float V[])
 
 //然后解齐次方程 R_1x=0
 	Solve_Homo_3x3(R_1, 1, V_1);
-	V[0] = (float)V_1[0];
-	V[1] = (float)V_1[1];
-	V[2] = (float)V_1[2];
+	V[0] = (_T)V_1[0];
+	V[1] = (_T)V_1[1];
+	V[2] = (_T)V_1[2];
 
 	//再求旋转角度
-	float fTr = fGet_Tr(R, 3);
+	_T fTr = fGet_Tr(R, 3);
 	V[3] = acos((fTr - 1.f) / 2.f);
 
 	return;
 }
-void Rotation_Vector_2_Quaternion(float V[4], float Q[4])
+template<typename _T>void Rotation_Vector_2_Quaternion(_T V[4], _T Q[4])
 {//旋转向量转换为四元组，本来按照定义，一个旋转向量由一个标准化向量作为旋转轴与一个旋转角度构成
-	float fSin_Theta_Div_2;
-	float V_1[3];
-	float fTheta = V[3];
+	_T fSin_Theta_Div_2;
+	_T V_1[3];
+	_T fTheta = V[3];
 	Normalize(V, 3, V_1);
 	Q[0] = cos(fTheta / 2.f);
 	fSin_Theta_Div_2 = sin(fTheta / 2.f);
@@ -2945,40 +2934,39 @@ void Rotation_Vector_2_Quaternion(float V[4], float Q[4])
 	Q[3] = V_1[2] * fSin_Theta_Div_2;
 	return;
 }
-void Rotation_Matrix_2_Quaternion(float R[], float Q[])
+template<typename _T>void Rotation_Matrix_2_Quaternion(_T R[], _T Q[])
 {//旋转矩阵到四元组。此处不完全实现，由于缺乏直接算法，故此靠一个旋转向量作为中间商倒腾过去
-	float V[4];
+	_T V[4];
 	Rotation_Matrix_2_Vector(R, V);
 	Rotation_Vector_2_Quaternion(V, Q);
 	return;
 }
-void Rotation_Vector_2_Matrix_3D(float V[4], float R[3 * 3])
+template<typename _T>void Rotation_Vector_2_Matrix(_T V[4], _T R[3 * 3])
 {//旋转向量到旋转矩阵，试一把看看准不准, 3阶已经一摸一样
 //向量的前三个分量为标准化旋转轴，最后一个分量为旋转角
-	float fCos_Theta, fSin_Theta;
-	float fTheta = V[3];
-	float V_1[3];
+	_T fCos_Theta, fSin_Theta;
+	_T fTheta = V[3];
+	_T V_1[3];
 	//fTheta需要来个求模？
 	fCos_Theta = cos(fTheta);
 	fSin_Theta = sin(fTheta);
-	float nnt[3][3], I[3][3] = { {1,0,0},{0,1,0},{0,0,1} };
-	float Skew_Sym[3][3];
+	_T nnt[3][3], I[3][3] = { {1,0,0},{0,1,0},{0,0,1} };
+	_T Skew_Sym[3][3];
 
 	//保险起见，规格化一下
 	Normalize(V, 3, V_1);
 
-	Matrix_Multiply(V_1, 3, 1, V_1, 3, (float*)nnt);
+	Matrix_Multiply(V_1, 3, 1, V_1, 3, (_T*)nnt);
 	Scale_Matrix_1(I, fCos_Theta);
 	Scale_Matrix_1(nnt, (1 - fCos_Theta));
-	Hat(V_1, (float*)Skew_Sym);
+	Hat(V_1, (_T*)Skew_Sym);
 	Scale_Matrix_1(Skew_Sym, fSin_Theta);
 
-	Matrix_Add((float*)I, (float*)nnt, 3, (float*)R);
-	Matrix_Add((float*)R, (float*)Skew_Sym, 3, (float*)R);
+	Matrix_Add((_T*)I, (_T*)nnt, 3, (_T*)R);
+	Matrix_Add((_T*)R, (_T*)Skew_Sym, 3, (_T*)R);
 
 	return;
 }
-
 
 void Quaternion_Add(float Q_1[], float Q_2[], float Q_3[])
 {
@@ -3019,7 +3007,7 @@ void Quaternion_Inv(float Q_1[], float Q_2[])
 }
 void Quaternion_2_Rotation_Matrix(float Q[4], float R[])
 {//四元数转换为旋转矩阵， R= vv' + s^2*I + 2sv^ + (v^)^2
-	float fValue, M_2[3][3], M_1[3][3] = { 1,0,0,0,1,0,0,0,1 };	//临时矩阵	
+	float fValue, M_2[3][3], M_1[3][3] = { {1,0,0},{0,1,0},{0,0,1} };	//临时矩阵	
 	//先算个vv' 直接放R即可
 	Matrix_Multiply(&Q[1], 3, 1, &Q[1], 3, R);
 
@@ -3052,45 +3040,55 @@ void Quaternion_2_Rotation_Vector(float Q[4], float V[4])
 	V[2] = Q[3] / fSin_Theta_Div_2;
 	return;
 }
-void Gen_Homo_Matrix(float R[], float t[], float s, float M[])
-{//构成一个SIM3矩阵，由旋转，平移，缩放构成
-	int y, x;
-	for (y = 0; y < 3; y++)
-		for (x = 0; x < 3; x++)
-			M[y * 4 + x] = s * R[y * 3 + x];
-	M[15] = 1;
 
-	M[3] = t[0];
-	M[7] = t[1];
-	M[11] = t[2];
-	M[12] = M[13] = M[14] = 0;
-	return;
-}
-void Gen_Homo_Matrix(float R[], float t[], float M[])
-{//用旋转坐标与位移坐标构成一个齐次变换矩阵，此处由旋转与平移构成
-	int y, x;
-	for (y = 0; y < 3; y++)
-		for (x = 0; x < 3; x++)
-			M[y * 4 + x] = R[y * 3 + x];
-	M[15] = 1;
+//void Gen_Homo_Matrix(float R[], float t[], float s, float M[])
+//{//构成一个SIM3矩阵，由旋转，平移，缩放构成
+//	int y, x;
+//	for (y = 0; y < 3; y++)
+//		for (x = 0; x < 3; x++)
+//			M[y * 4 + x] = s * R[y * 3 + x];
+//	M[15] = 1;
+//
+//	M[3] = t[0];
+//	M[7] = t[1];
+//	M[11] = t[2];
+//	M[12] = M[13] = M[14] = 0;
+//	return;
+//}
 
-	////此处将最后一行设值,有点问题
-	//M[3] = M[7] = M[11] = 0;
-	//M[12] = T[0];
-	//M[13] = T[1];
-	//M[14] = T[2];
+template<typename _T>void Gen_Homo_Matrix(_T R[], _T t[], _T c2w[])
+{//用旋转坐标与位移坐标构成一个4x4 齐次变换矩阵，此处由旋转与平移构成
+//这个矩阵的物理意义应该是先旋转后平移，所以，此处得到的是一个c2w矩阵，
+//要想得到w2c矩阵，求c2w的逆矩阵即可
+	int y, x;
+	_T M1[4 * 4];
+	if (R)
+	{
+		for (y = 0; y < 3; y++)
+			for (x = 0; x < 3; x++)
+				M1[y * 4 + x] = R[y * 3 + x];
+	}else
+	{
+		_T Rotation_Vector[4] = { 0,0,1,0 };
+		_T R1[3 * 3];
+		Rotation_Vector_2_Matrix(Rotation_Vector, R1);
+		for (y = 0; y < 3; y++)
+			for (x = 0; x < 3; x++)
+				M1[y * 4 + x] = R1[y * 3 + x];
+	}	
+	M1[15] = 1;
 
 	if (t)
 	{
-		M[3] = t[0];
-		M[7] = t[1];
-		M[11] = t[2];
+		M1[3] = t[0];
+		M1[7] = t[1];
+		M1[11] = t[2];
 	}
 	else
-		M[3] = M[7] = M[11] = 0;
+		M1[3] = M1[7] = M1[11] = 0;
 
-	M[12] = M[13] = M[14] = 0;
-
+	M1[12] = M1[13] = M1[14] = 0;
+	memcpy(c2w, M1, 4 * 4 * sizeof(_T));
 	return;
 }
 void Roataion_Vector_2_Angle_Axis(float V_4[4], float V_3[3])
@@ -3109,7 +3107,7 @@ void Roataion_Vector_2_Angle_Axis(float V_4[4], float V_3[3])
 void Ksi_Get_J(float Rotation_Vector[4], float J[])
 {//给定的旋转向量，求出J矩阵
 	//再求位移t,先求出个J，a为旋转向量的转轴
-	float fValue, Temp_1[3][3], I[3][3] = { 1,0,0,0,1,0,0,0,1 };
+	float fValue, Temp_1[3][3], I[3][3] = { {1,0,0},{0,1,0},{0,0,1} };
 	int i;
 	//先求J第一部分 (sin(theta)/theta)*I
 	fValue = sin(Rotation_Vector[3]) / Rotation_Vector[3];
@@ -3162,7 +3160,7 @@ void se3_2_SE3(float Ksi[6], float T[])
 	Normalize(&Ksi[3], 3, Rotation_Vector);
 	Rotation_Vector[3] = fGet_Mod(&Ksi[3], 3);	//此处已经将旋转向量化为4维表示
 
-	Rotation_Vector_2_Matrix_3D(Rotation_Vector, (float*)R);
+	Rotation_Vector_2_Matrix(Rotation_Vector, (float*)R);
 	//Disp((float*)R, 3, 3,"R");
 
 	float J[3][3], J_Rho[3];
@@ -3263,7 +3261,7 @@ void Solve_Linear_Gauss_Seidel(float A[], float B[], int iOrder, float X[], int*
 	float* J = pBuffer;
 	float* C = J + iOrder * iOrder;
 	float* Xk_1 = C + iOrder;
-	float* Temp_1 = Xk_1 + iOrder;
+	//float* Temp_1 = Xk_1 + iOrder;
 	float fValue;
 
 	*pbResult = 0;
@@ -3347,7 +3345,7 @@ END:
 }
 void SIM3_Get_Js(float s, float sigma, float theta, float Phi[], float* Js)
 {
-	float Temp_1[3][3], Temp_2[3][3], I[3][3] = { 1,0,0,0,1,0,0,0,1 };
+	float Temp_1[3][3], Temp_2[3][3], I[3][3] = { {1,0,0},{0,1,0},{0,0,1} };
 	float fValue;
 	float hat[3][3];
 	float a;	//=s*sin(theta)
@@ -3469,9 +3467,9 @@ void Gen_Rotation_Matrix(float Axis[3], float fTheta, float T[])
 	T[9] = fPart_1 + fPart_2;
 	return;
 }
-void Gen_Translation_Matrix(float Offset[3], float T[])
-{//表示一次位移
-	memset(T, 0, 4 * 4 * sizeof(float));
+template<typename _T>void Gen_Translation_Matrix(_T Offset[3], _T T[])
+{//表示一次位移，生成一个矩阵，此矩阵可以是齐次或者非此次
+	memset(T, 0, 4 * 4 * sizeof(_T));
 	T[0] = T[5] = T[10] = T[15] = 1;
 	T[3] = Offset[0];
 	T[7] = Offset[1];
@@ -3503,6 +3501,8 @@ void Rect_2_Polor_Coordinate(float x, float y, float z, float* prho, float* pthe
 	*prho = sqrt(x * x + y * y + z * z);
 	*pphi = acos(z / (*prho));
 	float theta = atan(y / x);
+	if (ptheta)
+		*ptheta = theta;	
 	return;
 }
 void Screen_2_Coordinate(int x_Screen, int y_Screen, float* px, float* py, int iWidth, int iHeight)
@@ -3546,7 +3546,7 @@ template<typename _T>void Elementary_Row_Operation_1(_T A[], int m, int n, _T A_
 	}Q_Item;
 
 	int y, x, x_1, i, iRank = 0, iPos, iMax;
-	Q_Item *Q, iTemp;
+	Q_Item *Q=NULL, iTemp;
 	_T* pBasic_Solution = NULL, * pSpecial_Solution = NULL;
 	short* pMap_Row_2_x_Index = NULL, * pMap_x_2_Basic_Solution_Index = NULL;
 	int j, iRank_Basic_Solution;
@@ -3714,8 +3714,9 @@ END:
 	if (pMap_x_2_Basic_Solution_Index)
 		Free(&oMatrix_Mem, pMap_x_2_Basic_Solution_Index);
 	if (pSpecial_Solution)
-		Free(&oMatrix_Mem, &pSpecial_Solution);
-
+		Free(&oMatrix_Mem, pSpecial_Solution);
+	if (Q)
+		Free(&oMatrix_Mem, Q);
 	return;
 }
 void Elementary_Row_Operation(float A[], int m, int n, float A_1[], int* piRank, float** ppBasic_Solution, float** ppSpecial_Solution)
@@ -4081,7 +4082,7 @@ int bIs_Linearly_Dependent(float A[], int m, int n)
 	if (m > n)
 		return 1;	//行数大于维数，必然线性相关
 
-	float* B = (float*)malloc(m * sizeof(float));
+	//float* B = (float*)malloc(m * sizeof(float));
 	float* A1 = (float*)malloc(m * n * sizeof(float));
 
 	//memset(B, 0, m * sizeof(float));
@@ -4119,8 +4120,8 @@ void Perspective_Camera(float Pos_Source[3], float h[3], float Pos_Dest[3])
 {	//Pos_Source: 相机位置，fCamera_z，相机自己在z轴上的位置，为正
 	//float z = h[2] + Pos_Source[2];
 	//float H = h[2] / (h[2] - z);
-	float p = 1.f / (h[2] * 2),
-		q = 1.f / (h[2]),
+	float /*p = 1.f / (h[2] * 2),*/
+		/*q = 1.f / (h[2]),*/
 		r = 1.f / (-h[2]);
 	/*float p = 0.00215193816,
 		r = -0.00186189834;*/
@@ -4147,7 +4148,7 @@ float fGet_Theta(float v0[], float v1[], float Axis[], int n)
 	float Axis_1[4] = { Axis[0],Axis[1],Axis[2],theta };
 	Normalize(v0, 3, v0_1);
 	Normalize(v1, 3, v1_1);
-	Rotation_Vector_2_Matrix_3D(Axis_1, (float*)R);
+	Rotation_Vector_2_Matrix(Axis_1, (float*)R);
 	Matrix_Multiply((float*)R, 3, 3, v0_1, 1, Temp);
 	if (abs(Temp[0] - v1_1[0]) > eps || abs(Temp[1] - v1_1[1]) > eps || abs(Temp[2] - v1_1[2]) > eps)
 		theta = -theta;
@@ -4158,16 +4159,16 @@ float fGet_Theta(float v0[], float v1[], float Axis[], int n)
 
 	return theta;
 }
-void Gen_Cube(float Cube[8][4], float fScale, float x_Center, float y_Center, float z_Center)
-{//先下层后上层
-	float Cube_1[8][4] = { {-1,-1,-1,1},	//左下后
-						{1,-1,-1,1},	//右下后
-						{1,-1,1,1},		//右下前
-						{-1,-1,1,1},	//左下前
-						{-1,1,-1,1},	//左上后
-						{1,1,-1,1},		//右上后
-						{1,1,1,1},		//右上前
-						{-1,1,1,1} };	//左上前
+template<typename _T> void Gen_Cube(_T Cube[][4], float fScale, _T x_Center, _T y_Center, _T z_Center)
+{//先下后上，先后再前，从现在开始，面向屏幕方向为正，和以前不一样
+	_T Cube_1[8][4] = { {-1,-1,1,1},	//左下后
+						{1,-1,1,1},	//右下后
+						{1,-1,-1,1},		//右下前
+						{-1,-1,-1,1},	//左下前
+						{-1,1,1,1},	//左上后
+						{1,1,1,1},		//右上后
+						{1,1,-1,1},		//右上前
+						{-1,1,-1,1} };	//左上前
 	int i;
 	for (i = 0; i < 8; i++)
 	{
@@ -4248,7 +4249,8 @@ void Get_Poly_Derivative(float Coeff[], int iCoeff_Count, float Der_Coeff[])
 		Der_Coeff[i - 1] = i * Coeff[i];
 }
 void Solve_Poly(float Coeff[], int iCoeff_Count, Complex_f Root[], int* piRoot_Count)
-{//iCount：系数的项数。如果项数为n, 则最高次为n-1
+{//此处尝试解的是一元多项式构成的方程
+//iCount：系数的项数。如果项数为n, 则最高次为n-1
 //为了和下标完美匹配，Coeff里的次数由小到大排
 	Complex_f* pRoot_1 = (Complex_f*)malloc((iCoeff_Count - 1) * sizeof(Complex_f));
 	memset(pRoot_1, 0, (iCoeff_Count - 1) * sizeof(Complex_f));
@@ -4271,8 +4273,7 @@ void Solve_Poly(float Coeff[], int iCoeff_Count, Complex_f Root[], int* piRoot_C
 			fDelta = sqrt(-fDelta);
 			pRoot_1[0] = { -b / (2.f * a), fDelta / (2.f * a) };
 			pRoot_1[1] = { -b / (2.f * a), -fDelta / (2.f * a) };
-		}
-		else
+		}else
 		{
 			if (piRoot_Count)
 				*piRoot_Count = 1;
@@ -4315,44 +4316,44 @@ void Solve_Poly(float Coeff[], int iCoeff_Count, Complex_f Root[], int* piRoot_C
 	return;
 }
 
-void Decompose_E(float E[], float R_1[], float R_2[], float t_1[], float t_2[])
-{//将一个E 分解为 一个两个 R[3x3], 两个t[3]
-	float R_z_t_1[3 * 3],		//Rz(pi/2)		后续做成常量
-		R_z_t_2[3 * 3],		//Rz(-pi/2)
-		U[3 * 3], Vt[3 * 3], Ut[3 * 3],
-		S[3], Temp[3 * 3];
-	//int iResult;
-	//(E, 3, 3, U, S, Vt);
-	Matrix_Transpose(U, 3, 3, Ut);
-
-	float V[] = { 0,0,1,PI / 2.f };
-	float Sigma[3 * 3] = { S[0],0,0,
-						0,S[1],0,
-						0,0,S[2] };
-	Rotation_Vector_2_Matrix_3D(V, R_z_t_1);
-	V[3] = -V[3];
-	Rotation_Vector_2_Matrix_3D(V, R_z_t_2);
-
-	Matrix_Multiply(U, 3, 3, Sigma, 3, Temp);
-	Matrix_Multiply(Temp, 3, 3, Vt, 3, Temp);
-	/*Disp(Temp, 3, 3,"Temp");
-	Disp(U, 3, 3, "U");
-	Disp(S, 3, 1, "S");
-	Disp(Vt, 3, 3, "Vt");*/
-
-	//svd_3(E, 3, 3, U, S, Vt);
-	Disp(U, 3, 3, "U");
-	//Disp(Sigma, 3, 3, "Sigma");
-	Disp(Vt, 3, 3, "Vt");
-	Matrix_Multiply(U, 3, 3, Sigma, 3, Temp);
-	Matrix_Multiply(Temp, 3, 3, Vt, 3, Temp);
-	Disp(Temp, 3, 3, "Temp");
-
-	printf("%d", bIs_Orthogonal(U, 3));
-	printf("%d", bIs_Orthogonal(Vt, 3));
-
-	return;
-}
+//void Decompose_E(float E[], float R_1[], float R_2[], float t_1[], float t_2[])
+//{//将一个E 分解为 一个两个 R[3x3], 两个t[3]
+//	float R_z_t_1[3 * 3],		//Rz(pi/2)		后续做成常量
+//		R_z_t_2[3 * 3],		//Rz(-pi/2)
+//		U[3 * 3], Vt[3 * 3], Ut[3 * 3],
+//		S[3], Temp[3 * 3];
+//	//int iResult;
+//	//(E, 3, 3, U, S, Vt);
+//	Matrix_Transpose(U, 3, 3, Ut);
+//
+//	float V[] = { 0,0,1,PI / 2.f };
+//	float Sigma[3 * 3] = { S[0],0,0,
+//						0,S[1],0,
+//						0,0,S[2] };
+//	Rotation_Vector_2_Matrix_3D(V, R_z_t_1);
+//	V[3] = -V[3];
+//	Rotation_Vector_2_Matrix_3D(V, R_z_t_2);
+//
+//	Matrix_Multiply(U, 3, 3, Sigma, 3, Temp);
+//	Matrix_Multiply(Temp, 3, 3, Vt, 3, Temp);
+//	/*Disp(Temp, 3, 3,"Temp");
+//	Disp(U, 3, 3, "U");
+//	Disp(S, 3, 1, "S");
+//	Disp(Vt, 3, 3, "Vt");*/
+//
+//	//svd_3(E, 3, 3, U, S, Vt);
+//	Disp(U, 3, 3, "U");
+//	//Disp(Sigma, 3, 3, "Sigma");
+//	Disp(Vt, 3, 3, "Vt");
+//	Matrix_Multiply(U, 3, 3, Sigma, 3, Temp);
+//	Matrix_Multiply(Temp, 3, 3, Vt, 3, Temp);
+//	Disp(Temp, 3, 3, "Temp");
+//
+//	printf("%d", bIs_Orthogonal(U, 3));
+//	printf("%d", bIs_Orthogonal(Vt, 3));
+//
+//	return;
+//}
 
 void Init_Env()
 {//初始化个环境，分配些内存供一切函数临时使用
@@ -4371,7 +4372,7 @@ void Free_Env()
 {
 	if (oMatrix_Mem.m_pBuffer)
 		Free_Mem_Mgr(&oMatrix_Mem);
-	oMatrix_Mem = { 0 };
+	oMatrix_Mem = {};
 }
 template<typename _T> void _svd_3(_T At[], int m, int n, int n1, _T Sigma[], _T Vt[], int* pbSuccess, double eps)
 {
@@ -4400,11 +4401,10 @@ template<typename _T> void _svd_3(_T At[], int m, int n, int n1, _T Sigma[], _T 
 			Vt[i * vstep + i] = 1;
 		}
 	}
-
+	//Disp(Vt, 3, vstep, "Vt");
 	for (iter = 0; iter < max_iter; iter++)
 	{
 		int changed = false;
-
 		for (i = 0; i < n - 1; i++)
 		{
 			for (j = i + 1; j < n; j++)
@@ -4413,7 +4413,7 @@ template<typename _T> void _svd_3(_T At[], int m, int n, int n1, _T Sigma[], _T 
 				_T a = Sigma[i], p = 0, b = Sigma[j];
 
 				for (k = 0; k < m; k++)
-					p += (double)Ai[k] * Aj[k];
+					p += (_T)Ai[k] * Aj[k];
 
 				if (std::abs(p) <= eps * std::sqrt((double)a * b))
 					continue;
@@ -4455,6 +4455,7 @@ template<typename _T> void _svd_3(_T At[], int m, int n, int n1, _T Sigma[], _T 
 						_T t1 = -s * Vi[k] + c * Vj[k];
 						Vi[k] = t0; Vj[k] = t1;
 					}
+					//printf("iter:%d i:%d j:%d Vt[0]:%f\n", iter, i, j, Vt[0]);
 				}
 			}
 		}
@@ -4495,7 +4496,7 @@ template<typename _T> void _svd_3(_T At[], int m, int n, int n1, _T Sigma[], _T 
 	}
 	if (!Vt)
 		return;
-	//Disp(Vt, m, vstep);
+	//Disp(Vt, m, vstep,"Vt");
 
 	unsigned long long iRandom_State = 0x12345678;
 	for (i = 0; i < n1; i++)
@@ -4548,191 +4549,6 @@ template<typename _T> void _svd_3(_T At[], int m, int n, int n1, _T Sigma[], _T 
 	}
 }
 
-//template<typename _T> void _svd_4(_T A[], int h, int w, int n1,_T Sigma[], _T Vt[], int* pbSuccess, double eps)
-//{//尝试按opencv写一个
-////return pbSuccess: 1：表示收敛； 0：表示不收敛
-//	int i, j, k, iter, max_iter = 30;
-//	_T sd;
-//	_T s, c;
-//	int iMax_Size = Max(h, w);
-//	memset(Sigma, 0, iMax_Size * sizeof(_T));
-//	memset(Vt, 0, h * w * sizeof(_T));
-//	
-//	for (i = 0; i < h; i++)
-//	{
-//		/*if (i == 5)
-//			printf("here");*/
-//		for (sd = 0, j = 0; j < w; j++)
-//		{
-//			_T t = A[i * w + j];
-//			sd += t * t;	//求个平方和？
-//		}
-//		Sigma[i] = sd;		//Sigma[i]就是一行的平方和
-//		if (Vt)
-//		{
-//			for (j = 0; j < h; j++)
-//				Vt[i * w + j] = 0;
-//			Vt[i * w + i] = 1;		//此处给Vt一个单位矩阵
-//		}
-//	}
-//	_T a, p, b;
-//	if (pbSuccess)
-//		*pbSuccess = 0;	//默认不成功
-//	for (iter = 0; iter < max_iter; iter++)
-//	{
-//		int changed = 0;
-//		for (i = 0; i < h - 1; i++)
-//		{
-//			for (j = i + 1; j < h; j++)
-//			{
-//				_T* Ai = A + i * w, * Aj = A + j * w;	//去第i行和第j行？
-//				a = Sigma[i], p = 0, b = Sigma[j];
-//				//printf("i:%d j:%d %f\n",i,j, Sigma[5]);
-//				for (k = 0; k < w; k++)
-//					p += (_T)Ai[k] * Aj[k];
-//				//float fTemp = eps * sqrt((_T)a * b);
-//				if (Abs(p) <= eps * sqrt((_T)a * b))
-//					continue;
-//				//printf("%f\n", abs(p));
-//				p *= 2;
-//				_T beta = a - b,
-//					gamma = (_T)hypot((_T)p, beta);	//勾股定理算斜边，毫无营养
-//			
-//				if (beta < 0)
-//				{
-//					_T delta = (gamma - beta) * 0.5f;
-//					s = (_T)sqrt(delta / gamma);
-//					c = (_T)(p / (gamma * s * 2));
-//				}
-//				else
-//				{
-//					c = (_T)sqrt((gamma + beta) / (gamma * 2));
-//					s = (_T)(p / (gamma * c * 2));
-//				}
-//				a = b = 0;
-//				for (k = 0; k < w; k++)
-//				{
-//					_T t0 = c * Ai[k] + s * Aj[k];
-//					_T t1 = -s * Ai[k] + c * Aj[k];
-//					Ai[k] = t0; Aj[k] = t1;
-//					a += (_T)t0 * t0; b += (_T)t1 * t1;
-//				}
-//				Sigma[i] = a; Sigma[j] = b;
-//
-//				changed = 1;
-//				if (Vt)
-//				{
-//					_T* Vi = Vt + i * w, * Vj = Vt + j * w;
-//					_T t0, t1;
-//					k = 0;
-//					for (; k < w; k++)
-//					{
-//						t0 = c * Vi[k] + s * Vj[k];
-//						t1 = -s * Vi[k] + c * Vj[k];
-//						Vi[k] = t0; Vj[k] = t1;
-//					}
-//					//printf("i:%d j:%d Vt[0]:%f\n", i, j, Vt[1*w]);
-//				}
-//			}
-//		}
-//		if (!changed)
-//		{
-//			if (pbSuccess)
-//				*pbSuccess = 1;
-//			break;
-//		}
-//	}
-//
-//	for (i = 0; i < h; i++)
-//	{
-//		for (k = 0, sd = 0; k < w; k++)
-//		{
-//			_T t = A[i * w + k];
-//			sd += (_T)t * t;
-//		}
-//		Sigma[i] = (_T)sqrt(sd);
-//	}
-//
-//	for (i = 0; i < h - 1; i++)
-//	{
-//		j = i;
-//		for (k = i + 1; k < h; k++)
-//		{
-//			if (Sigma[j] < Sigma[k])
-//				j = k;
-//		}
-//		if (i != j)
-//		{
-//			//std::swap(Sigma[i], Sigma[j]);
-//			_T fTemp = Sigma[i];
-//			Sigma[i] = Sigma[j];
-//			Sigma[j] = fTemp;
-//
-//			if (Vt)
-//			{
-//				for (k = 0; k < w; k++)
-//					std::swap(A[i * w + k], A[j * w + k]);
-//
-//				for (k = 0; k < h; k++)
-//					std::swap(Vt[i * w + k], Vt[j * w + k]);
-//			}
-//		}
-//	}
-//	/*for (int i = 0; i < 10; i++)
-//	{
-//		for (int j = 0; j < 10; j++)
-//			printf("%f ", Vt[i * h + j]);
-//		printf("\n");
-//	}*/
-//	unsigned long long iRandom_State = 0x12345678;
-//	for (i = 0; i < n1; i++)
-//	{
-//		sd = i < h ? Sigma[i] : 0;
-//
-//		for (int ii = 0; ii < 100 && sd <= DBL_MIN; ii++)
-//		{
-//			_T val0 = (_T)(1. / w);
-//			for (k = 0; k < w; k++)
-//			{
-//				iGet_Random_No_cv(&iRandom_State);
-//				_T val = (iRandom_State & 256) != 0 ? val0 : -val0;
-//				A[i * w + k] = val;
-//			}
-//			for (iter = 0; iter < 2; iter++)
-//			{
-//				for (j = 0; j < i; j++)
-//				{
-//					sd = 0;
-//					for (k = 0; k < w; k++)
-//						sd += A[i * w + k] * A[j * w + k];
-//					_T asum = 0;
-//					for (k = 0; k < w; k++)
-//					{
-//						_T t = (_T)(A[i * w + k] - sd * A[j * w + k]);
-//						A[i * w + k] = t;
-//						asum += Abs(t);
-//					}
-//					asum = asum > eps * 100 ? 1 / asum : 0;
-//					for (k = 0; k < w; k++)
-//						A[i * w + k] *= asum;
-//				}
-//			}
-//			sd = 0;
-//			for (k = 0; k < w; k++)
-//			{
-//				_T t = A[i * w + k];
-//				sd += (_T)t * t;
-//			}
-//			sd = (_T)sqrt(sd);
-//		}
-//		s = (_T)(sd > DBL_MIN ? 1 / sd : 0.);
-//		for (k = 0; k < w; k++)
-//			A[i * w + k] *= s;
-//	}
-//	//Disp(A, h, w, "A");
-//	return;
-//}
-
 template<typename _T> void svd_3(_T *A, SVD_Info oSVD, int* pbSuccess, double eps)
 {/*再写一次SVD，几个要点：
 1，所有的矩阵都通过转置统一为		nnnnn	即高比宽大的形状
@@ -4748,18 +4564,20 @@ template<typename _T> void svd_3(_T *A, SVD_Info oSVD, int* pbSuccess, double ep
 5,S，暂时只出到一个min(m,n)
 */
 	_T* A_1, * Vt_1 = NULL, * Sigma;
-	int x, y, bHor,iResult=1;
+	int bHor;
 	int h = oSVD.h_A, w = oSVD.w_A;
 	int iTemp,iMax_Size = Max(h, w), iMin_Size = Min(h, w);
 	
 	//这个A由于要参与到后面的真正计算中，还没有功夫考虑它的内存安排
-	A_1 = (_T*)pMalloc(&oMatrix_Mem, iMax_Size * iMax_Size * sizeof(_T));
+	//A_1 = (_T*)pMalloc(&oMatrix_Mem, iMax_Size * iMax_Size * sizeof(_T));
+	A_1 = (_T*)pMalloc(&oMatrix_Mem, iMax_Size * iMax_Size*2 * sizeof(_T));
 	Sigma = (_T*)pMalloc(&oMatrix_Mem, iMax_Size * sizeof(_T));
 	if (!A_1 || !Sigma)
 	{
-		iResult = 0;
+		oSVD.m_bSuccess = 0;
 		goto END;
-	}
+	}else
+		oSVD.m_bSuccess = 1;
 	memset(A_1, 0, iMax_Size * iMax_Size * sizeof(_T));
 	if (h < w)
 	{//要转置成为高比宽大
@@ -4778,11 +4596,13 @@ template<typename _T> void svd_3(_T *A, SVD_Info oSVD, int* pbSuccess, double ep
 	Vt_1 = (_T*)pMalloc(&oMatrix_Mem, w*(w+1) * sizeof(_T));
 	memset(Vt_1, 0, w * (w + 1) * sizeof(_T));
 	//U另做安排，可能直接写入U中
-	_svd_3(A_1, h, w, w+1, Sigma, Vt_1, &iResult, eps);
+	//Disp(A, 3, 3, "A");
+	//Disp(A_1, 3, 3, "A_1");
+	_svd_3(A_1, h, w, w+1, Sigma, Vt_1, &oSVD.m_bSuccess, eps);
 	//Disp(A_1, h, h, "U");
 	//Disp(Sigma,1,w,"S");
 	//Disp(Vt_1, w, w, "Vt");
-	//Disp(&A_1[9*2000], 1, oInfo.h_A);
+	//Disp(&A_1[2*3], 1, oSVD.h_A);
 	memcpy(oSVD.S, Sigma, iMin_Size * sizeof(_T));	
 	if (!bHor)
 	{//对A_1转置就是U，然而，此时U只取到形如	mmmm
@@ -4802,6 +4622,8 @@ template<typename _T> void svd_3(_T *A, SVD_Info oSVD, int* pbSuccess, double ep
 		memcpy(oSVD.Vt, A_1, (w + 1) * h * sizeof(_T));
 
 	}
+	if (pbSuccess)
+		*pbSuccess = oSVD.m_bSuccess;
 END:
 	if (A_1)
 		Free(&oMatrix_Mem, A_1);
@@ -4810,89 +4632,13 @@ END:
 	if (Vt_1)
 		Free(&oMatrix_Mem, Vt_1);
 }
-
-//template<typename _T> void svd_4(_T* A, int h, int w, _T U[], _T S[], _T Vt[], int* pbSuccess, _T eps)
-//{//此处为svd的入口。有需要时做个转置
-//	_T* A_1, * Vt_1=NULL, * Sigma;
-//	int x, y, iFlag;
-//	int iMax_Size = Max(h, w), iMin_Size = Min(h, w);
-//
-//	A_1 = (_T*)pMalloc(&oMatrix_Mem, iMax_Size * iMax_Size * sizeof(_T));
-//	Sigma = (_T*)pMalloc(&oMatrix_Mem, iMax_Size * sizeof(_T));
-//	if (!A_1 || !Sigma)
-//		goto END;
-//	memset(A_1, 0, iMax_Size * iMax_Size * sizeof(_T));
-//	if (h < w)
-//	{
-//		memcpy(A_1, A, h * w * sizeof(_T));
-//		iFlag = 1;
-//		//Malloc_1(oPtr, w * h * sizeof(_T), Vt_1);
-//		Vt_1 = (_T*)pMalloc(&oMatrix_Mem, w * h * sizeof(_T));
-//	}
-//	else
-//	{
-//		Matrix_Transpose(A, h, w, A_1);
-//		int iTemp = h;
-//		h = w;
-//		w = iTemp;
-//		iFlag = 0;
-//		//Vt_1 = (_T*)malloc(h * h * sizeof(_T));
-//		//Malloc_1(oPtr, h * h * sizeof(_T), Vt_1);
-//		Vt_1 = (_T*)pMalloc(&oMatrix_Mem,h * h * sizeof(_T));
-//		//Transpose
-//		/*for (y = 0; y < h; y++)
-//			for (x = 0; x < w; x++)
-//				A_1[x * h + y] = A[y * w + x];*/
-//	}
-//	if (!Vt_1)
-//		goto END;
-//	//出来以后，总是宽大高小，形如
-//	//  **********************
-//	//  **********************
-//	//  **********************
-//	//  **********************
-//
-//	int iResult;
-//	_svd_3(A_1, h, w,w, Sigma, Vt_1, &iResult, eps);
-//	//Disp(A_1, w, w);
-//	if (iFlag)
-//	{//h<w
-//		memcpy(S, Sigma, h * sizeof(_T));
-//		//出来以后，A_1就是U
-//		memcpy(Vt, A_1, w * w * sizeof(_T));
-//		if (U)
-//		{
-//			//将Vt_1转置就是U
-//			for (y = 0; y < h; y++)
-//				for (x = 0; x < h; x++)
-//					U[y * h + x] = Vt_1[x * w + y];
-//		}
-//	}
-//	else
-//	{
-//		memcpy(S, Sigma, h * sizeof(_T));
-//		//对A_1转置就是U
-//		if(U)
-//			for (y = 0; y < w; y++)
-//				for (x = 0; x < w; x++)
-//					U[y * w + x] = A_1[x * w + y];
-//		//Matrix_Transpose(Vt_1, h, w, Vt);
-//		//memcpy(Vt, Vt_1, h*h*sizeof(_T));
-//
-//		//Disp(Vt, m, m);
-//	}
-//	if (pbSuccess)
-//		*pbSuccess = iResult;
-//
-//END:
-//	if(A_1)
-//		Free(&oMatrix_Mem, A_1);
-//	if(Sigma)
-//		Free(&oMatrix_Mem, Sigma);
-//	if(Vt_1)
-//		Free(&oMatrix_Mem, Vt_1);
-//	return;
-//}
+template<typename _T> void Matrix_Multiply(_T* A, int ma, int na, float a,_T *C)
+{//矩阵A乘以一个常数
+	int i, iSize = ma * na;
+	for (i = 0; i < iSize; i++)
+		C[i] = A[i] * a;
+	return;
+}
 
 template<typename _T> void Matrix_Multiply(_T* A, int ma, int na, _T* B, int nb, _T* C)
 {//Amn x Bno = Cmo
@@ -4922,11 +4668,50 @@ template<typename _T> void Matrix_Multiply(_T* A, int ma, int na, _T* B, int nb,
 
 void SB_Matrix()
 {//这就是个傻逼方法，用来欺骗template
+	Vector_Add((double*)NULL, (double*)NULL, 0, (double*)NULL);
+	Vector_Add((float*)NULL, (float*)NULL, 0, (float*)NULL);
+
+	Gen_Translation_Matrix((double*)NULL, (double*)NULL);
+	Gen_Translation_Matrix((float*)NULL, (float*)NULL);
+
+	iGet_Rank((double*)NULL, 0, 0);
+	iGet_Rank((float*)NULL, 0, 0);
+
+	Matrix_Add((double*)NULL, (double*)NULL, 0, (double*)NULL);
+	Matrix_Add((float*)NULL, (float*)NULL, 0, (float*)NULL);
+
+	Rotation_Vector_2_Matrix((double*)NULL, (double*)NULL);
+	Rotation_Vector_2_Matrix((float*)NULL, (float*)NULL);
+
+	Gen_Cube((double(*)[4])NULL,0);
+	Gen_Cube((float(*)[4])NULL, 0);
+
+	Vector_Minus((double*)NULL, (double*)NULL, 0, (double*)NULL);
+	Vector_Minus((float*)NULL, (float*)NULL, 0, (float*)NULL);
+
+	Hat<double>(NULL, NULL);
+	Hat<float>(NULL, NULL);
+
+	Rotation_Vector_2_Quaternion((double*)NULL, (double*)NULL);
+	Rotation_Vector_2_Quaternion((float*)NULL, (float*)NULL);
+
+	Rotation_Matrix_2_Quaternion((double*)NULL, (double*)NULL);
+	Rotation_Matrix_2_Quaternion((float*)NULL, (float*)NULL);
+
+	fDot((double*)NULL, (double*)NULL, 0);
+	fDot((float*)NULL, (float*)NULL, 0);
+
+	Homo_Normalize((double*)NULL, 0, (double*)NULL);
+	Homo_Normalize((float*)NULL, 0, (float*)NULL);
+
 	Get_Inv_Matrix_Row_Op((float*)NULL, (float*)NULL, 0, NULL);
 	Get_Inv_Matrix_Row_Op((double*)NULL, (double*)NULL, 0, NULL);
 
 	Matrix_Multiply((float*)NULL, 0, 0, (float*)NULL, 0, (float*)NULL);
 	Matrix_Multiply((double*)NULL, 0, 0, (double*)NULL, 0, (double*)NULL);
+
+	Matrix_Multiply((float*)NULL, 0, 0, 0.f, (float*)NULL);
+	Matrix_Multiply((double*)NULL, 0, 0, (double)0, (double*)NULL);
 
 	bIs_Orthogonal((float*)NULL, 0);
 	bIs_Orthogonal((double*)NULL, 0);
@@ -4937,12 +4722,32 @@ void SB_Matrix()
 	Test_SVD((double*)NULL, {});
 	Test_SVD((float*)NULL, {});
 
-	SVD_Allocate((double*)NULL, 0, 0, NULL);
-	SVD_Allocate((float*)NULL, 0, 0, NULL);
+	//SVD_Allocate((double*)NULL, 0, 0, NULL);
+	//SVD_Allocate((float*)NULL, 0, 0, NULL);
+
+	SVD_Alloc(0, 0, NULL, (double*)NULL);
+	SVD_Alloc(0, 0, NULL, (float*)NULL);
 
 	Elementary_Row_Operation_1((double*)NULL, 0, 0, (double*)NULL);
 	Elementary_Row_Operation_1((float*)NULL, 0, 0, (float*)NULL);
 
+	fGet_Determinant((double*)NULL, 0);
+	fGet_Determinant((float*)NULL, 0);
+
+	Normalize((double*)NULL, 0, (double*)NULL);
+	Normalize((float*)NULL, 0, (float*)NULL);
+
+	fGet_Mod((double*)NULL, 0);
+	fGet_Mod((float*)NULL, 0);
+
+	Gen_Homo_Matrix((double*)NULL, (double*)NULL, (double*)NULL);
+	Gen_Homo_Matrix((float*)NULL, (float*)NULL, (float*)NULL);
+
+	Rotation_Matrix_2_Vector((double*)NULL, (double*)NULL);
+	Rotation_Matrix_2_Vector((float*)NULL, (float*)NULL);
+
+	Gen_I_Matrix((double*)NULL, 0, 0);
+	Gen_I_Matrix((float*)NULL, 0, 0);
 }
 template<typename _T>void Test_SVD(_T A[], SVD_Info oSVD, int* piResult, double eps)
 {//另一种简化表示，此处验算一下分解结果是否符合预期
@@ -4981,7 +4786,6 @@ template<typename _T>void Test_SVD(_T A[], SVD_Info oSVD, int* piResult, double 
 		Disp(A_1, oSVD.h_A, oSVD.w_A, "A_1");
 		Free(&oMatrix_Mem, US);
 	}
-
 	if (bIs_Orthogonal((_T*)oSVD.U, oSVD.h_Min_U, oSVD.w_Min_U))
 		printf("U 正交\n");
 	else
@@ -5053,7 +4857,35 @@ void Free_SVD(SVD_Info* poInfo)
 	Free(&oMatrix_Mem, poInfo->S);
 	Free(&oMatrix_Mem, poInfo->Vt);
 }
+template<typename _T>void SVD_Alloc(int h, int w, SVD_Info* poInfo,_T *A)
+{//更简接口，打算换成这个
+	_T* U, * S, * Vt;
+	SVD_Info oInfo;
+	oInfo.A = A;
+	oInfo.h_A = h;
+	oInfo.w_A = w;
+	if (h >= w)
+	{//标准形
+		U = (_T*)pMalloc(&oMatrix_Mem, w * h * sizeof(_T));
+		oInfo.h_Min_U = h;
+		oInfo.w_Min_U = w;
 
+		Vt = (_T*)pMalloc(&oMatrix_Mem, w * w * sizeof(_T));
+		oInfo.h_Min_Vt = oInfo.w_Min_Vt = w;
+	}else
+	{//
+		U = (_T*)pMalloc(&oMatrix_Mem, h * h * sizeof(_T));
+		oInfo.h_Min_U = oInfo.w_Min_U = h;
+		Vt = (_T*)pMalloc(&oMatrix_Mem, (h + 1) * w * sizeof(_T));
+		oInfo.h_Min_Vt = h + 1;
+		oInfo.w_Min_Vt = w;
+	}
+	oInfo.U = U;
+	oInfo.Vt = Vt;
+	S = (_T*)pMalloc(&oMatrix_Mem, oInfo.w_Min_S = min(h, w));
+	oInfo.S = S;
+	*poInfo = oInfo;
+}
 template<typename _T>void SVD_Allocate(_T* A, int h, int w, SVD_Info* poInfo)
 {
 	_T* U, * S, * Vt;
@@ -5083,4 +4915,184 @@ template<typename _T>void SVD_Allocate(_T* A, int h, int w, SVD_Info* poInfo)
 	S = (_T*)pMalloc(&oMatrix_Mem, oInfo.w_Min_S = min(h, w));
 	oInfo.S = S;
 	*poInfo = oInfo;
+}
+template<typename _T>void Homo_Normalize(_T V0[], int n, _T V1[])
+{//homogeneous normalization, 其实就是归一化为齐次坐标，屁营养也美哟iiu
+	_T fCoeff = V0[n - 1];
+	for (int i = 0; i < n - 1; i++)
+		V1[i] = V0[i] / fCoeff;
+	return;
+}
+template<typename _T>void Gen_I_Matrix(_T M[], int h, int w)
+{//生成一个类似单位矩阵的矩阵，对角线为1
+	int iMin = Min(h, w);
+	memset(M, 0, h * w * sizeof(_T));
+	for (int i = 0; i < iMin; i++)
+		M[i* w + i] = 1;
+	return;
+}
+
+void Free_Polynormial(Polynormial* poPoly)
+{//释放多项式所占内存
+	if (poPoly)
+	{
+		if (poPoly->m_pCoeff)
+			Free(&oMatrix_Mem, poPoly->m_pCoeff);
+		if (poPoly->m_pTerm)
+			Free(&oMatrix_Mem, poPoly->m_pTerm);
+		*poPoly = {};
+	}
+}
+void Copy_Polynormial(Polynormial* poSource, Polynormial* poDest)
+{
+	poDest->m_iElem_Count = poSource->m_iElem_Count;
+	poDest->m_iMax_Term_Count = poSource->m_iMax_Term_Count;
+	poDest->m_iTerm_Count = poSource->m_iTerm_Count;
+	memcpy(poDest->m_pCoeff,poSource->m_pCoeff, poDest->m_iTerm_Count * sizeof(float));
+	memcpy(poDest->m_pTerm, poSource->m_pTerm, poDest->m_iTerm_Count * poDest->m_iElem_Count * sizeof(unsigned char));
+	return;
+}
+void Init_Polynormial(Polynormial* poPoly, int iElem_Count, int iMax_Term_Count)
+{//初始化一个多项式。iElem_Count: 元数	iMax_Term_Count:最多有多少项
+	if (!poPoly)
+		return;
+	Polynormial oPoly = {};
+	oPoly.m_iMax_Term_Count = iMax_Term_Count;
+	oPoly.m_iElem_Count = iElem_Count;
+	oPoly.m_iTerm_Count = 0;
+	oPoly.m_pCoeff = (float*)pMalloc(&oMatrix_Mem, iMax_Term_Count * sizeof(float));
+	oPoly.m_pTerm = (unsigned char*)pMalloc(&oMatrix_Mem, iMax_Term_Count * oPoly.m_iElem_Count* sizeof(unsigned char));
+	*poPoly = oPoly;
+	return;
+}
+unsigned char *pGet_Term(Polynormial* poPoly, int iTerm)
+{//取第几个多项式
+	return &poPoly->m_pTerm[iTerm * poPoly->m_iElem_Count * sizeof(unsigned char)];
+}
+
+void Add_Poly_Term(Polynormial* poPoly,float fCoeff,int first, ...)
+{
+	if (!poPoly)
+		return;
+	
+	Polynormial oPoly = *poPoly;
+	unsigned char* pCur_Term;
+	unsigned char Input[64];
+	int i, j;
+
+	//先吸收了所有的变量的幂
+	va_list arg_list;
+	va_start(arg_list, first);
+	Input[0] = first;
+	for (int i = 1; i < oPoly.m_iElem_Count; i++)
+		Input[i] = va_arg(arg_list, int);
+
+	//首先遍历一次查找同类项进行合并
+	for (i = 0; i < oPoly.m_iTerm_Count; i++)
+	{
+		pCur_Term = pGet_Term(&oPoly, i);
+		for (j = 0; j < oPoly.m_iElem_Count; j++)
+			if (pCur_Term[j] != Input[j])
+				break;
+		if (j == oPoly.m_iElem_Count)
+		{
+			oPoly.m_pCoeff[i] += fCoeff;
+			return;
+		}	
+	}
+
+	if (oPoly.m_iTerm_Count == oPoly.m_iMax_Term_Count)
+	{
+		printf("Exceeds max term count:%d\n", oPoly.m_iMax_Term_Count);
+		return;
+	}
+	pCur_Term = pGet_Term(&oPoly, oPoly.m_iTerm_Count);
+	for (i = 0; i < oPoly.m_iElem_Count; i++)
+		pCur_Term[i] = Input[i];
+
+	//可能还得排个序
+	oPoly.m_pCoeff[oPoly.m_iTerm_Count] = fCoeff;
+	oPoly.m_iTerm_Count++;
+	*poPoly = oPoly;
+	return;
+}
+void Disp(Polynormial oPoly, int iElem_No)
+{//显示多项式. 如果iElem_No=-1， 则显示全部
+	if (iElem_No<0)
+	{
+		printf("此乃%d元多项式\n", oPoly.m_iElem_Count);
+		for (int i = 0; i < oPoly.m_iTerm_Count; i++)
+		{
+			Disp(oPoly, i);
+			if(i<oPoly.m_iTerm_Count-1)
+				printf(" + ");
+			printf("\n");
+		}
+	}else
+	{
+		unsigned char* pCur_Term = pGet_Term(&oPoly, iElem_No);
+		if (oPoly.m_pCoeff[iElem_No] != 1.f)
+		{
+			if (round(oPoly.m_pCoeff[iElem_No]) == oPoly.m_pCoeff[iElem_No])
+				printf("(%d)", (int)oPoly.m_pCoeff[iElem_No]);
+			else
+				printf("(%f)", oPoly.m_pCoeff[iElem_No]);
+		}
+			
+		for (int i = 0; i < oPoly.m_iElem_Count; i++)
+		{
+			if (pCur_Term[i])
+				if(pCur_Term[i]>1)
+					printf("x%d^%d ", i, pCur_Term[i]);
+				else
+					printf("x%d ", i);
+		}			
+	}
+}
+
+void Get_Derivation(Polynormial *poSource,int iElem,Polynormial *poDest)
+{//多项式求导。如果是一元则求其导数，如果是多元则求其偏导
+//iElem： 表示对那个变量进行求导
+	Polynormial oPoly = *poSource;
+	int i;
+	unsigned char* pCur_Term;
+	Init_Polynormial(&oPoly, poSource->m_iElem_Count, poSource->m_iMax_Term_Count);
+	Copy_Polynormial(poSource, &oPoly);
+
+	for (i = 0; i < oPoly.m_iTerm_Count; )
+	{
+		pCur_Term = pGet_Term(&oPoly, i);
+		if (pCur_Term[iElem] != 0)
+		{
+			oPoly.m_pCoeff[i] *= pCur_Term[iElem];
+			pCur_Term[iElem]--;
+			i++;
+		}else
+		{//不含第 iElem个变量的单项式，可以整体去掉
+			memcpy(pCur_Term, pCur_Term + oPoly.m_iElem_Count, (oPoly.m_iTerm_Count - i - 1) * oPoly.m_iElem_Count * sizeof(unsigned char));
+			memcpy(&oPoly.m_pCoeff[i], &oPoly.m_pCoeff[i+1] , (oPoly.m_iTerm_Count - i - 1) * sizeof(float));
+			oPoly.m_iTerm_Count--;
+		}
+	}
+	if (poDest)
+		Copy_Polynormial(&oPoly, poDest);
+	Free_Polynormial(&oPoly);	
+}
+float fGet_Polynormial_Value(Polynormial oPoly, float x[])
+{//代入x,求出该函数的值
+	int i, j;
+	unsigned char* pCur_Term;
+	float fTotal = 0, fValue;
+	for (i = 0; i < oPoly.m_iTerm_Count; i++)
+	{
+		pCur_Term = pGet_Term(&oPoly, i);
+		fValue = oPoly.m_pCoeff[i];
+		for (j = 0; j < oPoly.m_iElem_Count; j++)
+		{
+			if (pCur_Term[j])
+				fValue*= (float)pow(x[j], pCur_Term[j]);
+		}
+		fTotal += fValue;
+	}
+	return fTotal;
 }

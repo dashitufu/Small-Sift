@@ -1,10 +1,12 @@
-//由于数学库同时应对float/double两种类型，故此改版开始，全变为模板函数
-#pragma once
+//由于数学库同时应对float/double两种类型，故此该版开始，全变为模板函数
+#pragma once 
 #include "Common.h"
+
 extern "C"
 {
 #include "Buddy_System.h"
 }
+
 
 #define sign(x) (x>=0?1:-1)
 
@@ -39,6 +41,15 @@ typedef struct Complex_f {//双精度复数
 	float real;	//实部
 	float im;		//虚部 imagary part	
 }Complex_f;
+
+typedef struct Polynormial {	//多元多项式，次数必须为正整数(>=0, =0表示没有该项
+	unsigned char* m_pTerm;		//多项式中的项
+	float* m_pCoeff;			//每项的系数
+	int m_iElem_Count;			//变量（元）数
+	int m_iTerm_Count;			//项数
+	int m_iMax_Term_Count;		//目前最大项数，为日后扩展用
+}Polynormial;
+
 typedef struct SVD_Info {	//有必要给SVD做一个单独的参数结构
 	void* A;		//原矩阵
 	void* U;
@@ -48,7 +59,9 @@ typedef struct SVD_Info {	//有必要给SVD做一个单独的参数结构
 		h_Min_U, w_Min_U,
 		w_Min_S,
 		h_Min_Vt, w_Min_Vt;
+	int m_bSuccess;
 }SVD_Info;
+
 typedef struct Sparse_Matrix {
 	typedef struct Item {
 		int x, y;
@@ -85,10 +98,17 @@ template<typename _T>void Disp(_T* M, int iHeight, int iWidth,const char* pcCapt
 	int i, j;
 	if (pcCaption)
 		printf("%s\n", pcCaption);
+
 	for (i = 0; i < iHeight; i++)
 	{
 		for (j = 0; j < iWidth; j++)
-			printf("%.8f, ", M[i * iWidth + j]);
+		{
+			if (std::is_same_v<_T, float> || std::is_same_v<_T,double>)
+				printf("%.8f, ", M[i * iWidth + j]);
+			else if (std::is_same_v<_T, int> || std::is_same_v<_T,short>)
+				printf("%d,, ", (int)M[i * iWidth + j]);
+		}
+			
 		printf("\n");
 	}
 	return;
@@ -167,8 +187,8 @@ void Elementary_Row_Operation(float A[], int m, int n, float A_1[], int* piRank 
 template<typename _T>void Elementary_Row_Operation_1(_T A[], int m, int n, _T A_1[], int* piRank=NULL, _T** ppBasic_Solution=NULL, _T** ppSpecial_Solution=NULL);
 
 int bIs_Linearly_Dependent(float A[], int m, int n);	//判断向量组A是否线性相关
-//template<typename _T>int bIs_Orthogonal(_T* A, int na);					//判断是否为正交矩阵
 template<typename _T>int bIs_Orthogonal(_T* A, int h, int w=0);
+template<typename _T>void Gen_I_Matrix(_T M[], int h, int w);	//生成对角阵
 
 void Gen_Iterate_Matrix(float A[], int n, float B[], float B_1[], float C[]);	//生成迭代中的B
 int bIs_Contrative_Mapping(float B[], int n);					//判断一个矩阵是否为压缩矩阵，这是一个线性方程组是否能用迭代法求解的必要条件
@@ -189,37 +209,43 @@ void Compact_Sparse_Matrix(Sparse_Matrix* poMatrix);
 void Free_Sparse_Matrix(Sparse_Matrix* poMatrix);
 void Matrix_Add(Sparse_Matrix* poA, float a, Sparse_Matrix* poB, float b, float* pC);
 void Matrix_Add(Sparse_Matrix* poA, float a, Sparse_Matrix* poB, float b);
-void Vector_Add(float A[], float B[], int n, float C[]);
-void Vector_Minus(float A[], float B[], int n, float C[]);
+template<typename _T>void Vector_Add(_T A[], _T B[], int n, _T C[]);
+template<typename _T>void Vector_Minus(_T A[], _T B[], int n, _T C[]);
+template<typename _T> void Matrix_Multiply(_T* A, int ma, int na, float a, _T* C);
+
 template<typename _T> void Matrix_Multiply(_T* A, int ma, int na, _T* B, int nb, _T* C);
+
 void Matrix_Multiply(Sparse_Matrix A, Sparse_Matrix B, Sparse_Matrix* poC);
 void Matrix_Transpose_1(Sparse_Matrix A, Sparse_Matrix* poAt);
 
-void Matrix_Add(float A[], float B[], int iOrder, float C[]);
+template<typename _T>void Matrix_Add(_T A[], _T B[], int iOrder, _T C[]);
 
 void Matrix_x_Vector(double A[3][3], double X[3], double Y[3]);
 void QR_Decompose(double A1[3][3], double Q[3][3], double R[3][3]);
 void QR_Decompose(float* A, int ma, int na, float* Q, float* R);
 void QR_Decompose(float* A, int na, float* R, float* Q, int* pbSuccess = NULL, int* pbDup_Root = NULL);
-//对本质矩阵E进行分解，分解为不同可能的解
-void Decompose_E(float E[], float R_1[], float R_2[], float t_1[], float t_2[]);
 
-void Normalize(float V[], int n, float V_1[]);
+template<typename _T> void Normalize(_T V[], int n, _T V_1[]);
+template<typename _T>void Homo_Normalize(_T V0[], int n, _T V1[]);	//这就是个傻逼方法，用来欺骗template
 
 template<typename _T> void Get_Inv_Matrix_Row_Op(_T* pM, _T* pInv, int iOrder, int* pbSuccess=NULL);	//矩阵求逆
+
+
 void Get_Inv_Matrix(float* pM, float* pInv, int iOrder, int* pbSuccess);	//用伴随矩阵求逆
-float fGet_Determinant(float* A, int iOrder);			//求行列式
-float fGet_Mod(float V[], int n);						//求向量的模
+template<typename _T>_T fGet_Determinant(_T* A, int iOrder);			//求行列式
+
+template<typename _T> _T fGet_Mod(_T V[], int n);//求向量的模
+
 float fGet_Distance(float V_1[], float V_2[], int n);	//求两向量距离
 float fGet_Theta(float v0[], float v1[], float Axis[], int n);		//求两个向量之间的夹角
 int iRank(double A[3][3]);								//求3x3矩阵的秩
-int iGet_Rank(float* A, int m, int n);					//求一般矩阵的秩，用初等行变换法
+template<typename _T>int iGet_Rank(_T* A, int m, int n);				//求一般矩阵的秩，用初等行变换法
 void Cross_Product(float V0[], float V1[], float V2[]);	//求外积
-float fDot(float V0[], float V1[], int iDim);			//求内积，点积
+template<typename _T>_T fDot(_T V0[], _T V1[], int iDim);		//求内积，点积
 
 //以下为一组仿射变换矩阵的生成
 void Gen_Rotation_Matrix(float Axis[3], float fTheta, float R[]);//根据旋转轴与旋转角度生成一个旋转矩阵，此处用列向量，往后一路左乘
-void Gen_Translation_Matrix(float Offset[3], float T[]);	//平移变换
+template<typename _T>void Gen_Translation_Matrix(_T Offset[3], _T T[]);	//平移变换
 void Gen_Scale_Matrix(float Scale[3], float T[]);			//比例变换
 
 //四元数,旋转矩阵，旋转向量互换函数
@@ -230,12 +256,13 @@ void Quaternion_Minus(float Q_1[], float Q_2[], float Q_3[]);	//四元数减，其实这
 void Quaternion_Conj(float Q_1[], float Q_2[]);				//简单求个共轭
 void Quaternion_Multiply(float Q_1[], float Q_2[], float Q_3[]);	//四元数乘法
 void Quaternion_Inv(float Q_1[], float Q_2[]);	//四元数求逆
-void Rotation_Matrix_2_Quaternion(float R[], float Q[]);		//旋转矩阵转换四元数
-void Rotation_Matrix_2_Vector(float R[], float V[]);		//旋转矩阵转旋转向量
-void Rotation_Vector_2_Matrix_3D(float V[], float R[]);		//旋转向量转换旋转矩阵
-void Rotation_Vector_2_Quaternion(float V[4], float Q[4]);	//旋转向量转换四元数
-void Roataion_Vector_2_Angle_Axis(float V_4[4], float V_3[3]);	//旋转向量4维化为3维
-void Hat(float V[], float M[]);				//构造反对称矩阵
+template<typename _T>void Rotation_Matrix_2_Quaternion(_T R[], _T Q[]);		//旋转矩阵转换四元数
+template<typename _T>void Rotation_Matrix_2_Vector(_T R[], _T V[]);		//旋转矩阵转旋转向量
+
+template<typename _T>void Rotation_Vector_2_Matrix(_T V[4], _T R[3 * 3]);		//旋转向量转换旋转矩阵
+template<typename _T>void Rotation_Vector_2_Quaternion(_T V[4], _T Q[4]);	//旋转向量转换四元数
+template<typename _T>void Hat(_T V[], _T M[]);				//构造反对称矩阵
+
 void Vee(float M[], float V[3]);			//反对称矩阵到旋转向量
 void se3_2_SE3(float Ksi[6], float T[]);		//从se3向量到SE3矩阵的转换
 void SE3_2_se3(float Rotation_Vector[4], float t[3], float Ksi[6]);	//一个旋转向量加一个位移向量构造出一个Ksi
@@ -243,17 +270,26 @@ void SE3_2_se3(float Rotation_Vector[4], float t[3], float Ksi[6]);	//一个旋转向
 void SIM3_2_sim3(float Rotation_Vector[], float t[], float s, float zeta[7]);
 void sim3_2_SIM3(float zeta[7], float Rotation_Vector[4], float t[], float* ps);
 
-void Gen_Homo_Matrix(float R[], float t[], float M[]);			//用旋转坐标与位移坐标构成一个SE3变换矩阵
+template<typename _T>void Gen_Homo_Matrix(_T R[], _T t[], _T c2w[]);			//用旋转坐标与位移坐标构成一个SE3变换矩阵
+
 void Gen_Homo_Matrix(float R[], float t[], float s, float M[]);	//用旋转,位移，缩放构成一个变换矩阵
-void Gen_Cube(float Cube[8][4], float fScale, float x_Center = 0, float y_Center = 0, float z_Center = 0);	//生成一个Cube
+template<typename _T> void Gen_Cube(_T Cube[][4], float fScale, _T x_Center=0, _T y_Center=0, _T z_Center=0);//生成一个Cube
 
 //取代透视变换，一步计算
 void Perspective(float Pos_Source[3], float h[3], float Pos_Dest[3]);
 void Perspective_Camera(float Pos_Source[3], float h[3], float Pos_Dest[3]);
 void Resize_Matrix(Sparse_Matrix* poA, int iNew_Item_Count);
 
-//template<typename _T> void svd_3(_T* A, int h, int w, _T U[], _T S[], _T Vt[], int* pbSuccess = NULL, double eps = 2.2204460492503131e-15);
 template<typename _T> void svd_3(_T* A,SVD_Info oInfo, int* pbSuccess=NULL, double eps= 2.2204460492503131e-15);
 template<typename _T>void Test_SVD(_T A[], SVD_Info oSVD, int* piResult=NULL, double eps= 2.2204460492503131e-15);
 void Free_SVD(SVD_Info* poInfo);
-template<typename _T>void SVD_Allocate(_T* A, int h, int w, SVD_Info* poInfo);
+
+template<typename _T>void SVD_Alloc(int h, int w, SVD_Info* poInfo, _T* A=NULL);
+
+//一组多元多项式函数
+void Disp(Polynormial oPoly, int iElem_No=-1);
+void Free_Polynormial(Polynormial* poPoly);				//释放多项式所占内存
+void Init_Polynormial(Polynormial* poPoly, int iElem_Count, int iMax_Term_Count);	//初始化
+void Add_Poly_Term(Polynormial* poPoly, float fCoeff, int first, ...);
+void Get_Derivation(Polynormial* poSource, int iElem, Polynormial* poDest=NULL);	//多项式对xi求导
+float fGet_Polynormial_Value(Polynormial oPoly, float x[]);	//代入x求多项式值

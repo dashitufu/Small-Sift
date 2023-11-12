@@ -113,6 +113,7 @@ unsigned long long iGet_File_Length(char* pcFile)
 	if (!pFile)
 	{
 		int iResult = GetLastError();
+		printf("Fail to get file length, error:%d\n", iResult);
 		return -1;
 	}
 	_fseeki64(pFile, 0, SEEK_END);
@@ -126,4 +127,147 @@ unsigned long long iGet_Tick_Count()
 	timeb tp;
 	ftime(&tp);
 	return (unsigned long long) ((unsigned long long)tp.time * 1000 + tp.millitm);
+}
+
+unsigned int iGet_Random_No()
+{//伪随机	(789, 123)	(389,621) 已通过，可以自定义自己的种子
+#define b 389
+#define c 621
+	static unsigned int iNum = 0xFFFFFFF;	//GetTickCount();	//种子
+	return iNum = iNum * b + c;
+#undef b
+#undef c
+}
+
+int iRandom(int iStart, int iEnd)
+{//从iStart到iEnd之间随机出一个数字，由于RandomInteger太傻逼，没有必要把时间浪费在傻逼身上
+	return iStart + iGet_Random_No() % (iEnd - iStart + 1);
+}
+int iRandom()
+{//尝试搞一个无参数获得随机数的函数，计算办法为 iRandom_No= iRandom_No*a + c; 最后取模 0x7FFFFFFF
+#define m 1999999973			//基于模为素数能令散列更均匀的理论
+	static unsigned int a = (unsigned int)iGet_Tick_Count(); //1103515245;		//1103515245为很好的初始值，但选取静态值变成了确定问题
+	static unsigned int c = 2347;	// 12345;
+	static unsigned long long iRandom_No = 1;
+	iRandom_No = (iRandom_No * a + c) % m;	//求和不溢出，再求模
+	return (int)iRandom_No;
+#undef m
+}
+template<typename _T>int iQuick_Sort_Partition(_T pBuffer[], int left, int right)
+{//小到大的顺序
+	//Real fRef;
+	_T iValue, oTemp;
+	int pos = right;
+
+	right--;
+	iValue = pBuffer[pos];
+	while (left <= right)
+	{
+		while (left < pos && pBuffer[left] <= iValue)
+			left++;
+		while (right >= 0 && pBuffer[right] > iValue)
+			right--;
+		if (left >= right)
+			break;
+		oTemp = pBuffer[left];
+		pBuffer[left] = pBuffer[right];
+		pBuffer[right] = oTemp;
+	}
+
+	oTemp = pBuffer[left];
+	pBuffer[left] = pBuffer[pos];
+	pBuffer[pos] = oTemp;
+
+	return left;
+}
+template<typename _T>int iAdjust_Left(_T* pStart, _T* pEnd)
+{
+	_T oTemp, * pCur_Left = pEnd - 1,
+		* pCur_Right;
+	_T oRef = *pEnd;
+
+	//为了减少一次判断，此处先扫过去
+	while (pCur_Left >= pStart && *pCur_Left == oRef)
+		pCur_Left--;
+	pCur_Right = pCur_Left;
+	pCur_Left--;
+
+	while (pCur_Left >= pStart)
+	{
+		if (*pCur_Left == oRef)
+		{
+			oTemp = *pCur_Left;
+			*pCur_Left = *pCur_Right;
+			*pCur_Right = oTemp;
+			pCur_Right--;
+		}
+		pCur_Left--;
+	}
+	return (int)(pCur_Right - pStart);
+}
+template<typename _T> _T oGet_Nth_Elem(_T Seq[],int iCount, int iStart, int iEnd, int iNth)
+{//取第n大元素，用Quick_Sort的Partition做
+	int iPos;
+	if (iStart < iEnd)
+	{
+		iPos = iQuick_Sort_Partition(Seq, iStart, iEnd);
+		if (iPos > iNth)
+		{//那么第n大元素在左分区内
+			return oGet_Nth_Elem(Seq,iCount, iStart, iPos - 1, iNth);
+		}
+		else if (iPos < iNth)
+		{//第n大元素在右分区内
+			return oGet_Nth_Elem(Seq,iCount, iPos + 1, iEnd, iNth);
+		}
+		else //找到了，正好在iPos中
+			return Seq[iPos];
+	}
+	else
+	{//此时又分奇偶两种情况
+		if(iCount&1)
+			return Seq[iStart];	//奇数好办，返回便是
+		else //偶数的还要往前找最大值
+		{
+			_T fMax = Seq[iStart - 1];
+			for (int i = iStart - 2; i >= 0; i--)
+			{
+				if (Seq[i] > fMax)
+					fMax = Seq[i];
+			}
+			return (_T)((Seq[iStart] + fMax) / 2.f);
+		}
+	}
+		
+		
+}
+template<typename _T> void Quick_Sort(_T Seq[], int iStart, int iEnd)
+{
+	int iPos, iLeft;
+	if (iStart < iEnd)
+	{
+		iPos = iQuick_Sort_Partition(Seq, iStart, iEnd);
+		//如果iPos>=iEnd, 则遇上极差形态的组了，这时做一个推进，找出所有与Seq[iEnd]相等的项目，赶到右边
+		if (iPos >= iEnd)
+		{
+			iLeft = iAdjust_Left(Seq + iStart, Seq + iPos);
+			iLeft = iStart + iLeft;
+		}
+		else
+			iLeft = iPos - 1;
+
+		if (iStart < iLeft)
+			Quick_Sort(Seq, iStart, iLeft);
+
+		Quick_Sort(Seq, iPos + 1, iEnd);
+	}
+}
+void SB_Common()
+{//template实例化，只对vc有效
+	oGet_Nth_Elem((double*)NULL, 0, 0, 0, 0);
+	oGet_Nth_Elem((float*)NULL, 0, 0, 0, 0);
+	oGet_Nth_Elem((int*)NULL, 0, 0, 0, 0);
+
+	Quick_Sort((double*)NULL, 0, 0);
+	Quick_Sort((float*)NULL, 0, 0);
+	Quick_Sort((int*)NULL, 0, 0);
 }

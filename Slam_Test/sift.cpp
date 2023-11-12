@@ -416,38 +416,6 @@ static void Get_Keypoint_1(Sift* poSift, int iDoG_Mid, int s, Sift_Feature_Level
 
 	__m512 v_16;
 
-//#define CHECK_NEIGHBORS_1(CMP,SGN)   (    \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[0]),CMP) && \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[1]),CMP) && \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[2]),CMP) && \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[3]),CMP) && \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[4]),CMP) && \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[5]),CMP) && \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[6]),CMP) && \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[7]),CMP) && \
-//\
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[8]),CMP) && \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[9]),CMP) && \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[10]),CMP) && \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[11]),CMP) && \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[12]),CMP) && \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[13]),CMP) && \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[14]),CMP) && \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[15]),CMP) && \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[16]),CMP)  &&\
-//\
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[17]),CMP) && \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[18]),CMP) && \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[19]),CMP) && \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[20]),CMP) && \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[21]),CMP) && \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[22]),CMP) && \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[23]),CMP) && \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[24]),CMP) && \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[25]),CMP) && \
-//_mm512_cmp_ps_mask(v_16, _mm512_set1_ps(SGN tp),CMP)  \
-//		) \
-
 #define CHECK_NEIGHBORS_1(CMP,SGN)   (    \
 _mm512_cmp_ps_mask(v_16, _mm512_loadu_ps(pt + Offset_26[0]),CMP) && \
 _mm512_cmp_ps_mask(v_16, _mm512_loadu_ps(pt + Offset_26[1]),CMP) && \
@@ -511,38 +479,6 @@ _mm512_cmp_ps_mask(v_16, _mm512_loadu_ps(pt + Offset_26[23]),CMP) & \
 _mm512_cmp_ps_mask(v_16, _mm512_loadu_ps(pt + Offset_26[24]),CMP) & \
 _mm512_cmp_ps_mask(v_16, _mm512_loadu_ps(pt + Offset_26[25]),CMP)  \
 		) \
-
-//#define CHECK_NEIGHBORS(CMP,SGN)   (    \
-//_mm512_cmp_ps_mask(v_16, _mm512_set1_ps(SGN tp),CMP) & \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[0]),CMP) & \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[1]),CMP) & \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[2]),CMP) & \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[3]),CMP) & \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[4]),CMP) & \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[5]),CMP) & \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[6]),CMP) & \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[7]),CMP) & \
-//\
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[8]),CMP) & \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[9]),CMP) & \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[10]),CMP) & \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[11]),CMP) & \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[12]),CMP) & \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[13]),CMP) & \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[14]),CMP) & \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[15]),CMP) & \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[16]),CMP)  &\
-//\
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[17]),CMP) & \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[18]),CMP) & \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[19]),CMP) & \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[20]),CMP) & \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[21]),CMP) & \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[22]),CMP) & \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[23]),CMP) & \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[24]),CMP) & \
-//_mm512_cmp_ps_mask(v_16, *(__m512*)(pt + Offset_26[25]),CMP)  \
-//		) \
 
 	int iResult;
 	for (y = 1; y < oSift.octave_height - 1; y++)
@@ -2242,6 +2178,7 @@ void Sift_Match_Path(const char* pcPath, Sift_Match_Map* poMap, int o_min)
 	if (!iImage_Count)
 	{
 		printf("The path has no .bmp file\n");
+		*poMap = {};
 		return;
 	}
 	Get_All_File(File,(char*)pBuffer);

@@ -35,7 +35,11 @@ int iUpper_Triangle_Cord_2_Index(int x, int y, int w);
 //上三角有效元数个数
 int iGet_Upper_Triangle_Size(int w);
 
-//早晚得肥
+//一组有的没的随机数生成
+int iRandom(int iStart, int iEnd);
+int iRandom();
+
+//早晚得废
 //以后废弃的临时函数
 template<typename _T>
 void Temp_Load_Match_Point(_T(**ppPoint_1)[2], _T(**ppPoint_2)[2], int* piCount)
@@ -59,3 +63,6 @@ void Temp_Load_Match_Point(_T(**ppPoint_1)[2], _T(**ppPoint_2)[2], int* piCount)
 	*ppPoint_1 = pPoint_1, * ppPoint_2 = pPoint_2;
 	*piCount = iCount;
 }
+//解决两组基本数据类型的第n大与及快速排序，待优化
+template<typename _T> _T oGet_Nth_Elem(_T Seq[], int iCount, int iStart, int iEnd, int iNth);
+template<typename _T> void Quick_Sort(_T Seq[], int iStart, int iEnd);
