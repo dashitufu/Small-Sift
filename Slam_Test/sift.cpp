@@ -1551,6 +1551,32 @@ void Get_Sift_Feature(const char* pcFile, Sift_Feature** ppFeature, int* piCount
 	Free_Mem_Mgr(&oMem_Mgr);
 }
 
+static void Copy_Desc_1(Sift_Image Sift_Image_Arr[], int iImage_Count, unsigned char* pCur)
+{//做一个转置，16个样本一组， 一组的结构是 128行 x 16 个字节， 样本竖着排
+	//再构造个大数组
+	int i,j,k,l,iGroup_16_Count;
+	Sift_Image oSift_Image;
+	unsigned char* pSource, * pDest;
+	for (i = 0; i < iImage_Count; i++)
+	{
+		oSift_Image = Sift_Image_Arr[i];
+		oSift_Image.m_pDesc = (unsigned char(*)[128])pCur;
+		iGroup_16_Count = (((oSift_Image.m_iCount + 15) >> 4) << 4);
+		for (j = 0; j < iGroup_16_Count; j+=16)
+		{
+			for (k = 0; k < 16; k++)
+			{
+				pSource = oSift_Image.m_pFeature[j * 16 + k].m_Desc_i;
+				pDest = &oSift_Image.m_pDesc_1[j * 128*16 + k];
+				for (l = 0; l < 128; l++,pDest+=128)
+					*pDest= pSource[l];
+			}
+		}
+		Sift_Image_Arr[i].m_pDesc = oSift_Image.m_pDesc;
+		pCur += (((Sift_Image_Arr[i].m_iCount+15)>>4)<<4) * 128;
+	}
+	return;
+}
 static void Copy_Desc(Sift_Image Sift_Image_Arr[], int iImage_Count, unsigned char* pCur)
 {
 	//再构造个大数组
@@ -1687,6 +1713,24 @@ int iGet_Distance_AVX512(unsigned char A[], unsigned char  B[])
 	return Sum_4[0]+Sum_4[1]+Sum_4[2]+Sum_4[3];
 }
 
+void Get_Distance_16_AVX512()
+{
+
+}
+void Get_Nearest_2_Point_1(unsigned char Pos[128], unsigned char(*Point)[16], int iPoint_Count, Neighbour_K* poNeighbour)
+{
+	//从Point集中种找到与Pos匹配的点
+	Neighbour_K oNeighbour;
+	int i, iDistance;
+	unsigned char* pCur_Point;
+	if (iPoint_Count < 2)
+	{
+		printf("Point Count less then 2\n");
+		return;	//不干也罢
+	}
+	
+	return;
+}
 void Get_Nearest_2_Point(unsigned char Pos[128], unsigned char(*Point)[128], int iPoint_Count, Neighbour_K* poNeighbour)
 {//从Point集中种找到与Pos匹配的点
 	Neighbour_K oNeighbour;
@@ -1731,6 +1775,37 @@ void Get_Nearest_2_Point(unsigned char Pos[128], unsigned char(*Point)[128], int
 		(iDistance)+= A[j] * B_1[j]; \
 }
 
+int iGet_Match_1(unsigned char Desc_A[128], unsigned char(*pDesc_B)[16], int iCount_B)
+{//另一种方法
+	Neighbour_K oNeighbour;
+	const float kDistNorm = 1.0f / (512.0f * 512.0f);
+	const float max_distance = 0.7f,
+		max_ratio = 0.8f;
+	float best_dist_normed, second_best_dist_normed;
+
+	Get_Nearest_2_Point_1(Desc_A, pDesc_B, iCount_B, &oNeighbour);
+
+	//将欧式距离改为点积
+	Dot(Desc_A, pDesc_B[oNeighbour.m_Buffer[0].m_iIndex], oNeighbour.m_Buffer[0].m_iDistance);
+	Dot(Desc_A, pDesc_B[oNeighbour.m_Buffer[1].m_iIndex], oNeighbour.m_Buffer[1].m_iDistance);
+
+	//再将距离大者放在[0],次之放在[1]
+	if (oNeighbour.m_Buffer[0].m_iDistance < oNeighbour.m_Buffer[1].m_iDistance)
+		swap(oNeighbour.m_Buffer[0], oNeighbour.m_Buffer[1]);
+
+	best_dist_normed = (float)acos(std::min(kDistNorm * oNeighbour.m_Buffer[0].m_iDistance, 1.0f));
+	second_best_dist_normed = (float)acos(std::min(kDistNorm * oNeighbour.m_Buffer[1].m_iDistance, 1.0f));
+
+	//首先判断最优点是否大于阈值max_distance,如果大了就跳过，没毛病
+	if (best_dist_normed > max_distance)
+		return -1;
+	//再判断最优点是否比次优点的0.8倍还大，表示最优点离此优点不能太远，
+	//这个判断尚未明白。次优点不是来捣乱的吗？
+	if (best_dist_normed >= max_ratio * second_best_dist_normed)
+		return -1;
+	return oNeighbour.m_Buffer[0].m_iIndex;
+	return -1;
+}
 int iGet_Match(unsigned char Desc_A[128], unsigned char(*pDesc_B)[128], int iCount_B)
 {//从B中找到最近邻，返回B中最合适的索引
 	Neighbour_K oNeighbour;
@@ -1762,6 +1837,19 @@ int iGet_Match(unsigned char Desc_A[128], unsigned char(*pDesc_B)[128], int iCou
 	return oNeighbour.m_Buffer[0].m_iIndex;
 }
 
+void Sift_Match_2_Image_1(Sift_Image oImage_A, Sift_Image oImage_B, int iA_Index, int iB_Index, Sift_Match_Item* poMatch)
+{//尝试用另一种方法
+	int i, iMatch_B;
+	Sift_Match_Item oMatch = { (short)iA_Index,(short)iB_Index,0,poMatch->m_Match };
+	//以下直接找，不经过多轮查找
+	for (i = 0; i < oImage_A.m_iCount; i++)
+	{//此处为优化关键
+		if ((iMatch_B = iGet_Match_1(oImage_A.m_pDesc[i], (unsigned char (*)[16])oImage_B.m_pDesc_1, oImage_B.m_iCount)) != -1)
+		{
+
+		}
+	}
+}
 void Sift_Match_2_Image(Sift_Image oImage_A, Sift_Image oImage_B, int iA_Index, int iB_Index, Sift_Match_Item* poMatch)
 {
 	int i, iMatch_B;
@@ -2030,6 +2118,9 @@ void Sift_Match_Path(const char* pcPath, Sift_Match_Map* poMap, Mem_Mgr* poMem_M
 	//此处算Sift_Image的Match
 	//Disp_Mem(poMem_Mgr, 0);
 	iSize = iGet_Sift_Match_Size(pSift_Image_Arr, iImage_Count);
+	//Temp code
+	iSize *= 2;
+
 	pCur = pStart = (unsigned char*)pMalloc(poMem_Mgr, iSize);
 	if (!pCur)
 		return;	//不够内存，严重错误
@@ -2067,7 +2158,32 @@ void Sift_Match_Path(const char* pcPath, Sift_Match_Map* poMap, Mem_Mgr* poMem_M
 			printf("i:%d j:%d Match_Count:%d \n", i, j, oMatch_Item.m_iMatch_Count);
 		}
 	}
-	
+
+	////再分配一次Desc, 整齐点以便于后面提速
+	//for (i = 0; i < iImage_Count; i++)
+	//{
+	//	pSift_Image_Arr[i].m_pDesc = (unsigned char(*)[128])pCur;
+	//	pCur += (((pSift_Image_Arr[i].m_iCount + 15) >> 4) << 4) * 128;
+	//}
+	//Copy_Desc_1(pSift_Image_Arr, iImage_Count, pSift_Image_Arr->m_pDesc[0]);
+	//Sift_Match_Item oMatch_Item;
+	//for (i = 0; i < iImage_Count; i++)
+	//{
+	//	for (j = i + 1; j < iImage_Count; j++)
+	//	{
+	//		oMatch_Item = { (short)i,(short)j,0,(unsigned short(*)[2])pCur };
+	//		if (pCur + pSift_Image_Arr[i].m_iCount * sizeof(unsigned short) * 2 - pStart > iSize)
+	//		{//判断是否越界
+	//			printf("Insufficient memory\n");
+	//			return;
+	//		}
+	//		Sift_Match_2_Image_1(pSift_Image_Arr[i], pSift_Image_Arr[j], i, j, &oMatch_Item);
+	//		pCur += ALIGN_SIZE_128(oMatch_Item.m_iMatch_Count * 2 * sizeof(unsigned short));
+	//		pSift_Image_Arr[j].m_pMatch[i] = pSift_Image_Arr[i].m_pMatch[j] = oMatch_Item;
+	//		printf("i:%d j:%d Match_Count:%d \n", i, j, oMatch_Item.m_iMatch_Count);
+	//	}
+	//}
+
 	//最后将Feature 抄到 Match_Map
 	//pCur = (unsigned char*)poMap->m_pMatch[0].m_pMatch;
 	pCur = (unsigned char*)poMap->m_pMatch[0].m_pPoint_1;

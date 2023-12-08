@@ -24,7 +24,11 @@ typedef struct Sift_Match_Item {	//Í¼Ïñ¶Ô£¬Õâ¸ö½á¹¹ËäÈ»¼òµ¥£¬µ«ÊÇ²»Íê±¸£¬Ö»ÓĞÅä¶
 
 typedef struct Sift_Image {			//Ò»ÕÅÍ¼ÏñµÄSift Feature
 	Sift_Feature* m_pFeature;
-	unsigned char(*m_pDesc)[128];	//ÎªÁË¼ÓËÙ×î½üÁÚÆ¥Åä£¬ÕâÀï½ô´Õ´æ´¢Ò»ÕÅÍ¼µÄ128Î¬ÌØÕ÷
+	union {
+		unsigned char(*m_pDesc)[128];	//ÎªÁË¼ÓËÙ×î½üÁÚÆ¥Åä£¬ÕâÀï½ô´Õ´æ´¢Ò»ÕÅÍ¼µÄ128Î¬ÌØÕ÷
+		unsigned char *m_pDesc_1;		//16¸öSampleÒ»×é
+	};
+	
 	Sift_Match_Item* m_pMatch;		//±¾Í¼ÓëÆäËûÍ¼µÄÆ¥Åä
 	char* m_pFile_Name;				//±¾Í¼µÄÎÄ¼şÃû
 	int m_iCount;					//Ò»¹²Óë¶àÉÙ¸öÌØÕ÷µã

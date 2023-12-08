@@ -43,10 +43,10 @@ template<typename _T> _T fGet_Mod(_T V[], int n)
 		fMod += V[i] * V[i];
 	return sqrt(fMod);
 }
-float fGet_Distance(float V_1[], float V_2[], int n)
+template<typename _T> _T fGet_Distance(_T V_1[], _T V_2[], int n)
 {//求两向量的距离，用平方表示，不开方
 	int i;
-	float fSum;
+	_T fSum;
 	for (i = 0, fSum = 0; i < n; i++)
 		fSum += (V_1[i] - V_2[i]) * (V_1[i] - V_2[i]);
 	return fSum;
@@ -1394,18 +1394,19 @@ void Get_Inv_Matrix(float* pM, float* pInv, int iOrder, int* pbSuccess)
 	free(pAdjoint_Matrix);
 	return;
 }
-void Linear_Equation_Check(float* A, int iOrder, float* B, float* X, float eps)
+
+template<typename _T>void Linear_Equation_Check(_T* A, int iOrder, _T* B, _T* X, _T eps)
 {//对线性方程Ax=B验算, 解<eps为解
-	float* X1, fError;
+	_T* X1, fError;
 	int i;
-	X1 = (float*)malloc(iOrder * sizeof(float));
+	X1 = (_T*)malloc(iOrder * sizeof(_T));
 
 	Matrix_Multiply(A, iOrder, iOrder, X, 1, X1);
 	for (i = 0, fError = 0; i < iOrder; i++)
 		fError += abs(B[i] - X1[i]);
 
 	if (fError < eps)
-		printf("Correct\n");
+		printf("Correct:%f\n",fError);
 	else
 		printf("Incorrect, Error Sum:%f\n", fError);
 	free(X1);
@@ -1511,14 +1512,15 @@ template<typename _T>int iGet_Rank(_T* A, int m, int n)
 	free(Ai);
 	return iRank;
 }
-void Solve_Linear_Gause(float* A, int iOrder, float* B, float* X, int* pbSuccess)
+
+template<typename _T>void Solve_Linear_Gause(_T* A, int iOrder, _T* B, _T* X, int* pbSuccess)
 {//用高斯列主元法求解线性方程组, 要点：
 	//1，高斯法完全等价人肉行变换，只不过没有用人肉的公倍数法，而是步步都是将主元变为1
 	//2，选列主元的原因是保证在 其他系数/aij时分母不至于太小。分母小误差大
 	//3,在列主元太小（<eps)的情况下算不满秩，退出。实际上主元太小会导致后面的除法严重误差
 	int y, x, i, iRow_Size;
 	int iMax, iTemp, iPos, Q[256];
-	float fMax, * pfMax_Row, fValue;
+	_T fMax, * pfMax_Row, fValue;
 	if (iOrder > 256)
 	{
 		printf("Too large order:%d\n", iOrder);
@@ -1526,7 +1528,7 @@ void Solve_Linear_Gause(float* A, int iOrder, float* B, float* X, int* pbSuccess
 		return;
 	}
 
-	float* Ai = (float*)malloc((iOrder + 1) * iOrder * sizeof(float));
+	_T* Ai = (_T*)malloc((iOrder + 1) * iOrder * sizeof(_T));
 	iPos = 0;
 	for (y = 0; y < iOrder; y++)
 	{
@@ -1575,7 +1577,7 @@ void Solve_Linear_Gause(float* A, int iOrder, float* B, float* X, int* pbSuccess
 		for (i = y + 1; i < iOrder; i++)
 		{//i表示第i行
 			iPos = Q[i] * iRow_Size;
-			if ( (fValue = Ai[iPos + y])!=0)
+			if ((fValue = Ai[iPos + y]) != 0)
 			{//对于对应元不为0才有算的意义
 				for (x = y + 1; x < iRow_Size; x++)
 					Ai[iPos + x] -= fValue * pfMax_Row[x];
@@ -1610,9 +1612,113 @@ void Solve_Linear_Gause(float* A, int iOrder, float* B, float* X, int* pbSuccess
 	//free(X1);
 
 	//验算
-	Linear_Equation_Check(A, iOrder, B, X, ZERO_APPROCIATE);
+	Linear_Equation_Check(A, iOrder, B, X, (_T)ZERO_APPROCIATE);
 	return;
 }
+
+//void Solve_Linear_Gause(float* A, int iOrder, float* B, float* X, int* pbSuccess)
+//{//用高斯列主元法求解线性方程组, 要点：
+//	//1，高斯法完全等价人肉行变换，只不过没有用人肉的公倍数法，而是步步都是将主元变为1
+//	//2，选列主元的原因是保证在 其他系数/aij时分母不至于太小。分母小误差大
+//	//3,在列主元太小（<eps)的情况下算不满秩，退出。实际上主元太小会导致后面的除法严重误差
+//	int y, x, i, iRow_Size;
+//	int iMax, iTemp, iPos, Q[256];
+//	float fMax, * pfMax_Row, fValue;
+//	if (iOrder > 256)
+//	{
+//		printf("Too large order:%d\n", iOrder);
+//		*pbSuccess = 0;
+//		return;
+//	}
+//
+//	float* Ai = (float*)malloc((iOrder + 1) * iOrder * sizeof(float));
+//	iPos = 0;
+//	for (y = 0; y < iOrder; y++)
+//	{
+//		for (x = 0; x < iOrder; x++, iPos++)
+//			Ai[iPos] = A[y * iOrder + x];
+//		Ai[iPos++] = B[y];
+//		Q[y] = y;	//每次主元所在的行
+//	}
+//	//Disp(Ai, iOrder, iOrder + 1,"\n");
+//	iRow_Size = iOrder + 1;
+//	//为了便于理解，以下iMax表示Q中的索引，而不是Ai中的行号
+//	for (y = 0; y < iOrder; y++)
+//	{
+//		iMax = y;
+//		fMax = Ai[Q[iMax] * iRow_Size + y];
+//		for (i = y + 1; i < iOrder; i++)
+//		{//寻找列主元
+//			if (abs(Ai[iPos = Q[i] * iRow_Size + y]) > abs(fMax))
+//			{
+//				fMax = Ai[iPos];
+//				iMax = i;
+//			}
+//		}
+//		if (abs(fMax) < ZERO_APPROCIATE)
+//		{//列主元为0，显然不满秩，该方程没有唯一解
+//			printf("不满秩,列主元为：%f\n", fMax);
+//			*pbSuccess = 0;
+//			free(Ai);
+//			return;
+//		}
+//
+//		//将最大元SWAP到Q的当前位置上
+//		iTemp = Q[y];
+//		Q[y] = Q[iMax];
+//		Q[iMax] = iTemp;
+//
+//		//对iMax所在的行进行系数计算，新系数/=A[y][y]
+//		pfMax_Row = &Ai[Q[y] * iRow_Size];
+//		pfMax_Row[y] = 1.f;
+//		for (x = y + 1; x < iRow_Size; x++)
+//			pfMax_Row[x] /= fMax;
+//
+//		//Disp(Ai, iOrder, iOrder + 1, "\n");
+//
+//		//对后面所有行代入
+//		for (i = y + 1; i < iOrder; i++)
+//		{//i表示第i行
+//			iPos = Q[i] * iRow_Size;
+//			if ( (fValue = Ai[iPos + y])!=0)
+//			{//对于对应元不为0才有算的意义
+//				for (x = y + 1; x < iRow_Size; x++)
+//					Ai[iPos + x] -= fValue * pfMax_Row[x];
+//				Ai[iPos + y] = 0;	//此处也不是必须的，置零只是好看
+//			}
+//			//Disp(Ai, iOrder, iOrder + 1, "\n");
+//		}
+//	}
+//
+//	//第一个解
+//	X[iOrder - 1] = Ai[Q[iOrder - 1] * iRow_Size + iOrder];
+//
+//	//回代，从Q[iOrder-1]开始回代，从最下一行向上回代
+//	for (y = iOrder - 2; y >= 0; y--)
+//	{
+//		//将解向上回代
+//		iPos = Q[y] * iRow_Size;
+//		//fValue=b
+//		fValue = Ai[iPos + iOrder];
+//		for (x = y + 1; x < iOrder; x++)
+//		{
+//			fValue -= Ai[iPos + x] * X[x];
+//			Ai[iPos + x] = 0;		//此处不是必须的，算完置0，好看一些而已
+//		}
+//		X[y] = fValue;
+//		Ai[iPos + iOrder] = fValue;	//此处不是必须，好看而已
+//	}
+//
+//	//Disp(Ai, iOrder, iOrder + 1, "\n");
+//	*pbSuccess = 1;
+//	free(Ai);
+//	//free(X1);
+//
+//	//验算
+//	Linear_Equation_Check(A, iOrder, B, X, ZERO_APPROCIATE);
+//	return;
+//}
+
 void Solve_Linear_Cramer(float* A, int iOrder, float* B, float* X, int* pbSuccess)
 {//用克莱姆法则解线性方程AX=B，此法等价高斯法，只能解非齐次方程组唯一解，但可以避开
 //高斯法中除数为0的特殊情况，更具普遍性。但时间复杂度很差，仅有理论价值
@@ -3104,29 +3210,30 @@ void Roataion_Vector_2_Angle_Axis(float V_4[4], float V_3[3])
 	V_3[2] = V_3_1[2];
 	return;
 }
-void Ksi_Get_J(float Rotation_Vector[4], float J[])
+template<typename _T>void Get_J_by_Rotation_Vector(_T Rotation_Vector[4], _T J[])
 {//给定的旋转向量，求出J矩阵
 	//再求位移t,先求出个J，a为旋转向量的转轴
-	float fValue, Temp_1[3][3], I[3][3] = { {1,0,0},{0,1,0},{0,0,1} };
+	_T fValue, Temp_1[3][3], I[3][3] = { {1,0,0},{0,1,0},{0,0,1} };
 	int i;
+	memset(J, 0, 3 * 3 * sizeof(_T));
 	//先求J第一部分 (sin(theta)/theta)*I
 	fValue = sin(Rotation_Vector[3]) / Rotation_Vector[3];
 	for (i = 0; i < 9; i++)
-		((float*)J)[i] = fValue * ((float*)I)[i];
+		((_T*)J)[i] = fValue * ((_T*)I)[i];
 
 	//再求J第二部分 (1-sin(theta)/theta) * axa'
 	fValue = 1.f - fValue;
-	Matrix_Multiply(Rotation_Vector, 3, 1, Rotation_Vector, 3, (float*)Temp_1);
+	Matrix_Multiply(Rotation_Vector, 3, 1, Rotation_Vector, 3, (_T*)Temp_1);
 	//Disp((float*)Temp_1, 3, 3);
 	for (i = 0; i < 9; i++)
-		((float*)J)[i] += fValue * ((float*)Temp_1)[i];
+		((_T*)J)[i] += fValue * ((_T*)Temp_1)[i];
 
 	//再求第三部分 (1-cos(theta))/theta * a^
 	fValue = (1 - cos(Rotation_Vector[3])) / Rotation_Vector[3];
-	Hat(Rotation_Vector, (float*)Temp_1);
+	Hat(Rotation_Vector, (_T*)Temp_1);
 	//Disp((float*)Temp_1, 3, 3);
 	for (i = 0; i < 9; i++)
-		((float*)J)[i] += fValue * ((float*)Temp_1)[i];
+		((_T*)J)[i] += fValue * ((_T*)Temp_1)[i];
 	//Disp((float*)J, 3, 3);
 }
 void SE3_2_se3(float Rotation_Vector[4], float t[3], float Ksi[6])
@@ -3136,7 +3243,7 @@ void SE3_2_se3(float Rotation_Vector[4], float t[3], float Ksi[6])
 //总结， SE3中的旋转矩阵，se3中的六维向量，都是先旋转后位移
 	float J[3][3], J_Inv[3][3];
 	int bResult;
-	Ksi_Get_J(Rotation_Vector, (float*)J);
+	Get_J_by_Rotation_Vector(Rotation_Vector, (float*)J);
 
 	//对J求个逆
 	Get_Inv_Matrix_Row_Op((float*)J, (float*)J_Inv, 3, &bResult);
@@ -3148,24 +3255,55 @@ void SE3_2_se3(float Rotation_Vector[4], float t[3], float Ksi[6])
 
 	return;
 }
-void se3_2_SE3(float Ksi[6], float T[])
+
+//void se3_2_SE3(float Ksi[6], float T[])
+//{//T是6维 se3向量Ksi对应的4x4矩阵, Ksi前rho后phi
+////转换完毕后，T完全与图形学的三维转换矩阵一致
+////总结， SE3中的旋转矩阵，se3中的六维向量，都是先旋转后位移
+//
+//	//首先求R
+//	float R[3][3];
+//	float Rotation_Vector[4];
+//
+//	Normalize(&Ksi[3], 3, Rotation_Vector);
+//	Rotation_Vector[3] = fGet_Mod(&Ksi[3], 3);	//此处已经将旋转向量化为4维表示
+//
+//	Rotation_Vector_2_Matrix(Rotation_Vector, (float*)R);
+//	//Disp((float*)R, 3, 3,"R");
+//
+//	float J[3][3], J_Rho[3];
+//	//显然，J与ρ无关，只从φ推导出来
+//	Get_J_by_Rotation_Vector(Rotation_Vector, (float*)J);
+//	Matrix_Multiply((float*)J, 3, 3, Ksi, 1, J_Rho);
+//
+//	//然后将 R,J_Rho, 0', 1组合成T
+//	T[0] = R[0][0], T[1] = R[0][1], T[2] = R[0][2], T[3] = J_Rho[0];
+//	T[4] = R[1][0], T[5] = R[1][1], T[6] = R[1][2], T[7] = J_Rho[1];
+//	T[8] = R[2][0], T[9] = R[2][1], T[10] = R[2][2], T[11] = J_Rho[2];
+//	T[12] = T[13] = T[14] = 0, T[15] = 1;
+//
+//	return;
+//}
+
+template<typename _T>void se3_2_SE3(_T Ksi[6], _T T[])
 {//T是6维 se3向量Ksi对应的4x4矩阵, Ksi前rho后phi
 //转换完毕后，T完全与图形学的三维转换矩阵一致
 //总结， SE3中的旋转矩阵，se3中的六维向量，都是先旋转后位移
 
 	//首先求R
-	float R[3][3];
-	float Rotation_Vector[4];
+	_T R[3][3];
+	_T Rotation_Vector[4];
 
 	Normalize(&Ksi[3], 3, Rotation_Vector);
 	Rotation_Vector[3] = fGet_Mod(&Ksi[3], 3);	//此处已经将旋转向量化为4维表示
 
-	Rotation_Vector_2_Matrix(Rotation_Vector, (float*)R);
-	//Disp((float*)R, 3, 3,"R");
+	Rotation_Vector_2_Matrix(Rotation_Vector, (_T*)R);
+	//Disp((_T*)R, 3, 3,"R");
 
-	float J[3][3], J_Rho[3];
-	Ksi_Get_J(Rotation_Vector, (float*)J);
-	Matrix_Multiply((float*)J, 3, 3, Ksi, 1, J_Rho);
+	_T J[3][3], J_Rho[3];
+	//显然，J与ρ无关，只从φ推导出来
+	Get_J_by_Rotation_Vector(Rotation_Vector, (_T*)J);
+	Matrix_Multiply((_T*)J, 3, 3, Ksi, 1, J_Rho);
 
 	//然后将 R,J_Rho, 0', 1组合成T
 	T[0] = R[0][0], T[1] = R[0][1], T[2] = R[0][2], T[3] = J_Rho[0];
@@ -3175,6 +3313,7 @@ void se3_2_SE3(float Ksi[6], float T[])
 
 	return;
 }
+
 void Gen_Iterate_Matrix(float A[], int n, float B[], float B_1[], float C[])
 {//将Ax=B 改写成 x= Bx+C，B为迭代矩阵，c为系数矩阵
 	//很简单，将第i行/aii即可
@@ -3389,8 +3528,9 @@ void sim3_2_SIM3(float zeta[7], float Rotation_Vector[4], float t[], float* ps)
 	sigma = zeta[6];
 	//s就是zigma的
 
-	*ps = s = exp(zeta[6]);
-
+	s = exp(zeta[6]);
+	if (ps)
+		*ps = s;
 	//最难搞是t, 先求个Js看看
 	SIM3_Get_Js(s, sigma, theta, &zeta[3], (float*)Js);
 	Disp((float*)Js, 3, 3, "Js");
@@ -4620,7 +4760,6 @@ template<typename _T> void svd_3(_T *A, SVD_Info oSVD, int* pbSuccess, double ep
 		//Disp((_T*)oInfo.Vt, h, h);
 		Matrix_Transpose(Vt_1, w,w, (_T*)oSVD.U);
 		memcpy(oSVD.Vt, A_1, (w + 1) * h * sizeof(_T));
-
 	}
 	if (pbSuccess)
 		*pbSuccess = oSVD.m_bSuccess;
@@ -4632,7 +4771,7 @@ END:
 	if (Vt_1)
 		Free(&oMatrix_Mem, Vt_1);
 }
-template<typename _T> void Matrix_Multiply(_T* A, int ma, int na, float a,_T *C)
+template<typename _T> void Matrix_Multiply(_T* A, int ma, int na, _T a,_T *C)
 {//矩阵A乘以一个常数
 	int i, iSize = ma * na;
 	for (i = 0; i < iSize; i++)
@@ -4668,6 +4807,27 @@ template<typename _T> void Matrix_Multiply(_T* A, int ma, int na, _T* B, int nb,
 
 void SB_Matrix()
 {//这就是个傻逼方法，用来欺骗template
+	se3_2_SE3((double*)NULL, (double*)NULL);
+	se3_2_SE3((float*)NULL, (float*)NULL);
+
+	Solve_Linear_Gause((double*)NULL, 0, (double*)NULL, (double*)NULL, NULL);
+	Solve_Linear_Gause((float*)NULL, 0, (float*)NULL, (float*)NULL, NULL);
+
+	Transpose_Multiply((double*)NULL, 0, 0, (double*)NULL);
+	Transpose_Multiply((float*)NULL, 0, 0, (float*)NULL);
+
+	Gen_Ksi_by_Rotation_Vector_t((double*)NULL, (double*)NULL,(double*)NULL);
+	Gen_Ksi_by_Rotation_Vector_t((float*)NULL, (float*)NULL, (float*)NULL);
+
+	Get_J_by_Rotation_Vector((double*)NULL, (double*)NULL);
+	Get_J_by_Rotation_Vector((float*)NULL, (float*)NULL);
+
+	Exp_Ref((double*)NULL, 0, (double*)NULL);
+	Exp_Ref((float*)NULL, 0, (float*)NULL);
+
+	fGet_Distance((double*)NULL, (double*)NULL, 0);
+	fGet_Distance((float*)NULL, (float*)NULL, 0);
+
 	Vector_Add((double*)NULL, (double*)NULL, 0, (double*)NULL);
 	Vector_Add((float*)NULL, (float*)NULL, 0, (float*)NULL);
 
@@ -4710,7 +4870,7 @@ void SB_Matrix()
 	Matrix_Multiply((float*)NULL, 0, 0, (float*)NULL, 0, (float*)NULL);
 	Matrix_Multiply((double*)NULL, 0, 0, (double*)NULL, 0, (double*)NULL);
 
-	Matrix_Multiply((float*)NULL, 0, 0, 0.f, (float*)NULL);
+	Matrix_Multiply((float*)NULL, 0, 0, (float)0, (float*)NULL);
 	Matrix_Multiply((double*)NULL, 0, 0, (double)0, (double*)NULL);
 
 	bIs_Orthogonal((float*)NULL, 0);
@@ -5095,4 +5255,83 @@ float fGet_Polynormial_Value(Polynormial oPoly, float x[])
 		fTotal += fValue;
 	}
 	return fTotal;
+}
+template<typename _T> void Exp_Ref(_T A[], int n,_T B[])
+{//计算矩阵指数, A为n阶矩阵, 结果n也是n阶矩阵, 这是最慢算法，从定义直接计算到收敛为止
+	//exp(A) = ∑(n=0,n->∞) (A^n)/n!
+	int iSize = n * n * sizeof(_T);
+	int i;
+	_T* pTemp_1 = (_T*)pMalloc(&oMatrix_Mem, iSize),
+		*pTemp_2 = (_T*)pMalloc(&oMatrix_Mem, iSize),
+		* pSum = (_T*)pMalloc(&oMatrix_Mem, iSize);
+	const _T eps = 0.00001f;
+	//memcpy(pTemp_1, A, iSize);
+	for (i = 0; i < n * n; i++)
+		pTemp_1[i] = 1;
+	memcpy(pSum, pTemp_1, iSize);
+	
+	for(i=1;;i++)
+	{
+		for (int j = 0; j < n * n; j++)	//A^n 为矩阵A各个元素分别n次方
+			pTemp_1[j] *= A[j];
+
+		_T F = (_T)1.f/(_T)iFactorial(i);
+		if (_Is_inf(F))
+			F = 0;
+		Matrix_Multiply(pTemp_1, n,n, F, pTemp_2);
+		Disp(pTemp_1, 3, 3, "pTemp_1");
+		if (fGet_Mod(pTemp_2, n * n) < eps)
+			break;
+		Matrix_Add(pTemp_2, pSum, n, pSum);
+		
+	}
+	memcpy(B, pSum, iSize);
+	Free(&oMatrix_Mem, pTemp_1);
+	Free(&oMatrix_Mem, pTemp_2);
+	Free(&oMatrix_Mem, pSum);
+}
+
+template<typename _T> void Gen_Ksi_by_Rotation_Vector_t(_T Rotation_Vector[4],_T t[3],_T Ksi[6],int n)
+{//由一个Rotation_Vector 和一个t构成一个Ksi, n为Rotation_Vector的维数，3维与4维皆可
+	_T Rotation_Vector_1[4], Ksi_1[6];
+	union {
+		_T J[3 * 3];
+		_T J_Inv[3 * 3];
+	};
+	int i,iResult;
+	if (n == 3)
+	{
+		Normalize(Rotation_Vector, 3, Rotation_Vector_1);
+		Rotation_Vector_1[3] = fGet_Mod(Rotation_Vector, 3);
+		memcpy(&Ksi_1[3], Rotation_Vector, 3 * sizeof(_T));
+	}else
+	{
+		memcpy(Rotation_Vector_1, Rotation_Vector, 4 * sizeof(_T));
+		for (i = 0; i < 3; i++)
+			Ksi_1[3 + i] = Rotation_Vector[i] * Rotation_Vector[3];
+	}
+		
+
+	Get_J_by_Rotation_Vector(Rotation_Vector_1, J);
+	Get_Inv_Matrix_Row_Op(J, J_Inv, 3, &iResult);
+	if (!iResult)
+	{
+		printf("Rank <3 in Gen_Ksi_by_Rotation_Vector_t\n");
+		return;
+	}
+
+	//ρ=J(-1)t
+	Matrix_Multiply(J_Inv, 3, 3, t, 1, Ksi_1);
+	memcpy(Ksi, Ksi_1, 6 * sizeof(_T));
+	return;
+}
+template<typename _T> void Transpose_Multiply(_T A[], int m, int n, _T B[], int iFlag)
+{//iFlag=0 时 B = A'A iFlag=1 时 B= AA'
+	_T* At = (_T*)pMalloc(&oMatrix_Mem, n * m * sizeof(_T));
+	Matrix_Transpose(A, m, n, At);
+	if (iFlag == 0)
+		Matrix_Multiply(At, n, m, A,n, B);	//AtA
+	else
+		Matrix_Multiply(A, m, n, At,m, B);	//AAt
+	Free(&oMatrix_Mem, At);
 }

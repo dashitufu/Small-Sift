@@ -28,6 +28,7 @@ unsigned long long iGet_Tick_Count();
 int iGet_File_Count(const char* pcPath);	//获取一个目录所有文件
 void Get_All_File(const char* pcPath, char* pBuffer);
 int bSave_Bin(const char* pcFile, float* pData, int iSize);
+int bLoad_Raw_Data(const char* pcFile, unsigned char** ppBuffer, int* piSize);
 
 //上三角坐标转换为索引值
 int iUpper_Triangle_Cord_2_Index(int x, int y, int w);
@@ -66,3 +67,8 @@ void Temp_Load_Match_Point(_T(**ppPoint_1)[2], _T(**ppPoint_2)[2], int* piCount)
 //解决两组基本数据类型的第n大与及快速排序，待优化
 template<typename _T> _T oGet_Nth_Elem(_T Seq[], int iCount, int iStart, int iEnd, int iNth);
 template<typename _T> void Quick_Sort(_T Seq[], int iStart, int iEnd);
+template<typename _T>int bSave_PLY(const char* pcFile, _T Point[][3], int iPoint_Count,unsigned char Color[][3]=NULL, int bText=1);
+
+
+//Temp code 
+template<typename _T>void Temp_Load_File(const char* pcFile, _T(**ppPoint_3D_1)[3], _T(**ppPoint_3D_2)[3], int* piCount);

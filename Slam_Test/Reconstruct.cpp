@@ -467,7 +467,7 @@ template<typename _T>void Normalize_Point(_T(*pPoint_1)[2], _T(*pPoint_2)[2], in
 		//然而，源代码用的式子是： (x - c1) / f， 那么z=1.此处存疑
 		//猜想假定每个点的z距离是1？
 		//OK了，这个过程就是通过相机内参将所有的像素点投影到归一化平面上。
-		// 矩阵形式就是 x= K(-1) * p	其中p位像素点位置，x为归一化后位置， K(-1)为 K的逆
+		// 矩阵形式就是 x= K(-1) * p	其中P为像素点位置，x为归一化后位置， K(-1)为 K的逆
 		//目前，能想象到的的变换是物体里相机光心为1像素。焦距为768像素，恢复中心点
 		//故此物体在在世界的坐标为 (x-c1)/f 坐标 在 -0.5,0.5之间
 		pNorm_Point_1[i][0] = (pPoint_1[i][0] - c1) / f;
@@ -1022,10 +1022,10 @@ template<typename _T>void Decompose_E(_T E[3 * 3], _T R1[3 * 3], _T R2[3 * 3], _
 	SVD_Alloc<_T>(3, 3, &oSVD);
 	svd_3(E, oSVD, &oSVD.m_bSuccess);
 	if (fGet_Determinant((_T*)oSVD.U, 3) < 0)
-		Matrix_Multiply((_T*)oSVD.U, 3, 3, -1, (_T*)oSVD.U);
+		Matrix_Multiply((_T*)oSVD.U, 3, 3, (_T)(-1), (_T*)oSVD.U);
 
 	if (fGet_Determinant((_T*)oSVD.Vt, 3) < 0)
-		Matrix_Multiply((_T*)oSVD.Vt, 3, 3, -1, (_T*)oSVD.Vt);
+		Matrix_Multiply((_T*)oSVD.Vt, 3, 3,(_T)(- 1), (_T*)oSVD.Vt);
 
 	//算没问题，但是尚未详细推导，这个分解是怎样实现的，如何和前面的(s0,s0,0)分解结合起来
 	//以下为Col_Map代码
@@ -1041,11 +1041,11 @@ template<typename _T>void Decompose_E(_T E[3 * 3], _T R1[3 * 3], _T R2[3 * 3], _
 
 	t1[0] = ((_T*)oSVD.U)[2], t1[1] = ((_T*)oSVD.U)[5], t1[2] = ((_T*)oSVD.U)[8];
 	Normalize(t1, 3, t1);
-	Matrix_Multiply(t1, 1, 3, -1, t2);
+	Matrix_Multiply(t1, 1, 3, (_T)(-1.f), t2);
 	if (!bNormalize_t)
 	{
-		Matrix_Multiply(t1, 1, 3, (float)((_T*)oSVD.S)[0], t1);
-		Matrix_Multiply(t2, 1, 3, (float)((_T*)oSVD.S)[0], t2);
+		Matrix_Multiply(t1, 1, 3, (_T)((_T*)oSVD.S)[0], t1);
+		Matrix_Multiply(t2, 1, 3, (_T)((_T*)oSVD.S)[0], t2);
 	}
 	Free_SVD(&oSVD);
 
@@ -1078,9 +1078,17 @@ template<typename _T>void Decompose_E(_T E[3 * 3], _T R1[3 * 3], _T R2[3 * 3], _
 
 void SB_Reconstruct()
 {//这就是个傻逼方法，用来欺骗template
+	Bundle_Adjust_3D2D_1((double(*)[3])NULL, (double(*)[2])NULL, 0, (double*)NULL, (double*)NULL, NULL);
+	Bundle_Adjust_3D2D_1((float(*)[3])NULL, (float(*)[2])NULL, 0, (float*)NULL, (float*)NULL, NULL);
+
+	Image_Pos_2_3D((double(*)[3])NULL, 0, (double*)NULL,(double)0, (double(*)[3])NULL);
+	Image_Pos_2_3D((float(*)[3])NULL, 0, (float*)NULL, (float)0, (float(*)[3])NULL);
+
+	RGBD_2_Point_3D({}, NULL, (double(*)[3])NULL, (double)0, (double(*)[3])NULL, NULL);
+	RGBD_2_Point_3D({}, NULL, (float(*)[3])NULL, (float)0, (float(*)[3])NULL, NULL);
+
 	Determine_Confg(NULL, (double(*)[2])NULL, (double(*)[2])NULL, 0, (double(**)[2])NULL, (double(**)[2])NULL);
 	Determine_Confg(NULL, (float(*)[2])NULL, (float(*)[2])NULL, 0, (float(**)[2])NULL, (float(**)[2])NULL);
-
 
 	Estimate_Relative_Pose({}, NULL, NULL, (double(*)[2])NULL, (double(*)[2])NULL, 0, NULL);
 	Estimate_Relative_Pose({}, NULL, NULL, (float(*)[2])NULL, (float(*)[2])NULL, 0, NULL);
@@ -1292,17 +1300,23 @@ template<typename _T>void Test_E(_T E[], _T Norm_Point_1[][2], _T Norm_Point_2[]
 		//对于相机二，KP相机参数中缺个K，就仅用外参Rt
 		Matrix_Multiply(Rt, 4, 4, Point_3D, 1, Temp_1);
 		z2 = Temp_1[2];
-
-		//正确的关系是 x' = (z1/z2) * Rt * NP1, 此时，z1,z2的参与必不可少，因为要恢复齐次
+		
+		//设x为A图在归一化平面上的点，x'是B图在归一化平面上对应x的点
+		//正确的关系是 x' = (z1/z2) * Rt * x, 此时，z1,z2的参与必不可少，因为要恢复齐次
 		//而z1,z2只有三角化以后才有，故此要验算这个结果，必须逐步恢复齐次坐标
 		memcpy(Temp_1, Norm_Point_1[i], 2 * sizeof(_T));
-		Matrix_Multiply(Temp_1, 1, 2, (float)z1, Temp_1);	//第一次化齐次坐标 (x,y,1) * z1
+		Matrix_Multiply(Temp_1, 1, 2, z1, Temp_1);	//第一次化齐次坐标 (x,y,1) * z1
 		Temp_1[2] = z1, Temp_1[3] = 1;						//第二次化齐次坐标 (z1*x, z1*y, z1, 1)
 
 		Matrix_Multiply(Rt, 4, 4, Temp_1, 1, Temp_1);		//再算 Rt * x
-		Matrix_Multiply(Temp_1, 1, 4, (float)(1.f / z2), Temp_1);	//最后再除以 z2, 此时就符合三角化公式了
+		Matrix_Multiply(Temp_1, 1, 4, 1.f / z2, Temp_1);	//最后再除以 z2, 此时就符合三角化公式了
 		Disp(Norm_Point_2[i], 1, 2, "NP2");
 		Disp(Temp_1, 1, 4, "z1/z2 * Rt * NP1");
+
+		//总结一下，x' = (z1/z2) * Rt * x， 但看这条式子是有问题的，因为x是2d点，Rt是三维变换阵，驴唇对马嘴
+		//所以，要两者能一起运算，关键是将x变为三维点
+		//x= (x,y,1)*z1 变成(x*z1,y*z1,z1) 再补1，最后 x=（x*z1,y*z1,z1,1) 这就可以参与运算了
+		//最后x'的结果  x' = (z1/z2) * Rt * x 这就对了
 	}
 	return;
 }
@@ -1425,7 +1439,7 @@ template<typename _T> void Calculate_Triangulation_Angles(_T R[3 * 3], _T t[3], 
 
 	//对R = -R'
 	Matrix_Transpose(R, 3, 3, R);
-	Matrix_Multiply(R, 3, 3, -1, R);
+	Matrix_Multiply(R, 3, 3, (_T)-1, R);
 	//Disp(R, 3, 3, "R");
 
 	Matrix_Multiply(R, 3, 3, t, 1, Center_2);
@@ -1495,4 +1509,121 @@ template<typename _T> void Estimate_Relative_Pose(Two_View_Geometry oGeo, float 
 	if (pPoint_3D)
 		Free(poMem_Mgr, pPoint_3D);
 	return;
+}
+
+template<typename _T> void RGBD_2_Point_3D(Image oImage, unsigned short* pDepth, _T K[][3], _T fDepth_Factor, _T Point_3D[][3], int* piPoint_Count, unsigned char Color[][3])
+{//通过相机内参和像素平面上的坐标还原空间点
+	int y, x, i, iPoint_Count = 0, iDepth;
+	for (y = i = 0; y < oImage.m_iHeight; y++)
+	{
+		for (x = 0; x < oImage.m_iWidth; x++, i++)
+		{
+			if (pDepth[i])
+			{
+				iDepth = (unsigned short)((pDepth[i] >> 8) + (pDepth[i] << 8));
+				Point_3D[iPoint_Count][2] = (_T)iDepth / fDepth_Factor;
+				Point_3D[iPoint_Count][0] = ((x - K[0][2]) * Point_3D[iPoint_Count][2]) / K[0][0];
+				Point_3D[iPoint_Count][1] = ((y - K[1][2]) * Point_3D[iPoint_Count][2]) / K[1][1];
+				//先看u,v的来历，像素平面上的坐标
+				//u = X* f * s / Z
+				//X = (u / f*s)*Z
+				if (Color)
+				{
+					Color[iPoint_Count][0] = oImage.m_pChannel[0][i];
+					Color[iPoint_Count][1] = oImage.m_pChannel[1][i];
+					Color[iPoint_Count][2] = oImage.m_pChannel[2][i];
+				}
+				iPoint_Count++;
+			}
+		}
+	}
+	if (piPoint_Count)
+		*piPoint_Count = iPoint_Count;
+	return;
+}
+template<typename _T>void Image_Pos_2_3D(_T Image_Pos[][3], int iCount,_T K[], _T fDepth_Factor,_T Pos_3D[][3])
+{//Image_Pos: 像素平面上的点坐标(x,y)及深度图上的d信息, K 相机内参； fDepth_Factor:深度图量化因子
+	//感觉这个函数也很实用，很多时候只关心几何信息，从第一手信息恢复空间坐标很重要
+	int i;
+	for (i = 0; i < iCount; i++)
+	{
+		Pos_3D[i][2] = (_T)Image_Pos[i][2] / fDepth_Factor;
+		Pos_3D[i][0] = ((Image_Pos[i][0] - K[2]) * Image_Pos[i][2]) / K[0];
+		Pos_3D[i][1] = ((Image_Pos[i][1] - K[5]) * Image_Pos[i][2]) / K[4];
+	}
+	return;
+}
+
+template<typename _T>void Bundle_Adjust_3D2D_1(_T Point_3D_Source_1[][3], _T Point_2D_Source_2[][2],int iCount,_T K[],_T Pose[],int *piResult)
+{//用高斯牛顿法搞BA估计，最简形式，只考虑 Ksi六元组的偏导
+	//给定条件： Point_3D_1：空间点集1，也可以视为相机1观察到的空间点集
+	//Point_2D_2，像素平面上的点集2
+	//K： 相机1和相机2同一内参
+	_T e[3], fx = K[0], fy = K[1 * 3 + 1], cx = K[2], cy = K[1 * 3 + 2];
+	_T fSum_e, fSum_e_Pre = 1e10, Temp[6 * 6], Delta_Ksi[6];
+	_T Pose_Pre[4 * 4], Pose_Estimate[4 * 4], Delta_Pose[4 * 4];
+	int i,iResult=1,iIter;
+	const _T eps = 1e-10;
+	//初始条件下，迭代格中的位置为单位矩阵，表示无移动
+	Gen_I_Matrix(Pose_Estimate, 4, 4);
+
+	for (iIter = 0;; iIter++)
+	{
+		fSum_e = 0;
+		_T  H[6 * 6] = { 0 }, //H=∑J'J
+			b[6] = { 0 };
+		for (i = 0; i < iCount; i++)
+		{
+			_T Point_3D_1[4], *pPoint_2D_2;
+			memcpy(Point_3D_1, Point_3D_Source_1[i], 3 * sizeof(_T));
+			Point_3D_1[3] = 1;
+			//用上次迭代得到的新位姿计算点集1的新位置
+			Matrix_Multiply(Pose_Estimate, 4, 4, Point_3D_1, 1, Point_3D_1);
+			if ( abs(Point_3D_1[2]) < eps)
+				continue;	//病态数据不算
+			//用相机内参K投影到像素平面上，最理想是与点集2位置重合
+			_T Point_2D_1[2] = { fx * Point_3D_1[0] / Point_3D_1[2] + cx, fy * Point_3D_1[1] / Point_3D_1[2] + cy };
+			pPoint_2D_2 = Point_2D_Source_2[i];
+			e[0] = pPoint_2D_2[0] - Point_2D_1[0];	//对应点i的数值差
+			e[1] = pPoint_2D_2[1] - Point_2D_1[1];
+
+			fSum_e += e[0] * e[0] + e[1] * e[1];
+			_T  X_Sqr = Point_3D_1[0] * Point_3D_1[0],
+				Y_Sqr = Point_3D_1[1] * Point_3D_1[1],
+				Z_Sqr = Point_3D_1[2] * Point_3D_1[2];
+
+			_T Jt[6 * 2], 
+				J[2 * 6] = { -fx / Point_3D_1[2], 0 , fx * Point_3D_1[0] / Z_Sqr, fx * Point_3D_1[0] * Point_3D_1[1] / Z_Sqr, -fx - fx * X_Sqr / Z_Sqr, fx * Point_3D_1[1] / Point_3D_1[2],
+				0, -fy / Point_3D_1[2], fy * Point_3D_1[1] / Z_Sqr, fy + fy * Y_Sqr / Z_Sqr, -fy * Point_3D_1[0] * Point_3D_1[1] / Z_Sqr, -fy * Point_3D_1[0] / Point_3D_1[2] };
+
+			Matrix_Transpose(J, 2, 6, Jt);
+			Matrix_Multiply(Jt, 6, 2, J, 6, Temp);
+			Matrix_Add(H, Temp, 6, H);  //H += J'J;
+
+			Matrix_Multiply(Jt, 6, 2, e, 1, Temp);
+			Vector_Add(b, Temp, 6, b);
+		}
+		Matrix_Multiply(b, 1, 6, (_T)-1, b);
+		
+		//解方程 Hx = b
+		Solve_Linear_Gause(H, 6, b, Delta_Ksi, &iResult);
+
+		//此处的停机条件有讲究，因为Delta_Ksi是前位移后旋转，所以不能用传统的|Δξ|≈ 0 完事
+		//只能用误差不发散为准
+		if (fSum_e >= fSum_e_Pre || !iResult)
+			break;
+
+		//将增量还原为齐次矩阵
+		se3_2_SE3(Delta_Ksi, Delta_Pose);
+
+		memcpy(Pose_Pre, Pose_Estimate, 4 * 4 * sizeof(_T));
+		Matrix_Multiply(Delta_Pose, 4, 4, Pose_Estimate, 4, Pose_Estimate);
+		//Disp(Pose, 4, 4, "Pose");
+		fSum_e_Pre = fSum_e;
+	}
+
+	*piResult = iResult;
+	if (iResult)
+		memcpy(Pose, Pose_Pre, 4 * 4 * sizeof(_T));
+
 }

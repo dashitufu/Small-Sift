@@ -1,6 +1,8 @@
 #pragma once
 #include "sift.h"
 #include "Matrix.h"
+#include "Image.h"
+
 
 typedef struct Recon_Image {	//轮到重建阶段一张图的信息
 	void* m_poFeature_Image;	//本图对应的Feature匹配图情况
@@ -81,3 +83,10 @@ template<typename _T>void Test_E(_T E[], _T Norm_Point_1[][2], _T Norm_Point_2[]
 //以下两个接口不好，以后视情况而定再做良好接口
 template<typename _T> void Estimate_Relative_Pose(Two_View_Geometry oGeo, float Camera_1[3], float Camera_2[2], _T Point_1[][2], _T Point_2[][2], int iCount, Mem_Mgr* poMem_Mgr);
 template<typename _T> void Determine_Confg(Two_View_Geometry* poGeo, _T Point_1[][2], _T Point_2[][2], int iCount, _T(**ppNew_Point_1)[2], _T(**ppNew_Point_2)[2], Mem_Mgr* poMem_Mgr = NULL);
+
+//从RGBD图恢复空间点
+template<typename _T> void RGBD_2_Point_3D(Image oImage, unsigned short* pDepth, _T K[][3], _T fDepth_Factor, _T Point_3D[][3], int* piPoint_Count, unsigned char Color[][3] = 0);
+template<typename _T>void Image_Pos_2_3D(_T Image_Pos[][3], int iCount, _T K[], _T fDepth_Factor, _T Pos_3D[][3]);
+
+//Bundle_Adjust，这是估计的关键，估计有很多种变种
+template<typename _T>void Bundle_Adjust_3D2D_1(_T Point_3D_1[][3], _T Point_2D_2[][2], int iCount, _T K[], _T Pose[], int* piResult);

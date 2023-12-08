@@ -14,6 +14,7 @@ extern "C"
 {
 #include "Buddy_System.h"
 }
+
 template<typename _T>void Temp_Load_Data(_T (**ppPoint_2D)[2], _T (**ppPoint_3D)[3], int* piCount)
 {
     int iCount = (int)(iGet_File_Length((char*)"c:\\tmp\\1.bin") / (5 * sizeof(float)));
@@ -43,143 +44,222 @@ template<typename _T>void Temp_Load_Data(_T (**ppPoint_2D)[2], _T (**ppPoint_3D)
     return;
 }
 
-void PnP_Test()
-{//尚不知何物，干就完了
+void DLT_Test_2()
+{//试一下自建数据进行DLT估计
     typedef double _T;
-    //已知相机二所观察到的点
-    _T(*pPoint_2D)[2], (*pPoint_3D)[3];
-    _T K[3 * 3] = { 520.9, 0, 325.1, 0, 521.0, 249.7, 0, 0, 1 };    //已知条件相机内参
-
-    int iCount=0;
-    Temp_Load_Data(&pPoint_2D, &pPoint_3D, &iCount);
-
-    Disp((_T*)pPoint_3D, iCount, 3, "Point_3D");
-    return;
-}
-
-int bSave_PLY(const char* pcFile, float Point[][3], int iPoint_Count, int bText)
-{//存点云，最简形式，用于实验，连结构都不要
-    FILE* pFile = fopen(pcFile, "wb");
-    char Header[512];
-    int i;
-    float* pPos;
-
-    if (!pFile)
+    const int iCount = 111;
+    _T Point_3D_1[iCount][3], Point_2D_2[iCount][2];    //图A用3D数据，图2用归一化平面数据
+    _T Point_3D_2[iCount][3];
+    int i,x,y;
+    //点云用 f(x,y) = x^2 +y^2
+    for (i=0,y = -10; y <=10; y+=2)
     {
-        printf("Fail to open file:%s\n", pcFile);
-        return 0;
-    }   
-
-    //先写入Header
-    sprintf(Header, "ply\r\n");
-    if (bText)
-        sprintf(Header + strlen(Header), "format ascii 1.0\r\n");
-    else
-        sprintf(Header + strlen(Header), "format binary_little_endian 1.0\r\n");
-    sprintf(Header + strlen(Header), "comment HQYT generated\r\n");
-    sprintf(Header + strlen(Header), "element vertex %d\r\n", iPoint_Count);
-    sprintf(Header + strlen(Header), "property float x\r\n");
-    sprintf(Header + strlen(Header), "property float y\r\n");
-    sprintf(Header + strlen(Header), "property float z\r\n");
-
-    sprintf(Header + strlen(Header), "end_header\r\n");
-    fwrite(Header, 1, strlen(Header), pFile);
-
-    for (i = 0; i <iPoint_Count; i++)
-    {
-        pPos = Point[i];
-        if (bText)
-            fprintf(pFile, "%f %f %f\r\n", pPos[0], pPos[1], pPos[2]);
-        else
-            printf("Not implemented\n");
+        for (x = -10; x <=10; x +=2,i++)
+        {
+            Point_3D_1[i][0] = x;
+            Point_3D_1[i][1] = y;
+            Point_3D_1[i][2] = (x * x + y * y)/10+10;
+        }
     }
-    fclose(pFile);
-    return 1;
-}
-void Lease_Square_Test_3()
-{//搞个二维曲面拟合实验， z= a (x/w)^2 + b(y/h)^2 搞一组添加了随机噪声的样本，用这些样本来做实验
-//至此，由样本拟合参数的牛顿法OK了，但是梯度法还没行
-    const int w = 10, h = 10;
-    const int iSample_Count = w*h;
-    const float eps = (float)1e-6;
-    float *pCur_Point, (*pPoint_3D)[3] = (float(*)[3])malloc(iSample_Count * 3 * sizeof(float));
-    float a0 = 4, b0 = 5, 
-        xa,xb;  //待求参数
     
-    //造样本集
-    int y, x;
-    for (y = 0; y < h; y++)
+    //定义一个T，使得P2=T * P1
+    _T T_Org[4 * 4],T[4*4], R_Org[3 * 3], t_Org[3] = {10,20,30}, Rotation_Vector_Org[4] = {0,1,0,PI / 6};;
+    Rotation_Vector_2_Matrix(Rotation_Vector_Org, R_Org);
+    Gen_Homo_Matrix(R_Org, t_Org, T_Org);
+    Disp(T_Org, 4, 4, "T");
+    for (i = 0; i < iCount; i++)
     {
-        for (x = 0; x < w; x++)
-        {
-            pCur_Point = pPoint_3D[y * w + x];
-            pCur_Point[0] = (float)x;
-            pCur_Point[1] = (float)y;
-            pCur_Point[2] = a0 * (float)pow((float)x/w,2) + b0 * (float)pow((float)y/h,2);
-            //printf("x:%f y:%f z:%f\n", pCur_Point[0], pCur_Point[1], pCur_Point[2]);
-            pCur_Point[2] += (float)pow(-1, y * w + x) * iGet_Random_No_cv(0, 10) / 50.f;
-            //printf("x:%f y:%f z1:%f\n", pCur_Point[0], pCur_Point[1], pCur_Point[2]);
-        }
+        _T Pos[4];
+        memcpy(Pos, Point_3D_1[i], 3 * sizeof(_T));
+        Pos[3] = 1;
+        Matrix_Multiply(T_Org, 4, 4, Pos,1, Point_3D_2[i]);
+        //Disp(Pos, 1, 4);
+        //再将新点投影到归一化平面
+        Point_2D_2[i][0] = Point_3D_2[i][0] / Point_3D_2[i][2];
+        Point_2D_2[i][1] = Point_3D_2[i][1] / Point_3D_2[i][2];
+
     }
-    //存个盘看图像
-    //bSave_PLY("c:\\tmp\\1.ply", pPoint_3D, iSample_Count, 1);
+    //bSave_PLY("c:\\tmp\\1.ply", Point_3D_1, iCount);
+    //Disp((_T*)Point_2D_2, iCount, 2);
 
-    //目标是求 min(yi - fi(x))^2 这个是最小二乘的一般形式，yi好办，每个样本的函数值，问题是， xk在此处对应的是什么？
-    //显然我们要求的是a,b，所以， f(x)不再视为关于向量x的函数，而是视为 关于a,b的函数，所以
-    //此处，我们讲a,b改为 xa,xb，这样可能好看些。故此， xk就是(xa,xb)在迭代过程中的一个取值，
-    //目标是建立迭代格 x=(xa,xb)= (J'J)(-1) * J'*e + xk
-    //先对fi(x)在xk处进行一阶泰勒展开 = fi(xk) + J(xk)(x-xk) 二元为 fi(x,y)= fi(xk,yk) + f'xk(xk,yk)*(x-xk) + f'yk(xk,yk)(y-yk)
-    //于是，原来求解问题变成 min Sigma[ (yi-fi(x))^2 ] , x=(xa,xb)
-    //泰勒展开 = min Sigma [ yi- fi(xk) - J(xk)(x-xk)]^2 , 等于只将yi-fi(x)展开
-    //将前面两项合并为一项 ei = yi - fi(xk) 则上式=
-    // min Sigma [ (ei - J(xk)(x-xk))^2] 
-    //即求解 ei - J(xk)(x-xk) = 0 矛盾方程组，求x, 此时，将J视为fi(x)关于x的一阶偏导矩阵，
-    // J (x-xk)=ei => J'J (x-xk) = J'ei
-    // (J'J)(-1)(J'J) (x-xk) = (J'J)(-1) * J' ei
-    // x-xk=  (J'J)(-1) * J' ei
-    //x = (J'J)(-1) * J' ei + xk
-
-    xa = 1, xb = 1;               //xk初值
-    float J[iSample_Count][2];  //Jacob
-    float Jt[2][iSample_Count]; //J'
-    float e[iSample_Count];     
-    float Temp[iSample_Count * 2];  //搞个足够大的临时空间
-    int i,iResult;
-    while (1)
+    //尝试无扰动情况下求解DLT问题
+    //变成矩阵形式, 一下为A, 每对匹配点搞出两条式
+    //  P0 P1 P2 1 0  0  0  0 u1 * P0 u1 * P1 u1 * p2 u1 
+    //  0  0  0  0 P0 P1 P2 1 v1 * P0 v1 * P1 v1 * P2 v1
+    _T* pA = (_T*)malloc(iCount * 12 * 2 * sizeof(_T)), * pCur, * pCur_Point_1, *pCur_UV;
+    memset(pA, 0, iCount * 12 * 2 * sizeof(_T));
+    pCur = pA;
+    for (i = 0; i < iCount; i++)
     {
-        for (i = 0; i < iSample_Count; i++)
-        {
-            pCur_Point = pPoint_3D[i];
-            //逐个求一阶偏导 f(a,b)= a (x/w)^2 + b(y/h)^2
-            //fi'a (对a求偏导)  = (x/w)^2
-            J[i][0] = (float)pow(pCur_Point[0] / w, 2);
-            //fi'b (对b求偏导) = (y/h)^2
-            J[i][1] = (float)pow(pCur_Point[1] / h, 2);
+        pCur_Point_1 = Point_3D_1[i];
+        pCur_UV = Point_2D_2[i];
+        //  P0 P1 P2 1 0  0  0  0 u1 * P0 u1 * P1 u1 * p2 u1 
+        pCur[0] = pCur_Point_1[0];
+        pCur[1] = pCur_Point_1[1];
+        pCur[2] = pCur_Point_1[2];
+        pCur[3] = 1;
+        pCur[8] = -pCur_UV[0] * pCur_Point_1[0];
+        pCur[9] = -pCur_UV[0] * pCur_Point_1[1];
+        pCur[10] = -pCur_UV[0] * pCur_Point_1[2];
+        pCur[11] = -pCur_UV[0];
+        pCur += 12;
+        //  0  0  0  0 P0 P1 P2 1 v1 * P0 v1 * P1 v1 * P2 v1
+        pCur[4] = pCur_Point_1[0];
+        pCur[5] = pCur_Point_1[1];
+        pCur[6] = pCur_Point_1[2];
+        pCur[7] = 1;
+        pCur[8] = -pCur_UV[1] * pCur_Point_1[0];
+        pCur[9] = -pCur_UV[1] * pCur_Point_1[1];
+        pCur[10] = -pCur_UV[1] * pCur_Point_1[2];
+        pCur[11] = -pCur_UV[1];
+        pCur += 12;
+    }
+    //Disp(pA, iCount * 2, 12);
+    //然后求解 Ax=0 的矛盾方程组，用svd
+    SVD_Info oSVD;
+    int iResult;
+    SVD_Alloc<_T>(iCount * 2, 12, &oSVD);
+    svd_3(pA, oSVD, &iResult);
+    //Test_SVD(pA, oSVD,NULL,0.0001f);
+    //理论上Vt最后一行为矛盾方程组的解
+    pCur = &((_T*)oSVD.Vt)[11 * 12];
+    memcpy(T, pCur, 12 * sizeof(_T));
+    Disp(T, 3, 4,"T");
+    Disp(Point_3D_1[0], 1, 3,"Point_3D");
+    Disp(Point_2D_2[0], 1, 2, "u1v1");
 
-            //ei = yi - fi(xk) 要特别留意此处，fi(xk)作为一个整体，要加括号，否则发散
-            e[i] = pCur_Point[2] - (xa * (float)pow(pCur_Point[0] / w, 2) + xb * (float)pow(pCur_Point[1] / h, 2));
-        }
+    _T b[iCount*2];
+    Matrix_Multiply(pA, iCount * 2, 12, pCur, 1, b);
+    //Disp(b, iCount*2,1);  //看看Ax 是否=0   感觉差不多了，但是，这个矩阵跟T不一样，要找出原因
+    //再验算 (u,v,1)= T*P1
+    
+    for (i = 0; i < iCount; i++)
+    {
+        _T Pos[4],Point[4];
+        memcpy(Point, Point_3D_1[i], 3 * sizeof(_T));
+        Point[3] = 1;
+        Matrix_Multiply(T, 3, 4, Point, 1, Pos);
+        Matrix_Multiply(Pos, 1, 3, 1.f / Pos[2],Pos);
+        //此处U,V已经和变换后的UV齐了。但只是UV上的齐，不是空间点的齐。所以这个变换有无数个
+        Disp(Pos, 1, 3, "new uv");
+        Disp(Point_2D_2[i], 1, 2, "org uv");
 
-        Matrix_Transpose((float*)J, iSample_Count, 2, (float*)Jt);          //= J' 2*n
-        Matrix_Multiply((float*)Jt, 2, iSample_Count, (float*)J, 2, Temp);  //=J'J 2x2
-        Get_Inv_Matrix_Row_Op(Temp, Temp, 2, &iResult);                     //(J'J)(-1) 逆矩阵 2x2
-        Matrix_Multiply(Temp, 2, 2,(float*)Jt, iSample_Count, Temp);        //=(J'J)(-1)*J' 2xn
-        Matrix_Multiply(Temp, 2, iSample_Count, e, 1, Temp);                //=(J'J)(-1)*J'*e 2x1
-                
-        xa = Temp[0] + xa;
-        xb = Temp[1] + xb;
-        if (abs(Temp[0]) < eps && abs(Temp[1]) < eps)
-            break;
-        printf("%f %f\n", Temp[0], Temp[1]);
+        //将uv乘上新点深度可恢复相机2的空间点
+        Matrix_Multiply(Pos, 1, 3, Point_3D_2[i][2], Pos);
+        Disp(Pos, 1, 3, "new point 3d");
+        Disp(Point_3D_2[i], 1, 3, "org point 3d");
     }
 
+    Free_SVD(&oSVD);
     return;
 }
+
+void DLT_Test_1()
+{//直线线性变换方法，给定两张RGBD图1与图2，图1取(x,y,d)，图2只取(x,y)，尝试估计Rt，其中
+    //x,y为像素平面坐标(x,y), d为深度，尽量保持第一手信息。另外，还需要相机参数K与深度量化
+    // 参数 fDepth_Factor
+//此处有个很迷惑的地方，图2为什么只取(x,y)而忽略d即可？因为(x,y)已经是d参与下的结果，已经隐含
+    //这个例子不好，无从检验数据是否准确
+
+    typedef double _T;
+    //第一步，装入图1，图2的信息
+    _T(*pPoint_3D_1)[3], (*pPoint_3D_2)[3],*pPoint_1,*pPoint_2;
+    _T K[3 * 3]= {  520.9f,   0.f,      325.1f,     //内参必须有
+                    0.f,      521.f,    249.7f, 
+                    0.f,      0.f,      1.f },
+        fDepth_Factor = 5000.f;                 //深度图量化参数
+
+    int i,iCount,iResult;
+    Temp_Load_File("sample\\7.8.2.bin", &pPoint_3D_1, &pPoint_3D_2, &iCount);
+    //从相机参数和深度因子恢复图一的空间位置
+    Image_Pos_2_3D(pPoint_3D_1, iCount, K, fDepth_Factor, pPoint_3D_1);
+    
+    //图二求归一化平面上的坐标
+    for (i = 0; i < iCount; i++)
+    {
+        pPoint_3D_2[i][0] = (pPoint_3D_2[i][0] - K[2]) / K[0];
+        pPoint_3D_2[i][1] = (pPoint_3D_2[i][1] - K[5]) / K[4];
+    }
+    //归一化平面坐标其实已经包含了d信息。所以现在缺了也可以继续搞
+
+    //第二步，解齐次矛盾房车方程。先构造矩阵Ax=0
+    //P0* t00 + P1 * t01 + P2 * t02 + 1 * t03 + 0  * t10 + 0  * t11 + 0  * t12 + 0 * t13 + u1 * P0 * t20 + u1 * P1 * t21 + u1 * P2 * t22 + u1 * 1 * t23 =   0
+    //0 * t00 + 0 * t01  + 0 * t02  + 0 * t03 + P0 * t10 + P1 * t11 + p2 * t12 + 1 * t13 + v1 * P0 * t20 + v1 * P0 * t21 + v1 * P2 * t22 + v1 * 1 * t23 =   0
+    //                                                                                                                                              ...	    ...
+    //                                                                                                                                              t22	    0
+    //先用点对构造A
+    _T *pCur, * pA,T[12];
+    pCur=pA = (_T*)malloc(iCount * 12 * 2 * sizeof(_T));
+    memset(pA, 0, iCount * 12 * 2 * sizeof(_T));
+    pPoint_1 = pPoint_3D_1[0];
+    pPoint_2 = pPoint_3D_2[0];
+    for (i = 0; i < iCount; i++,pPoint_1++,pPoint_2++)
+    {
+        pCur[0] = pPoint_1[0];  //P0 P1 P2
+        pCur[1] = pPoint_1[1];
+        pCur[2] = pPoint_1[2];
+        pCur[3] = 1;
+        
+        //u1* P0* t20 + u1 * P1 * t21 + u1 * P2 * t22 + u1 * 1 * t23
+        pCur[8] = pPoint_2[0] * pPoint_1[0];
+        pCur[9] = pPoint_2[0] * pPoint_1[1];
+        pCur[10] = pPoint_2[0] * pPoint_1[2];
+        pCur[11] = pPoint_2[0];
+        pCur += 12;
+
+        pCur[4] = pPoint_1[0];  //P0 P1 P2 1
+        pCur[5] = pPoint_1[1];
+        pCur[6] = pPoint_1[2];
+        pCur[7] = 1;
+        
+        //v1 * P0 * t20 + v1 * P0 * t21 + v1 * P2 * t22 + v1 * 1 * t23
+        pCur[8] = pPoint_2[1] * pPoint_1[0];
+        pCur[9] = pPoint_2[1] * pPoint_1[1];
+        pCur[10] = pPoint_2[1] * pPoint_1[2];
+        pCur[11] = pPoint_2[1];
+        pCur += 12;
+    }
+    /*for (i = 0; i < iCount*2;i++)
+    {
+        for (int j = 0; j < 12; j++)
+            printf("%f ", pA[i * 12 + j]);
+        printf("\n");
+    }*/
+    iResult=iGet_Rank(pA, 12, 12);
+
+    SVD_Info oSVD;
+    SVD_Alloc<_T>(iCount * 2, 12, &oSVD);
+    svd_3(pA, oSVD, &iResult);
+    for (i = 0; i < 12; i++)
+        T[i] = ((_T*)oSVD.Vt)[12*11+i];
+    //Disp((_T*)oSVD.S, 1, 12);
+    //Test_SVD(pA, oSVD, &iResult,0.0001);
+    Free_SVD(&oSVD);
+
+    Disp(T, 3, 4);
+    _T* pResult = (_T*)malloc(iCount * 2*sizeof(_T));
+    Matrix_Multiply(pA, iCount * 2, 12, T, 1, pResult);
+    Disp(pResult, iCount*2, 1);
+    free(pPoint_3D_1);
+    return;
+}
+
+void Exp_Test()
+{
+    /*float A[3 * 3] = { 1,2,3,4,5,6,7,8,9 },B[3*3];
+    Exp_Ref(A, 3, B);
+    Disp(B, 3, 3, "B");*/
+    return;
+}
+
+
+
 int main()
 {
     Init_Env();
-    Lease_Square_Test_3();
     
+    //DLT_Test_1();
+    Test_Main();
     Free_Env();
 #ifdef WIN32
     _CrtDumpMemoryLeaks();

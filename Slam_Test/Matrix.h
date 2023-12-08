@@ -177,7 +177,7 @@ void Cholosky_Decompose(float A[], int iOrder, float B[]);
 void Conjugate_Gradient(float* A, const int n, float B[], float X[]);
 void Get_Inv_Matrix(float* pM, float* pInv, int iOrder, int* pbSuccess);
 void Solve_Linear_Cramer(float* A, int iOrder, float* B, float* X, int* pbSuccess); //克莱姆法则解线性方程组
-void Solve_Linear_Gause(float* A, int iOrder, float* B, float* X, int* pbSuccess);	//高斯法求解线性方程组
+template<typename _T>void Solve_Linear_Gause(_T* A, int iOrder, _T* B, _T* X, int* pbSuccess);	//高斯法求解线性方程组
 void Solve_Linear_Jocabi(float A[], float B[], int iOrder, float X[], int* pbResult);				//雅可比迭代法求解线性方程组
 void Solve_Linear_Gauss_Seidel(float A[], float B[], int iOrder, float X[], int* pbResult);
 void Solve_Linear_Contradictory(float* A, int m, int n, float* B, float* X, int* pbSuccess);	//解矛盾方程组，求最小二乘解
@@ -211,13 +211,13 @@ void Matrix_Add(Sparse_Matrix* poA, float a, Sparse_Matrix* poB, float b, float*
 void Matrix_Add(Sparse_Matrix* poA, float a, Sparse_Matrix* poB, float b);
 template<typename _T>void Vector_Add(_T A[], _T B[], int n, _T C[]);
 template<typename _T>void Vector_Minus(_T A[], _T B[], int n, _T C[]);
-template<typename _T> void Matrix_Multiply(_T* A, int ma, int na, float a, _T* C);
+template<typename _T> void Matrix_Multiply(_T* A, int ma, int na, _T a, _T* C);
 
 template<typename _T> void Matrix_Multiply(_T* A, int ma, int na, _T* B, int nb, _T* C);
+template<typename _T> void Transpose_Multiply(_T A[], int m, int n, _T B[], int iFlag=1);
 
 void Matrix_Multiply(Sparse_Matrix A, Sparse_Matrix B, Sparse_Matrix* poC);
 void Matrix_Transpose_1(Sparse_Matrix A, Sparse_Matrix* poAt);
-
 template<typename _T>void Matrix_Add(_T A[], _T B[], int iOrder, _T C[]);
 
 void Matrix_x_Vector(double A[3][3], double X[3], double Y[3]);
@@ -236,7 +236,7 @@ template<typename _T>_T fGet_Determinant(_T* A, int iOrder);			//求行列式
 
 template<typename _T> _T fGet_Mod(_T V[], int n);//求向量的模
 
-float fGet_Distance(float V_1[], float V_2[], int n);	//求两向量距离
+template<typename _T> _T fGet_Distance(_T V_1[], _T V_2[], int n);	//求两向量距离
 float fGet_Theta(float v0[], float v1[], float Axis[], int n);		//求两个向量之间的夹角
 int iRank(double A[3][3]);								//求3x3矩阵的秩
 template<typename _T>int iGet_Rank(_T* A, int m, int n);				//求一般矩阵的秩，用初等行变换法
@@ -264,12 +264,15 @@ template<typename _T>void Rotation_Vector_2_Quaternion(_T V[4], _T Q[4]);	//旋转
 template<typename _T>void Hat(_T V[], _T M[]);				//构造反对称矩阵
 
 void Vee(float M[], float V[3]);			//反对称矩阵到旋转向量
-void se3_2_SE3(float Ksi[6], float T[]);		//从se3向量到SE3矩阵的转换
+template<typename _T>void se3_2_SE3(_T Ksi[6], _T T[]);		//从se3向量到SE3矩阵的转换
 void SE3_2_se3(float Rotation_Vector[4], float t[3], float Ksi[6]);	//一个旋转向量加一个位移向量构造出一个Ksi
 
 void SIM3_2_sim3(float Rotation_Vector[], float t[], float s, float zeta[7]);
 void sim3_2_SIM3(float zeta[7], float Rotation_Vector[4], float t[], float* ps);
+template<typename _T>void Get_J_by_Rotation_Vector(_T Rotation_Vector[4], _T J[]);
+template<typename _T> void Gen_Ksi_by_Rotation_Vector_t(_T Rotation_Vector[4], _T t[3], _T Ksi[6], int n=4);
 
+template<typename _T> void Exp_Ref(_T A[], int n, _T B[]);
 template<typename _T>void Gen_Homo_Matrix(_T R[], _T t[], _T c2w[]);			//用旋转坐标与位移坐标构成一个SE3变换矩阵
 
 void Gen_Homo_Matrix(float R[], float t[], float s, float M[]);	//用旋转,位移，缩放构成一个变换矩阵

@@ -263,6 +263,9 @@ template<typename _T> void Quick_Sort(_T Seq[], int iStart, int iEnd)
 }
 void SB_Common()
 {//template实例化，只对vc有效
+	bSave_PLY(NULL, (double(*)[3])NULL, 0);
+	bSave_PLY(NULL, (float(*)[3])NULL, 0);
+
 	oGet_Nth_Elem((double*)NULL, 0, 0, 0, 0);
 	oGet_Nth_Elem((float*)NULL, 0, 0, 0, 0);
 	oGet_Nth_Elem((int*)NULL, 0, 0, 0, 0);
@@ -270,4 +273,98 @@ void SB_Common()
 	Quick_Sort((double*)NULL, 0, 0);
 	Quick_Sort((float*)NULL, 0, 0);
 	Quick_Sort((int*)NULL, 0, 0);
+}
+
+int bLoad_Raw_Data(const char* pcFile, unsigned char** ppBuffer,int *piSize)
+{
+	FILE* pFile = fopen(pcFile, "rb");
+	int bRet = 0, iResult,iSize;
+	unsigned char* pBuffer;
+	iSize = (int)iGet_File_Length((char*)pcFile);
+	pBuffer = (unsigned char*)malloc(iSize);
+
+	if (!pFile)
+	{
+		printf("Fail to open file:%s\n", pcFile);
+		goto END;
+	}
+	if (!pBuffer)
+	{
+		printf("Fail to allocate memory\n");
+		goto END;
+	}
+
+	iResult = (int)fread(pBuffer, 1, iSize, pFile);
+	if (iResult != iSize)
+	{
+		if (pBuffer)
+			free(pBuffer);
+		*ppBuffer = NULL;
+		printf("Fail to read data\n");
+		goto END;
+	}
+	*ppBuffer = pBuffer;
+	if (piSize)
+		*piSize = iSize;
+	bRet = 1;
+END:
+	if (pFile)
+		fclose(pFile);
+	if (!bRet)
+	{
+		if (pBuffer)
+			free(pBuffer);
+	}
+	return bRet;
+}
+
+template<typename _T>int bSave_PLY(const char* pcFile, _T Point[][3], int iPoint_Count, unsigned char Color[][3], int bText)
+{//存点云，最简形式，用于实验，连结构都不要
+	FILE* pFile = fopen(pcFile, "wb");
+	char Header[512];
+	int i;
+	_T* pPos;
+
+	if (!pFile)
+	{
+		printf("Fail to open file:%s\n", pcFile);
+		return 0;
+	}
+
+	//先写入Header
+	sprintf(Header, "ply\r\n");
+	if (bText)
+		sprintf(Header + strlen(Header), "format ascii 1.0\r\n");
+	else
+		sprintf(Header + strlen(Header), "format binary_little_endian 1.0\r\n");
+	sprintf(Header + strlen(Header), "comment HQYT generated\r\n");
+	sprintf(Header + strlen(Header), "element vertex %d\r\n", iPoint_Count);
+	sprintf(Header + strlen(Header), "property float x\r\n");
+	sprintf(Header + strlen(Header), "property float y\r\n");
+	sprintf(Header + strlen(Header), "property float z\r\n");
+
+	if (Color)
+	{
+		sprintf(Header + strlen(Header), "property uchar red\r\n");
+		sprintf(Header + strlen(Header), "property uchar green\r\n");
+		sprintf(Header + strlen(Header), "property uchar blue\r\n");
+	}
+
+	sprintf(Header + strlen(Header), "end_header\r\n");
+	fwrite(Header, 1, strlen(Header), pFile);
+
+	for (i = 0; i < iPoint_Count; i++)
+	{
+		pPos = Point[i];
+		if (bText)
+		{
+			fprintf(pFile, "%f %f %f ", pPos[0], pPos[1], pPos[2]);
+			if (Color)
+				fprintf(pFile, "%d %d %d\r\n", Color[i][0], Color[i][1], Color[i][2]);
+			else
+				fprintf(pFile, "\r\n");
+		}
+	}
+	fclose(pFile);
+	return 1;
 }
