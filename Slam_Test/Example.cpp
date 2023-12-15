@@ -7,6 +7,9 @@ void SB_Sample()
 {
 	Temp_Load_File(NULL, (double(**)[3])NULL, (double(**)[3])NULL, NULL);
 	Temp_Load_File(NULL, (float(**)[3])NULL, (float(**)[3])NULL, NULL);
+
+	Temp_Load_File_1(NULL, (double(**)[3])NULL, (double(**)[3])NULL, NULL);
+	Temp_Load_File_1(NULL, (float(**)[3])NULL, (float(**)[3])NULL, NULL);
 }
 static void E_Test_1()
 {//找一组数据验算E矩阵。虽然代码有点散，但咬死了推导过程
@@ -1526,6 +1529,39 @@ void RGBD_Test()
 	return;
 }
 
+template<typename _T>void Temp_Load_File_1(const char* pcFile, _T(**ppPoint_3D_1)[3], _T(**ppPoint_3D_2)[3], int* piCount)
+{
+	_T(*pPoint_3D_1)[3], (*pPoint_3D_2)[3];
+	int i, iCount = (int)(iGet_File_Length((char*)pcFile) / (6 * sizeof(float)));
+	FILE* pFile = fopen(pcFile, "rb");
+	if (!pFile)
+	{
+		printf("Failt to load file\n");
+		return;
+	}
+	pPoint_3D_1 = (_T(*)[3])malloc(iCount * 3 * sizeof(_T) * 2);
+	pPoint_3D_2 = pPoint_3D_1 + iCount;
+	for (i = 0; i < iCount; i++)
+	{
+		float Data[6];
+		fread(Data, 1, 6 * sizeof(float), pFile);
+		pPoint_3D_1[i][0] = Data[0];
+		pPoint_3D_1[i][1] = Data[1];
+		pPoint_3D_1[i][2] = Data[2];
+		pPoint_3D_2[i][0] = Data[3];
+		pPoint_3D_2[i][1] = Data[4];
+		pPoint_3D_2[i][2] = Data[5];
+	}
+	fclose(pFile);
+	if (ppPoint_3D_1)
+		*ppPoint_3D_1 = pPoint_3D_1;
+	if (ppPoint_3D_2)
+		*ppPoint_3D_2 = pPoint_3D_2;
+	if (piCount)
+		*piCount = iCount;
+	return;
+}
+
 template<typename _T>void Temp_Load_File(const char* pcFile, _T(**ppPoint_3D_1)[3], _T(**ppPoint_3D_2)[3], int* piCount)
 {
 	_T(*pPoint_3D_1)[3], (*pPoint_3D_2)[3];
@@ -1558,6 +1594,9 @@ template<typename _T>void Temp_Load_File(const char* pcFile, _T(**ppPoint_3D_1)[
 		*piCount = iCount;
 	return;
 }
+
+
+
 void BA_Test_2()
 {//尝试自建点云替代样本，检验位姿估计的有效性
 	typedef float _T;
@@ -1573,7 +1612,7 @@ void BA_Test_2()
 			xyzs[i][0] = (_T)x;
 			xyzs[i][1] = (_T)y;
 			xyzs[i][2] = a * x * x + b * y * y + 1000;	//此处加1000刻意避开z<0的问题
-			xyzs[i][3] = xyzs[i][2] + ((iGet_Random_No() % 100) - 50.f) / 100.f;
+			//xyzs[i][3] = xyzs[i][2];	// +((iGet_Random_No() % 100) - 50.f) / 100.f;
 		}
 	}
 
@@ -1581,7 +1620,7 @@ void BA_Test_2()
 		K[3 * 3] = { 520.9f,  0.f,    325.1f,     //内参必须有
 					0.f,      521.f,  249.7f,
 					0.f,      0.f,      1.f };
-	_T Rotation_Vector[4] = { 0,1,0,-PI / 6.f }, t[3] = { -0,0,0 };
+	_T Rotation_Vector[4] = { 0,1,0,-PI / 6.f }, t[3] = { -100,0,0 };
 
 	//c2w
 	Gen_Ksi_by_Rotation_Vector_t(Rotation_Vector, t, Ksi);
@@ -1598,6 +1637,11 @@ void BA_Test_2()
 		memcpy(Point_3D_2, Point_3D_1[i], 3 * sizeof(_T));
 		Point_3D_2[3] = 1;
 		Matrix_Multiply(Pose_Org, 4, 4, Point_3D_2, 1, Point_3D_2);
+
+		////加点噪声，留心观察对位姿的影响，把一下这句注释则可得到精确解
+		//for(int j=0;j<3;j++)
+		//	Point_3D_2[j] += ((iGet_Random_No() % 100) - 50.f) / 100.f;
+
 		Matrix_Multiply(K, 3, 3, Point_3D_2, 1, Point_3D_2);
 		Point_3D_2[0] /= Point_3D_2[2], Point_3D_2[1] /= Point_3D_2[2], Point_3D_2[2] = 1;
 		memcpy(Point_2D_2[i], Point_3D_2, 2 * sizeof(_T));
@@ -1633,10 +1677,38 @@ void BA_Test_1()
 	return;
 }
 
+void ICP_Test_1()
+{//BA解 ICP，假定已经通过某种方法找到匹配点对
+	typedef float _T;
+	_T(*P_1)[3], (*P_2)[3];
+	int iCount;
+
+	Temp_Load_File_1("Sample\\7.10.bin", &P_2, &P_1, &iCount);
+	_T Pose[4 * 4];
+	int iResult;
+	ICP_Bundle_Adjust((_T(*)[3])P_1, (_T(*)[3])P_2, iCount, Pose, &iResult);
+	Disp(Pose, 4, 4, "秃然胜利");
+	free(P_2);
+	return;
+}
+void ICP_Test_2()
+{
+	typedef float _T;
+	_T(*P_1)[3], P_1_Centroid[3] = { 0 },
+		(*P_2)[3], P_2_Centroid[3] = { 0 };
+	_T Pose[4 * 4];
+	int iCount, iResult;
+	Temp_Load_File_1("Sample\\7.10.bin", &P_1, &P_2, &iCount);
+	ICP_SVD(P_1, P_2, iCount, Pose, &iResult);
+	Disp(Pose, 4, 4, "再下一城");
+	free(P_1);
+	return;
+}
 void Test_Main()
 {
-	BA_Test_1();
-	BA_Test_2();
+	//BA_Test_1();
+	//BA_Test_2();
+	ICP_Test_1();
 
 	//Camera_Extrinsic_Test_2();
 	//Least_Square_Test_4();	//一阶梯度法

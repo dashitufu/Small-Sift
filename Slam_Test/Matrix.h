@@ -244,6 +244,8 @@ void Cross_Product(float V0[], float V1[], float V2[]);	//求外积
 template<typename _T>_T fDot(_T V0[], _T V1[], int iDim);		//求内积，点积
 
 //以下为一组仿射变换矩阵的生成
+template<typename _T> void Gen_Roation_Matrix_2D(_T Rotation_Center[2], _T theta, _T R[3 * 3]);
+
 void Gen_Rotation_Matrix(float Axis[3], float fTheta, float R[]);//根据旋转轴与旋转角度生成一个旋转矩阵，此处用列向量，往后一路左乘
 template<typename _T>void Gen_Translation_Matrix(_T Offset[3], _T T[]);	//平移变换
 void Gen_Scale_Matrix(float Scale[3], float T[]);			//比例变换

@@ -72,3 +72,4 @@ template<typename _T>int bSave_PLY(const char* pcFile, _T Point[][3], int iPoint
 
 //Temp code 
 template<typename _T>void Temp_Load_File(const char* pcFile, _T(**ppPoint_3D_1)[3], _T(**ppPoint_3D_2)[3], int* piCount);
+template<typename _T>void Temp_Load_File_1(const char* pcFile, _T(**ppPoint_3D_1)[3], _T(**ppPoint_3D_2)[3], int* piCount);

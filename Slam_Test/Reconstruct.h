@@ -90,3 +90,7 @@ template<typename _T>void Image_Pos_2_3D(_T Image_Pos[][3], int iCount, _T K[], 
 
 //Bundle_Adjust，这是估计的关键，估计有很多种变种
 template<typename _T>void Bundle_Adjust_3D2D_1(_T Point_3D_1[][3], _T Point_2D_2[][2], int iCount, _T K[], _T Pose[], int* piResult);
+template<typename _T>void ICP_Bundle_Adjust(_T P_1[][3], _T P_2[][3], int iCount, _T Pose[], int* piResult);
+template<typename _T>void ICP_SVD(_T P_1[][3], _T P_2[][3], int iCount, _T Pose[], int* piResult);
+
+template<typename _T>void Get_Deriv_TP_Ksi(_T T[4 * 4], _T P[3], _T Deriv[4 * 6]);

@@ -225,6 +225,8 @@ void DLT_Test_1()
             printf("%f ", pA[i * 12 + j]);
         printf("\n");
     }*/
+    _T AtA[12 * 12];
+    Transpose_Multiply(pA, iCount * 2, 12, AtA,0);
     iResult=iGet_Rank(pA, 12, 12);
 
     SVD_Info oSVD;
@@ -244,20 +246,10 @@ void DLT_Test_1()
     return;
 }
 
-void Exp_Test()
-{
-    /*float A[3 * 3] = { 1,2,3,4,5,6,7,8,9 },B[3*3];
-    Exp_Ref(A, 3, B);
-    Disp(B, 3, 3, "B");*/
-    return;
-}
-
-
-
 int main()
 {
     Init_Env();
-    
+
     //DLT_Test_1();
     Test_Main();
     Free_Env();

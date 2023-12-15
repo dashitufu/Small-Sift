@@ -1,11 +1,11 @@
-//ÖØ½¨ÓÃµÄ´úÂë 
+ï»¿//é‡å»ºç”¨çš„ä»£ç  
 #pragma once
 #include "Reconstruct.h"
 
 #define SQR(Value) (Value)*(Value)
 
 template<typename _T> void Sample_XY(_T Point_1[][2], _T Point_2[][2], short Sample_Index[], int iCount, _T X_rand[][2], _T Y_rand[][2], int iRan_Count = 8)
-{//´ÓÒ»¶Ñµã¼¯ÖĞ³é³ö°Ë¸öµã·ÅÔÚ×îÇ°Ãæ
+{//ä»ä¸€å †ç‚¹é›†ä¸­æŠ½å‡ºå…«ä¸ªç‚¹æ”¾åœ¨æœ€å‰é¢
 	int i, iNo_1,iNo_2, iLast_Index = iCount - 1;
 	for (i = 0; i < iRan_Count; i++)
 	{
@@ -22,29 +22,29 @@ template<typename _T> void Sample_XY(_T Point_1[][2], _T Point_2[][2], short Sam
 }
 
 template<typename _T> void Normalize_Point_3(_T Point[][2], int iCount, _T M[3][3], _T Norm_Point[][2])
-{//½«Ò»×éµã£¬Í¶Ó°µ½±ß³¤Îª 2* sqrt(2)µÄÍ¶Ó°Æ½ÃæÉÏ,ÄÇÃ´ËùÓĞµÄµã¶¼ÒÑ¾­ÊµÏÖÄ³ÖÖÒâÒåÉÏµÄ¹éÒ»»¯
+{//å°†ä¸€ç»„ç‚¹ï¼ŒæŠ•å½±åˆ°è¾¹é•¿ä¸º 2* sqrt(2)çš„æŠ•å½±å¹³é¢ä¸Š,é‚£ä¹ˆæ‰€æœ‰çš„ç‚¹éƒ½å·²ç»å®ç°æŸç§æ„ä¹‰ä¸Šçš„å½’ä¸€åŒ–
 	_T Centroid[2] = { 0 };
 	int i;
-	//ÏÈÇó¸öÖØĞÄ
+	//å…ˆæ±‚ä¸ªé‡å¿ƒ
 	for (i = 0; i < iCount; i++)
 		Centroid[0] += Point[i][0], Centroid[1] += Point[i][1];
 	Centroid[0] /= iCount, Centroid[1] /= iCount;
 
-	//Ã¿Ò»µãµ½ÖØĞÄÓĞ¸ö¾àÀë£¬Çó8µãµÄ¾àÀëÆ½·½ºÍ
+	//æ¯ä¸€ç‚¹åˆ°é‡å¿ƒæœ‰ä¸ªè·ç¦»ï¼Œæ±‚8ç‚¹çš„è·ç¦»å¹³æ–¹å’Œ
 	_T rms_mean_dist = 0;
 	for (i = 0; i < iCount; i++)
 		rms_mean_dist += SQR(Point[i][0] - Centroid[0]) + SQR(Point[i][1] - Centroid[1]);
-	rms_mean_dist = (_T)sqrt(rms_mean_dist / iCount);	//´Ë´¦ÏÈ³ıÒÔ8ÔÙ¿ª·½²Å¶Ô£¬±ğÏ¹¸Ä
-	//ËãÍêÒÔºó£¬rms_mean_dist¾ÍÊÇ8µãµ½ÖØĞÄµÄÆ½¾ù¾àÀë
+	rms_mean_dist = (_T)sqrt(rms_mean_dist / iCount);	//æ­¤å¤„å…ˆé™¤ä»¥8å†å¼€æ–¹æ‰å¯¹ï¼Œåˆ«çæ”¹
+	//ç®—å®Œä»¥åï¼Œrms_mean_distå°±æ˜¯8ç‚¹åˆ°é‡å¿ƒçš„å¹³å‡è·ç¦»
 
-	//ÈçºÎÀí½ânorm_factor£¿ÏÈ¼ò»¯Ò»ÏÂ£¬ËùÓĞµÄµãµ½ÖØĞÄ¾àÀë¶¼ÊÇrms_mean_dist£¬
-	//¿É×é³ÉÒ»¸öÕı·½ĞÎ,±ß³¤Îª2*rms_mean_dist¡£ÎÒÃÇ½«Õâ¸öÕı·½ĞÎ£¨ÏñËØÆ½Ãæ£©
-	//ÉèÎª2*sqrt(2)´óĞ¡¡£ ÄÇÃ´rms_mean_dist¶ÔÓ¦sqrt(2)ÕâÃ´´ó¡£È»ºó£¬norm_factor
-	//¾ÍÊÇÖ¸Ã¿Ò»·İÔ­¾àÀëµÄÏñËØÊıÁ¿.»Ø¹ËÒ»ÏÂ×Ô¼º×öÏñËØÆ½ÃæµÄ·½·¨£º
+	//å¦‚ä½•ç†è§£norm_factorï¼Ÿå…ˆç®€åŒ–ä¸€ä¸‹ï¼Œæ‰€æœ‰çš„ç‚¹åˆ°é‡å¿ƒè·ç¦»éƒ½æ˜¯rms_mean_distï¼Œ
+	//å¯ç»„æˆä¸€ä¸ªæ­£æ–¹å½¢,è¾¹é•¿ä¸º2*rms_mean_distã€‚æˆ‘ä»¬å°†è¿™ä¸ªæ­£æ–¹å½¢ï¼ˆåƒç´ å¹³é¢ï¼‰
+	//è®¾ä¸º2*sqrt(2)å¤§å°ã€‚ é‚£ä¹ˆrms_mean_distå¯¹åº”sqrt(2)è¿™ä¹ˆå¤§ã€‚ç„¶åï¼Œnorm_factor
+	//å°±æ˜¯æŒ‡æ¯ä¸€ä»½åŸè·ç¦»çš„åƒç´ æ•°é‡.å›é¡¾ä¸€ä¸‹è‡ªå·±åšåƒç´ å¹³é¢çš„æ–¹æ³•ï¼š
 	//a = 1920 / (fMax_x - fMin_x);	
-	//b = -1080 / (fMax_y - fMin_y);	ÓĞÏàËÆÖ®´¦£¬¶¼ÊÇÄÃÆÁÄ»µÄ´óĞ¡×÷Îª·Ö×Ó
+	//b = -1080 / (fMax_y - fMin_y);	æœ‰ç›¸ä¼¼ä¹‹å¤„ï¼Œéƒ½æ˜¯æ‹¿å±å¹•çš„å¤§å°ä½œä¸ºåˆ†å­
 	_T norm_factor = (_T)sqrt(2.0) / rms_mean_dist;
-	//Õâ¸öM¾ØÕó³¤µÃºÜÏñÏà»úÄÚ²Î£¬ºóÃæµÄËã·¨»á½øÒ»²½Ó¡Ö¤
+	//è¿™ä¸ªMçŸ©é˜µé•¿å¾—å¾ˆåƒç›¸æœºå†…å‚ï¼Œåé¢çš„ç®—æ³•ä¼šè¿›ä¸€æ­¥å°è¯
 	// fx 0  cx
 	//	0 fy cy
 	//	0 0  1
@@ -53,7 +53,7 @@ template<typename _T> void Normalize_Point_3(_T Point[][2], int iCount, _T M[3][
 	M[2][0] = 0, M[2][1] = 0, M[2][2] = 1;
 	//Disp((float*)M, 3, 3, "M");
 
-	//¹æ¸ñ»¯
+	//è§„æ ¼åŒ–
 	for (i = 0; i < iCount; i++)
 	{
 		Norm_Point[i][0] = Point[i][0] * M[0][0] + M[0][2];
@@ -63,29 +63,29 @@ template<typename _T> void Normalize_Point_3(_T Point[][2], int iCount, _T M[3][
 	return;
 }
 template<typename _T> void Normalize_Point_1(_T Point[][2], int iCount, _T M[3][3], _T Norm_Point[][2])
-{//½«µã×öÒ»´Î¹æ¸ñ»¯£¬ĞÎ³ÉÒ»¸öÏà»úÄÚ²ÎM
+{//å°†ç‚¹åšä¸€æ¬¡è§„æ ¼åŒ–ï¼Œå½¢æˆä¸€ä¸ªç›¸æœºå†…å‚M
 	_T Centroid[2] = { 0 };
 	int i;
-	//ÏÈÇó¸öÖØĞÄ
+	//å…ˆæ±‚ä¸ªé‡å¿ƒ
 	for (i = 0; i < iCount; i++)
 		Centroid[0] += Point[i][0], Centroid[1] += Point[i][1];
 	Centroid[0] /= iCount, Centroid[1] /= iCount;
 
-	//Ã¿Ò»µãµ½ÖØĞÄÓĞ¸ö¾àÀë£¬Çó8µãµÄ¾àÀëÆ½·½ºÍ
+	//æ¯ä¸€ç‚¹åˆ°é‡å¿ƒæœ‰ä¸ªè·ç¦»ï¼Œæ±‚8ç‚¹çš„è·ç¦»å¹³æ–¹å’Œ
 	_T rms_mean_dist = 0;
 	for (i = 0; i < iCount; i++)
 		rms_mean_dist += SQR(Point[i][0] - Centroid[0]) + SQR(Point[i][1] - Centroid[1]);
-	rms_mean_dist = (_T)sqrt(rms_mean_dist / iCount);	//´Ë´¦ÏÈ³ıÒÔ8ÔÙ¿ª·½²Å¶Ô£¬±ğÏ¹¸Ä
-	//ËãÍêÒÔºó£¬rms_mean_dist¾ÍÊÇ8µãµ½ÖØĞÄµÄÆ½¾ù¾àÀë
+	rms_mean_dist = (_T)sqrt(rms_mean_dist / iCount);	//æ­¤å¤„å…ˆé™¤ä»¥8å†å¼€æ–¹æ‰å¯¹ï¼Œåˆ«çæ”¹
+	//ç®—å®Œä»¥åï¼Œrms_mean_distå°±æ˜¯8ç‚¹åˆ°é‡å¿ƒçš„å¹³å‡è·ç¦»
 
-	//ÈçºÎÀí½ânorm_factor£¿ÏÈ¼ò»¯Ò»ÏÂ£¬ËùÓĞµÄµãµ½ÖØĞÄ¾àÀë¶¼ÊÇrms_mean_dist£¬
-	//¿É×é³ÉÒ»¸öÕı·½ĞÎ,±ß³¤Îª2*rms_mean_dist¡£ÎÒÃÇ½«Õâ¸öÕı·½ĞÎ£¨ÏñËØÆ½Ãæ£©
-	//ÉèÎª2*sqrt(2)´óĞ¡¡£ ÄÇÃ´rms_mean_dist¶ÔÓ¦sqrt(2)ÕâÃ´´ó¡£È»ºó£¬norm_factor
-	//¾ÍÊÇÖ¸Ã¿Ò»·İÔ­¾àÀëµÄÏñËØÊıÁ¿.»Ø¹ËÒ»ÏÂ×Ô¼º×öÏñËØÆ½ÃæµÄ·½·¨£º
+	//å¦‚ä½•ç†è§£norm_factorï¼Ÿå…ˆç®€åŒ–ä¸€ä¸‹ï¼Œæ‰€æœ‰çš„ç‚¹åˆ°é‡å¿ƒè·ç¦»éƒ½æ˜¯rms_mean_distï¼Œ
+	//å¯ç»„æˆä¸€ä¸ªæ­£æ–¹å½¢,è¾¹é•¿ä¸º2*rms_mean_distã€‚æˆ‘ä»¬å°†è¿™ä¸ªæ­£æ–¹å½¢ï¼ˆåƒç´ å¹³é¢ï¼‰
+	//è®¾ä¸º2*sqrt(2)å¤§å°ã€‚ é‚£ä¹ˆrms_mean_distå¯¹åº”sqrt(2)è¿™ä¹ˆå¤§ã€‚ç„¶åï¼Œnorm_factor
+	//å°±æ˜¯æŒ‡æ¯ä¸€ä»½åŸè·ç¦»çš„åƒç´ æ•°é‡.å›é¡¾ä¸€ä¸‹è‡ªå·±åšåƒç´ å¹³é¢çš„æ–¹æ³•ï¼š
 	//a = 1920 / (fMax_x - fMin_x);	
-	//b = -1080 / (fMax_y - fMin_y);	ÓĞÏàËÆÖ®´¦£¬¶¼ÊÇÄÃÆÁÄ»µÄ´óĞ¡×÷Îª·Ö×Ó
+	//b = -1080 / (fMax_y - fMin_y);	æœ‰ç›¸ä¼¼ä¹‹å¤„ï¼Œéƒ½æ˜¯æ‹¿å±å¹•çš„å¤§å°ä½œä¸ºåˆ†å­
 	_T norm_factor = (_T)sqrt(2.0) / rms_mean_dist;
-	//Õâ¸öM¾ØÕó³¤µÃºÜÏñÏà»úÄÚ²Î£¬ºóÃæµÄËã·¨»á½øÒ»²½Ó¡Ö¤
+	//è¿™ä¸ªMçŸ©é˜µé•¿å¾—å¾ˆåƒç›¸æœºå†…å‚ï¼Œåé¢çš„ç®—æ³•ä¼šè¿›ä¸€æ­¥å°è¯
 	// fx 0  cx
 	//	0 fy cy
 	//	0 0  1
@@ -94,7 +94,7 @@ template<typename _T> void Normalize_Point_1(_T Point[][2], int iCount, _T M[3][
 	M[2][0] = 0, M[2][1] = 0, M[2][2] = 1;
 	//Disp((float*)M, 3, 3, "M");
 
-	//¹æ¸ñ»¯
+	//è§„æ ¼åŒ–
 	for (i = 0; i < iCount; i++)
 	{
 		Norm_Point[i][0] = Point[i][0] * M[0][0] + M[0][2];
@@ -105,7 +105,7 @@ template<typename _T> void Normalize_Point_1(_T Point[][2], int iCount, _T M[3][
 	return;
 }
 template<typename _T> void Estimate_F(_T Point_1[][2], _T Point_2[][2], int iCount, _T F[3 * 3], _T(*Norm_Point_1)[2], _T(*Norm_Point_2)[2], Light_Ptr oPtr)
-{//ÀíÂÛÉÏÕâ¸öº¯ÊıÒÑ¾­Íê±¸£¬¸ø¶¨µÄÒ»×éµãÒÑ¾­ÄÜÕÒµ½Ò»¸ö¾ØÕóF£¬Ê¹µÃp2'*F*p1=0£¬ÒÑ¾­ÓÍ×î¼òĞÎÊ½£¬²»ĞèÒªNorm_Point¿Õ¼ä
+{//ç†è®ºä¸Šè¿™ä¸ªå‡½æ•°å·²ç»å®Œå¤‡ï¼Œç»™å®šçš„ä¸€ç»„ç‚¹å·²ç»èƒ½æ‰¾åˆ°ä¸€ä¸ªçŸ©é˜µFï¼Œä½¿å¾—p2'*F*p1=0ï¼Œå·²ç»æ²¹æœ€ç®€å½¢å¼ï¼Œä¸éœ€è¦Norm_Pointç©ºé—´
 	_T M_1[3][3], M_2[3][3];
 	unsigned char* pCur;
 	int i, iSize, bUse_Matrix_Mem;
@@ -125,12 +125,12 @@ template<typename _T> void Estimate_F(_T Point_1[][2], _T Point_2[][2], int iCou
 	Normalize_Point_1(Point_1, iCount, M_1, Norm_Point_1);
 	Normalize_Point_1(Point_2, iCount, M_2, Norm_Point_2);
 
-	//´ÓÒÔÏÂ¿ÉÒÔ¿´µ½£¬¾­¹ıÏà¶ÔÖĞĞÄµÄ¹æ¸ñ»¯ºó£¬Á½ÕßÊıÖµ½øÒ»²½½Ó½ü
+	//ä»ä»¥ä¸‹å¯ä»¥çœ‹åˆ°ï¼Œç»è¿‡ç›¸å¯¹ä¸­å¿ƒçš„è§„æ ¼åŒ–åï¼Œä¸¤è€…æ•°å€¼è¿›ä¸€æ­¥æ¥è¿‘
 	//Disp((_T*)Norm_Point_1, iCount, 2, "Norm_Point_1");
 	//Disp((_T*)Norm_Point_2, iCount, 2, "Norm_Point_2");
 	//Disp((_T*)Point_2, iCount, 2, "Point_2");
-	//¹¹ÔìÏµÊıÏµÊı¾ØÕó
-	//Point_1 x F(3x3) x Point_2' Õ¹¿ª£¬ÎªĞĞÏòÁ¿
+	//æ„é€ ç³»æ•°ç³»æ•°çŸ©é˜µ
+	//Point_1 x F(3x3) x Point_2' å±•å¼€ï¼Œä¸ºè¡Œå‘é‡
 	//Disp((float*)pNorm_Point_1, iCount, 2);
 	_T(*A)[9];	// , B[8] = { 0 };
 	Malloc(oPtr, iCount * 9 * sizeof(_T), pCur);
@@ -148,10 +148,10 @@ template<typename _T> void Estimate_F(_T Point_1[][2], _T Point_2[][2], int iCou
 		A[i][8] = 1;
 	}
 
-	//ÕıÊ½Çó½â
+	//æ­£å¼æ±‚è§£
 	_T Basic_Solution[7 * 9];
 	//int iBasic_Solution_Count, iResult;
-	//×¢Òâ£¬µ±Ax=0 ÖĞµÄAÎªºáĞÎ£¬´ËÊ±¿ÉÒÔ²»ÓÃsvdÇó½â£¬¾ÍÊÇ¸öÆë´Î·½³ÌÇó»ù´¡½âÏµµÄ¹ı³Ì£¬Ò²Ğí¸ü¿ì¸ü×¼
+	//æ³¨æ„ï¼Œå½“Ax=0 ä¸­çš„Aä¸ºæ¨ªå½¢ï¼Œæ­¤æ—¶å¯ä»¥ä¸ç”¨svdæ±‚è§£ï¼Œå°±æ˜¯ä¸ªé½æ¬¡æ–¹ç¨‹æ±‚åŸºç¡€è§£ç³»çš„è¿‡ç¨‹ï¼Œä¹Ÿè®¸æ›´å¿«æ›´å‡†
 	//Solve_Linear_Solution_Construction((float*)A, iCount, 9, B, &iResult, Basic_Solution, &iBasic_Solution_Count, NULL);
 	SVD_Info oSVD;
 	SVD_Alloc<_T>(iCount, 9, &oSVD);
@@ -159,10 +159,10 @@ template<typename _T> void Estimate_F(_T Point_1[][2], _T Point_2[][2], int iCou
 	svd_3((_T*)A, oSVD, &oSVD.m_bSuccess);
 	//Disp((_T*)oSVD.Vt, 9, 9, "Vt");
 	memcpy(Basic_Solution, ((_T(*)[9])oSVD.Vt)[8], 9 * sizeof(_T));
-	//µÚÒ»´ÎSVDÒÑ¾­½áÊøÊ¹Ãü
+	//ç¬¬ä¸€æ¬¡SVDå·²ç»ç»“æŸä½¿å‘½
 	Free_SVD(&oSVD);
 
-	//ÓÉ½âÔÙ×éºÏ³ÉÒ»¸öF¾ØÕó
+	//ç”±è§£å†ç»„åˆæˆä¸€ä¸ªFçŸ©é˜µ
 	_T Temp_1[3 * 3], 
 		F_1[3 * 3] = { Basic_Solution[0],Basic_Solution[1],Basic_Solution[2],
 		Basic_Solution[3],Basic_Solution[4],Basic_Solution[5],
@@ -171,14 +171,14 @@ template<typename _T> void Estimate_F(_T Point_1[][2], _T Point_2[][2], int iCou
 	SVD_Alloc<_T>(3, 3, &oSVD);
 	svd_3(F_1, oSVD,&oSVD.m_bSuccess);
 
-	//¶ÔÓÚF¾ØÕó£¬ÆæÒìÖµµÄ´¦ÀíÉÔÎ¢Ã»ÄÇÃ´¶à£¬½ö½ö°Ñ×îºóÒ»¸öÆæÒìÖµÖÃÁã
+	//å¯¹äºFçŸ©é˜µï¼Œå¥‡å¼‚å€¼çš„å¤„ç†ç¨å¾®æ²¡é‚£ä¹ˆå¤šï¼Œä»…ä»…æŠŠæœ€åä¸€ä¸ªå¥‡å¼‚å€¼ç½®é›¶
 	_T S[3 * 3] = { ((_T*)oSVD.S)[0],0,0,
 				0,((_T*)oSVD.S)[1],0,
 				0,0,0 };
 	Matrix_Multiply((_T*)oSVD.U, 3, 3 ,S, 3, Temp_1);
 	Matrix_Multiply(Temp_1, 3, 3, (_T*)oSVD.Vt, 3, F);
 
-	//ÔÚËã M2' * F * M1»Ö¸´Ô­×ø±ê
+	//åœ¨ç®— M2' * F * M1æ¢å¤åŸåæ ‡
 	Matrix_Transpose((_T*)M_2, 3, 3, (_T*)M_2);
 	Matrix_Multiply((_T*)M_2, 3, 3, F, 3, Temp_1);
 	Matrix_Multiply(Temp_1, 3, 3, (_T*)M_1, 3, F);
@@ -189,8 +189,8 @@ template<typename _T> void Estimate_F(_T Point_1[][2], _T Point_2[][2], int iCou
 	//Disp_Mem(&oMatrix_Mem, 0);
 }
 template<typename _T> void Estimate_E(_T Point_1[][2], _T Point_2[][2], int iCount, _T E[3 * 3], _T (*Norm_Point_1)[2], _T (*Norm_Point_2)[2], Light_Ptr oPtr)
-{//×öÒ»¸ö¸üÇåË¬µÄ½Ó¿Ú£¬Norm_Point_1 £¬Norm_Point_2¿ÉÒÔ²»¿ª¿Õ¼ä£¬oPtr¿ÉÒÔÃ»ÓĞ
-//ÀíÂÛÉÏÕâÒÑ¾­ÊÇÍê±¸½Ó¿Ú£¬¸øÓëÒ»×éµã x1,x2£¬ÇóµÃÒ»¸ö¾ØÕóE£¬ Ê¹µÃ x2'*E*x1=0
+{//åšä¸€ä¸ªæ›´æ¸…çˆ½çš„æ¥å£ï¼ŒNorm_Point_1 ï¼ŒNorm_Point_2å¯ä»¥ä¸å¼€ç©ºé—´ï¼ŒoPtrå¯ä»¥æ²¡æœ‰
+//ç†è®ºä¸Šè¿™å·²ç»æ˜¯å®Œå¤‡æ¥å£ï¼Œç»™ä¸ä¸€ç»„ç‚¹ x1,x2ï¼Œæ±‚å¾—ä¸€ä¸ªçŸ©é˜µEï¼Œ ä½¿å¾— x2'*E*x1=0
 	_T M_1[3][3], M_2[3][3];
 	unsigned char* pCur;
 	int i, iSize,bUse_Matrix_Mem;
@@ -212,12 +212,12 @@ template<typename _T> void Estimate_E(_T Point_1[][2], _T Point_2[][2], int iCou
 	Normalize_Point_1(Point_1, iCount, M_1, Norm_Point_1);
 	Normalize_Point_1(Point_2, iCount, M_2, Norm_Point_2);
 	
-	//´ÓÒÔÏÂ¿ÉÒÔ¿´µ½£¬¾­¹ıÏà¶ÔÖĞĞÄµÄ¹æ¸ñ»¯ºó£¬Á½ÕßÊıÖµ½øÒ»²½½Ó½ü
+	//ä»ä»¥ä¸‹å¯ä»¥çœ‹åˆ°ï¼Œç»è¿‡ç›¸å¯¹ä¸­å¿ƒçš„è§„æ ¼åŒ–åï¼Œä¸¤è€…æ•°å€¼è¿›ä¸€æ­¥æ¥è¿‘
 	//Disp((_T*)Norm_Point_1, iCount, 2, "Norm_Point_1");
 	//Disp((_T*)Norm_Point_2, iCount, 2, "Norm_Point_2");
 	//Disp((_T*)Point_2, iCount, 2, "Point_2");
-	//¹¹ÔìÏµÊıÏµÊı¾ØÕó
-	//Point_1 x E(3x3) x Point_2' Õ¹¿ª£¬ÎªĞĞÏòÁ¿
+	//æ„é€ ç³»æ•°ç³»æ•°çŸ©é˜µ
+	//Point_1 x E(3x3) x Point_2' å±•å¼€ï¼Œä¸ºè¡Œå‘é‡
 	//Disp((float*)pNorm_Point_1, iCount, 2);
 	_T(*A)[9];	//, B[8] = { 0 };
 	Malloc(oPtr, iCount * 9 * sizeof(_T), pCur);
@@ -236,21 +236,21 @@ template<typename _T> void Estimate_E(_T Point_1[][2], _T Point_2[][2], int iCou
 	}
 	
 	//Disp((_T*)A, 8, 9);
-	//ÕıÊ½Çó½â
+	//æ­£å¼æ±‚è§£
 	_T Basic_Solution[9 * 9];
 	
-	////ÇóÖÈ,µÚÒ»´Î»³ÒÉĞ§¹û²îµÄÔ­Òò£¬¿ÉÄÜÑù±¾²»ÂúÖÈ
+	////æ±‚ç§©,ç¬¬ä¸€æ¬¡æ€€ç–‘æ•ˆæœå·®çš„åŸå› ï¼Œå¯èƒ½æ ·æœ¬ä¸æ»¡ç§©
 	//int iRank;
 	//iRank = iGet_Rank((_T*)A, 8, 9);
 	//if (iRank != 8)
-	//	printf("ÖÈĞ¡ÓÚ8:%d\n", iRank);
+	//	printf("ç§©å°äº8:%d\n", iRank);
 	//else
 	//	printf("Done");
 
 	
 	//int iBasic_Solution_Count, iResult;
 
-	//×¢Òâ£¬µ±Ax=0 ÖĞµÄAÎªºáĞÎ£¬´ËÊ±¿ÉÒÔ²»ÓÃsvdÇó½â£¬¾ÍÊÇ¸öÆë´Î·½³ÌÇó»ù´¡½âÏµµÄ¹ı³Ì£¬Ò²Ğí¸ü¿ì¸ü×¼
+	//æ³¨æ„ï¼Œå½“Ax=0 ä¸­çš„Aä¸ºæ¨ªå½¢ï¼Œæ­¤æ—¶å¯ä»¥ä¸ç”¨svdæ±‚è§£ï¼Œå°±æ˜¯ä¸ªé½æ¬¡æ–¹ç¨‹æ±‚åŸºç¡€è§£ç³»çš„è¿‡ç¨‹ï¼Œä¹Ÿè®¸æ›´å¿«æ›´å‡†
 	//Solve_Linear_Solution_Construction((float*)A, iCount, 9, B, &iResult, Basic_Solution, &iBasic_Solution_Count, NULL);
 	/*float* U_A = (float*)malloc(iCount * iCount * sizeof(float)),
 		* S_A = (float*)malloc(iCount * 9 * sizeof(float)),
@@ -264,7 +264,7 @@ template<typename _T> void Estimate_E(_T Point_1[][2], _T Point_2[][2], int iCou
 	memcpy(Basic_Solution, ((_T(*)[9])oSVD.Vt)[8], 9 * sizeof(_T));
 
 	//Matrix_Multiply((_T*)A, iCount, 9, Basic_Solution, 1, Basic_Solution);
-	//Disp(Basic_Solution, 1, 8, "Solution");	//×¢Òâ£¬[8]¸öÃ»ÓÃ
+	//Disp(Basic_Solution, 1, 8, "Solution");	//æ³¨æ„ï¼Œ[8]ä¸ªæ²¡ç”¨
 
 	/*_T Temp_3[3];
 	for (int i = 0; i < 3; i++)
@@ -276,11 +276,11 @@ template<typename _T> void Estimate_E(_T Point_1[][2], _T Point_2[][2], int iCou
 		Matrix_Multiply(Temp_3, 1, 3, (_T*)Point_back_2, 1,Temp_3);		
 	}*/
 
-	//µÚÒ»´ÎSVDÒÑ¾­½áÊøÊ¹Ãü
+	//ç¬¬ä¸€æ¬¡SVDå·²ç»ç»“æŸä½¿å‘½
 	Free_SVD(&oSVD);	
 	
-	//ÓÉ½âÔÙ×éºÏ³ÉÒ»¸öE'¾ØÕó£¬×¢Òâ£¬ÕâÀï¸ãÁËµã¶à´ËÒ»¾ÙµÄ×ªÖÃÔì³ÉºóÃæ·Ñ½â
-	//ÕıÈ·µÄE = [	e1 e2 e3		¶ø´Ë´¦ÊÇ [	e1 e4 e7	ËùÒÔÕâÊÇE'
+	//ç”±è§£å†ç»„åˆæˆä¸€ä¸ªE'çŸ©é˜µï¼Œæ³¨æ„ï¼Œè¿™é‡Œæäº†ç‚¹å¤šæ­¤ä¸€ä¸¾çš„è½¬ç½®é€ æˆåé¢è´¹è§£
+	//æ­£ç¡®çš„E = [	e1 e2 e3		è€Œæ­¤å¤„æ˜¯ [	e1 e4 e7	æ‰€ä»¥è¿™æ˜¯E'
 	//				e3 e4 e5					e2 e5 e8
 	//				e6 e7 e8 ]					e3 e6 e9]
 	_T E_raw[3*3], Temp_1[3 * 3], Temp_2[3 * 3],
@@ -289,11 +289,11 @@ template<typename _T> void Estimate_E(_T Point_1[][2], _T Point_2[][2], int iCou
 		Basic_Solution[2],Basic_Solution[5],Basic_Solution[8] };
 	//Disp((_T*)E_t, 3, 3, "Et");
 
-	//ÒªÍÆµ¼ÒÔÏÂÒÔÏÂE_rawÊÇ¸öÊ²Ã´¶«Î÷
-	// NP_2' * E * NP_1 =0		ÕâÊÇ×î³õµÄ×îÓÅ»¯ÎÊÌâ£¬ÔÚ¹æ¸ñ»¯µãÉÏ×ö
-	//Õ¹¿ª¹æ¸ñ»¯µã  (M_2 * P2)' * E * M_1 * P1=0  ÓÖ¸ù¾İ¾ØÕó³ËµÄ×ªÖÃµÈÓÚ×ªÖÃºó¾ØÕóµÄ³ËÓĞ
-	//=>  P2' * M_2' * E * M_1 * P1=0	¿ÉÒÔ½«ÖĞ¼äÊÓÎªÕûÌåE_raw
-	//=¡· E_raw = M_2' * E * M_1
+	//è¦æ¨å¯¼ä»¥ä¸‹ä»¥ä¸‹E_rawæ˜¯ä¸ªä»€ä¹ˆä¸œè¥¿
+	// NP_2' * E * NP_1 =0		è¿™æ˜¯æœ€åˆçš„æœ€ä¼˜åŒ–é—®é¢˜ï¼Œåœ¨è§„æ ¼åŒ–ç‚¹ä¸Šåš
+	//å±•å¼€è§„æ ¼åŒ–ç‚¹  (M_2 * P2)' * E * M_1 * P1=0  åˆæ ¹æ®çŸ©é˜µä¹˜çš„è½¬ç½®ç­‰äºè½¬ç½®åçŸ©é˜µçš„ä¹˜æœ‰
+	//=>  P2' * M_2' * E * M_1 * P1=0	å¯ä»¥å°†ä¸­é—´è§†ä¸ºæ•´ä½“E_raw
+	//=ã€‹ E_raw = M_2' * E * M_1
 	// De-normalize to image points.
 	Matrix_Transpose((_T*)M_2, 3, 3, Temp_1);
 	Matrix_Transpose(E_t, 3, 3, Temp_2);
@@ -301,16 +301,16 @@ template<typename _T> void Estimate_E(_T Point_1[][2], _T Point_2[][2], int iCou
 	Matrix_Multiply(E_raw, 3, 3, (_T*)M_1, 3, E_raw);
 	
 	//Disp(E_raw, 3, 3, "E_raw");
-	//µÚ¶ş´ÎSVD, ÎªE_raw
+	//ç¬¬äºŒæ¬¡SVD, ä¸ºE_raw
 	SVD_Alloc<_T>(3, 3, &oSVD);
 	svd_3(E_raw, oSVD);
 	//Disp((_T*)oSVD.S, 1, 3,"S");
 	//Disp((_T*)oSVD.Vt, 3, 3, "Vt");
 
 	_T S[3 * 3] = {};
-	//È»ºó½øĞĞÒ»¸öÉ§²Ù×÷£¬¶Ô½Ç»¯µÄÈı¸öÔªËØ½øĞĞµ÷Õû£¬ÔİÊ±²»ÖªÆäÀí¡£
-	//µ«ÊÇÔÚQR·Ö½âÖĞÔòÓĞÒ»ÖÖÇé¿ö£¬ÒòÎª¼ÆËãÎó²îÁ½¸öÖØ¸ù´æÔÚĞ©Ğí²î£¬´ËÊ±
-	//Ó¦¸Ã½«¿ÉÒÉÖØ¸ùÇóºÍÔÙÆ½¾ù£¬´ËÊ±Îó²î×îĞ¡
+	//ç„¶åè¿›è¡Œä¸€ä¸ªéªšæ“ä½œï¼Œå¯¹è§’åŒ–çš„ä¸‰ä¸ªå…ƒç´ è¿›è¡Œè°ƒæ•´ï¼Œæš‚æ—¶ä¸çŸ¥å…¶ç†ã€‚
+	//ä½†æ˜¯åœ¨QRåˆ†è§£ä¸­åˆ™æœ‰ä¸€ç§æƒ…å†µï¼Œå› ä¸ºè®¡ç®—è¯¯å·®ä¸¤ä¸ªé‡æ ¹å­˜åœ¨äº›è®¸å·®ï¼Œæ­¤æ—¶
+	//åº”è¯¥å°†å¯ç–‘é‡æ ¹æ±‚å’Œå†å¹³å‡ï¼Œæ­¤æ—¶è¯¯å·®æœ€å°
 	S[0] = S[4] = ( ((_T*)oSVD.S)[0]  + ((_T*)oSVD.S)[1]) / 2.f;
 	S[8] = 0.f;
 
@@ -326,8 +326,8 @@ template<typename _T> void Estimate_E(_T Point_1[][2], _T Point_2[][2], int iCou
 }
 
 template<typename _T> void Estimate_H(_T Point_1[][2], _T Point_2[][2], int iCount, _T H[3 * 3], _T (*Norm_Point_1)[2], _T (*Norm_Point_2)[2], Light_Ptr oPtr)
-{//¸ø¶¨µÄÊı¾İÇó½âÒ»¸öHomograph¾ØÕó£¬Âú×ã min ( ||P1*X-P2||^2)
-//ÀíÂÛÉÏ¸Ã½Ó¿ÚÒÑ¾­Íê±¸£¬¸øÓëÒ»×éµã£¬´æÔÚÒ»¸ö¾ØÕóH£¬s.t. H*p1=p2
+{//ç»™å®šçš„æ•°æ®æ±‚è§£ä¸€ä¸ªHomographçŸ©é˜µï¼Œæ»¡è¶³ min ( ||P1*X-P2||^2)
+//ç†è®ºä¸Šè¯¥æ¥å£å·²ç»å®Œå¤‡ï¼Œç»™ä¸ä¸€ç»„ç‚¹ï¼Œå­˜åœ¨ä¸€ä¸ªçŸ©é˜µHï¼Œs.t. H*p1=p2
 	_T M_1[3][3], M_2[3][3];
 	int i, j,iResult,bUse_Matrix_Mem;
 	
@@ -346,7 +346,7 @@ template<typename _T> void Estimate_H(_T Point_1[][2], _T Point_2[][2], int iCou
 		Norm_Point_2 = (_T(*)[2])pCur;
 	}
 
-	//´ÓÒÔÏÂ¿ÉÒÔ¿´µ½£¬¾­¹ıÏà¶ÔÖĞĞÄµÄ¹æ¸ñ»¯ºó£¬Á½ÕßÊıÖµ½øÒ»²½½Ó½ü
+	//ä»ä»¥ä¸‹å¯ä»¥çœ‹åˆ°ï¼Œç»è¿‡ç›¸å¯¹ä¸­å¿ƒçš„è§„æ ¼åŒ–åï¼Œä¸¤è€…æ•°å€¼è¿›ä¸€æ­¥æ¥è¿‘
 	Normalize_Point_3(Point_1, iCount, M_1, Norm_Point_1);
 	Normalize_Point_3(Point_2, iCount, M_2, Norm_Point_2);
 	//Disp((_T*)Norm_Point_1, iCount, 2, "Norm_Point_1");
@@ -402,7 +402,7 @@ template<typename _T> void Estimate_H(_T Point_1[][2], _T Point_2[][2], int iCou
 
 template<typename _T>
 void Get_Residual_H(_T Point_1[][2], _T Point_2[][2], int iCount, _T H[3 * 3], _T Residual[])
-{//¶ÔH¾ØÕóµÄÎó²î¹À¼Æ²»ÄÜÓÃSampson¾àÀë£¬ÓÃµÄ»¹ÊÇÅ·ÊÏ¾àÀë£¬´ıÑéÖ¤
+{//å¯¹HçŸ©é˜µçš„è¯¯å·®ä¼°è®¡ä¸èƒ½ç”¨Sampsonè·ç¦»ï¼Œç”¨çš„è¿˜æ˜¯æ¬§æ°è·ç¦»ï¼Œå¾…éªŒè¯
 	_T H_00 = H[0], H_01 = H[1], H_02 = H[2], H_10 = H[3],
 		H_11 = H[4], H_12 = H[5], H_20 = H[6], H_21 = H[7], H_22 = H[8];
 
@@ -413,23 +413,23 @@ void Get_Residual_H(_T Point_1[][2], _T Point_2[][2], int iCount, _T H[3 * 3], _
 		_T d_0 = Point_2[i][0];
 		_T d_1 = Point_2[i][1];
 
-		//´Ë´¦Ïò×öÁË¸öH * Point_1 µÄ±ä»»
+		//æ­¤å¤„å‘åšäº†ä¸ªH * Point_1 çš„å˜æ¢
 		_T pd_0 = H_00 * s_0 + H_01 * s_1 + H_02;
 		_T pd_1 = H_10 * s_0 + H_11 * s_1 + H_12;
 		_T pd_2 = H_20 * s_0 + H_21 * s_1 + H_22;
 
-		//´Ë´¦ÏñÍ¶Ó°
+		//æ­¤å¤„åƒæŠ•å½±
 		_T inv_pd_2 = 1.f / pd_2;
 		_T dd_0 = d_0 - pd_0 * inv_pd_2;
 		_T dd_1 = d_1 - pd_1 * inv_pd_2;
 
-		//Å·ÊÏ¾àÀë
+		//æ¬§æ°è·ç¦»
 		Residual[i] = dd_0 * dd_0 + dd_1 * dd_1;
 	}
 }
 template<typename _T>
 void Get_Support(_T Residual[], int iCount, _T fMax_Residual, int* piInlier_Count, float* pfResidual_Sum)
-{//¸ù±¾Ã»Ê²Ã´ÓªÑø£¬¾ÍÊÇ±È¸öÎó²î£¬
+{//æ ¹æœ¬æ²¡ä»€ä¹ˆè¥å…»ï¼Œå°±æ˜¯æ¯”ä¸ªè¯¯å·®ï¼Œ
 	int iInlier_Count = 0;
 	_T fSum = 0;
 	for (int i = 0; i < iCount; i++)
@@ -441,35 +441,35 @@ void Get_Support(_T Residual[], int iCount, _T fMax_Residual, int* piInlier_Coun
 		*pfResidual_Sum = (float)fSum;
 }
 int iCompute_Num_Trials(int iInlier_Count, int iSample_Count, int kMinNumSamples)
-{//¼ÆËãdyn_max_num_trials,¶¯Ì¬²âÊÔ´ÎÊı
-	//µ±InlierÔö´ó£¬fInlier_RatioÔö´ó£¬fInlier_Ratio¾ÍÊÇÕÒµ½Æ¥ÅäµãµÄ±ÈÀı
+{//è®¡ç®—dyn_max_num_trials,åŠ¨æ€æµ‹è¯•æ¬¡æ•°
+	//å½“Inlierå¢å¤§ï¼ŒfInlier_Ratioå¢å¤§ï¼ŒfInlier_Ratioå°±æ˜¯æ‰¾åˆ°åŒ¹é…ç‚¹çš„æ¯”ä¾‹
 	float fInlier_Ratio = (float)iInlier_Count / iSample_Count;
 	float nom = 1.f - 0.99f;
-	//InlierÔö´ó£¬denom¼õÉÙ¡£ fInlier_Ration ^ (4|8)£¬¸ß´Îº¯Êıx^(4|8)¿´[0,1]Çø¼äÍ¼Ïñ¼´¿É
+	//Inlierå¢å¤§ï¼Œdenomå‡å°‘ã€‚ fInlier_Ration ^ (4|8)ï¼Œé«˜æ¬¡å‡½æ•°x^(4|8)çœ‹[0,1]åŒºé—´å›¾åƒå³å¯
 	float denom = 1.f - (float)pow(fInlier_Ratio, kMinNumSamples);
 	int iRet;
 	if (denom <= 0)
 		return 1;
-	if (denom == 1.0)	//´ËÊ±±íÊ¾Inlier_Ratio=0£¬ÕÒ²»µ½ÈÎºÎÆ¥Åäµã
-		return (int)(std::numeric_limits<size_t>::max());	//·µ»Ø¸ö×î´óÖµ
+	if (denom == 1.0)	//æ­¤æ—¶è¡¨ç¤ºInlier_Ratio=0ï¼Œæ‰¾ä¸åˆ°ä»»ä½•åŒ¹é…ç‚¹
+		return (int)(std::numeric_limits<size_t>::max());	//è¿”å›ä¸ªæœ€å¤§å€¼
 	
 	//printf("nom:%f denom:%f log(nom):%f log(denom):%f\n",nom,denom,log(nom),log(denom));
-	//log(nom)= -4.605171, ×ÜÎª¸º denom<1, log£¨denom) ×ÜÎª¸º
-	//inlier Ôö´ó£¬denomµİ¼õ£¬|log(denom)| µİÔö£¬½á¹ûµİ¼õ
-	//ÆäÊµ´Ó×ÜÌåÉÏÀ´¿´£¬ÎŞ·Ç¾ÍÊÇÆ¥ÅäµÄµãÊıÔ½¶à£¬¼ÌĞøµü´úµÄ´ÎÊı¾ÆÔ¼ÉÙ¡£ÓĞĞËÈ¤¿ÉÒÔ×Ô¼º¸ã¸öÇúÏß
+	//log(nom)= -4.605171, æ€»ä¸ºè´Ÿ denom<1, logï¼ˆdenom) æ€»ä¸ºè´Ÿ
+	//inlier å¢å¤§ï¼Œdenomé€’å‡ï¼Œ|log(denom)| é€’å¢ï¼Œç»“æœé€’å‡
+	//å…¶å®ä»æ€»ä½“ä¸Šæ¥çœ‹ï¼Œæ— éå°±æ˜¯åŒ¹é…çš„ç‚¹æ•°è¶Šå¤šï¼Œç»§ç»­è¿­ä»£çš„æ¬¡æ•°é…’çº¦å°‘ã€‚æœ‰å…´è¶£å¯ä»¥è‡ªå·±æä¸ªæ›²çº¿
 	iRet = (int)ceil(log(nom) / log(denom) * 3.f);
 	return iRet;
 }
 template<typename _T>void Normalize_Point(_T(*pPoint_1)[2], _T(*pPoint_2)[2], int iCount, _T(*pNorm_Point_1)[2], _T(*pNorm_Point_2)[2], float f, float c1, float c2)
-{//ÓÃÏà»úÄÚ²Î½«ÆÁÄ»×ø±êÍ¶Ó°µ½¹éÒ»»¯Æ½ÃæÉÏ£¬¾ÍÊÇ½¹¾àÎª1µÄ³ÉÏñÆ½Ãæ
+{//ç”¨ç›¸æœºå†…å‚å°†å±å¹•åæ ‡æŠ•å½±åˆ°å½’ä¸€åŒ–å¹³é¢ä¸Šï¼Œå°±æ˜¯ç„¦è·ä¸º1çš„æˆåƒå¹³é¢
 	for (int i = 0; i < iCount; i++)
-	{	//°´ÕÕu= a*f*x/z + cx => x= z* (u-cx) /af	//¼ÙÉèa=1
-		//È»¶ø£¬Ô´´úÂëÓÃµÄÊ½×ÓÊÇ£º (x - c1) / f£¬ ÄÇÃ´z=1.´Ë´¦´æÒÉ
-		//²ÂÏë¼Ù¶¨Ã¿¸öµãµÄz¾àÀëÊÇ1£¿
-		//OKÁË£¬Õâ¸ö¹ı³Ì¾ÍÊÇÍ¨¹ıÏà»úÄÚ²Î½«ËùÓĞµÄÏñËØµãÍ¶Ó°µ½¹éÒ»»¯Æ½ÃæÉÏ¡£
-		// ¾ØÕóĞÎÊ½¾ÍÊÇ x= K(-1) * p	ÆäÖĞPÎªÏñËØµãÎ»ÖÃ£¬xÎª¹éÒ»»¯ºóÎ»ÖÃ£¬ K(-1)Îª KµÄÄæ
-		//Ä¿Ç°£¬ÄÜÏëÏóµ½µÄµÄ±ä»»ÊÇÎïÌåÀïÏà»ú¹âĞÄÎª1ÏñËØ¡£½¹¾àÎª768ÏñËØ£¬»Ö¸´ÖĞĞÄµã
-		//¹Ê´ËÎïÌåÔÚÔÚÊÀ½çµÄ×ø±êÎª (x-c1)/f ×ø±ê ÔÚ -0.5,0.5Ö®¼ä
+	{	//æŒ‰ç…§u= a*f*x/z + cx => x= z* (u-cx) /af	//å‡è®¾a=1
+		//ç„¶è€Œï¼Œæºä»£ç ç”¨çš„å¼å­æ˜¯ï¼š (x - c1) / fï¼Œ é‚£ä¹ˆz=1.æ­¤å¤„å­˜ç–‘
+		//çŒœæƒ³å‡å®šæ¯ä¸ªç‚¹çš„zè·ç¦»æ˜¯1ï¼Ÿ
+		//OKäº†ï¼Œè¿™ä¸ªè¿‡ç¨‹å°±æ˜¯é€šè¿‡ç›¸æœºå†…å‚å°†æ‰€æœ‰çš„åƒç´ ç‚¹æŠ•å½±åˆ°å½’ä¸€åŒ–å¹³é¢ä¸Šã€‚
+		// çŸ©é˜µå½¢å¼å°±æ˜¯ x= K(-1) * p	å…¶ä¸­Pä¸ºåƒç´ ç‚¹ä½ç½®ï¼Œxä¸ºå½’ä¸€åŒ–åä½ç½®ï¼Œ K(-1)ä¸º Kçš„é€†
+		//ç›®å‰ï¼Œèƒ½æƒ³è±¡åˆ°çš„çš„å˜æ¢æ˜¯ç‰©ä½“é‡Œç›¸æœºå…‰å¿ƒä¸º1åƒç´ ã€‚ç„¦è·ä¸º768åƒç´ ï¼Œæ¢å¤ä¸­å¿ƒç‚¹
+		//æ•…æ­¤ç‰©ä½“åœ¨åœ¨ä¸–ç•Œçš„åæ ‡ä¸º (x-c1)/f åæ ‡ åœ¨ -0.5,0.5ä¹‹é—´
 		pNorm_Point_1[i][0] = (pPoint_1[i][0] - c1) / f;
 		pNorm_Point_1[i][1] = (pPoint_1[i][1] - c2) / f;
 
@@ -481,7 +481,7 @@ template<typename _T>void Normalize_Point(_T(*pPoint_1)[2], _T(*pPoint_2)[2], in
 }
 
 template<typename _T> void Compute_Squared_Sampson_Error(_T Point_1[][2], _T Point_2[][2], int iCount, _T E[3 * 3], _T Residual[])
-{//¼ÆËãSampson¾àÀë
+{//è®¡ç®—Sampsonè·ç¦»
 	const _T E_00 = E[0 * 3 + 0], E_01 = E[0 * 3 + 1], E_02 = E[0 * 3 + 2],
 		E_10 = E[1 * 3 + 0], E_11 = E[1 * 3 + 1], E_12 = E[1 * 3 + 2],
 		E_20 = E[2 * 3 + 0], E_21 = E[2 * 3 + 1], E_22 = E[2 * 3 + 2];
@@ -491,48 +491,48 @@ template<typename _T> void Compute_Squared_Sampson_Error(_T Point_1[][2], _T Poi
 		_T x1_0 = Point_1[i][0], x1_1 = Point_1[i][1],
 			x2_0 = Point_2[i][0], x2_1 = Point_2[i][1];
 
-		//Çó E*x1
+		//æ±‚ E*x1
 		// Ex1 = E * points1[i].homogeneous();
 		_T Ex1_0 = E_00 * x1_0 + E_01 * x1_1 + E_02,
 			Ex1_1 = E_10 * x1_0 + E_11 * x1_1 + E_12,
 			Ex1_2 = E_20 * x1_0 + E_21 * x1_1 + E_22;
 
-		//Çó E'*x2
+		//æ±‚ E'*x2
 		// Etx2 = E.transpose() * points2[i].homogeneous();
 		_T Etx2_0 = E_00 * x2_0 + E_10 * x2_1 + E_20,
 			Etx2_1 = E_01 * x2_0 + E_11 * x2_1 + E_21;
 
-		//Çó x2'*E*x1 Õâ¸öÊÇEµÄ¶¨Òå
+		//æ±‚ x2'*E*x1 è¿™ä¸ªæ˜¯Eçš„å®šä¹‰
 		// x2tEx1 = points2[i].homogeneous().transpose() * Ex1;
 		_T x2tEx1 = x2_0 * Ex1_0 + x2_1 * Ex1_1 + Ex1_2;
 
-		// Sampson distance Õâ¸ö¾àÀë´ıÀí½â
+		// Sampson distance è¿™ä¸ªè·ç¦»å¾…ç†è§£
 		Residual[i] = x2tEx1 * x2tEx1 / (Ex1_0 * Ex1_0 + Ex1_1 * Ex1_1 + Etx2_0 * Etx2_0 + Etx2_1 * Etx2_1);
 	}
 }
 template<typename _T> void Ransac_Estimate_F(_T Point_1[][2], _T Point_2[][2], int iCount, Ransac_Report* poReport, Mem_Mgr* pMem_Mgr)
-{//°´ÕÕËã·¨£¬ËãµÄÊÇ p0*E*x1=0£¬ ÆäÖĞp0,p1ÊÇÔ­Î»ÖÃ
-#define SAMPLE_COUNT 8	//¹À¼ÆÕâ¸öÄ£ĞÍËùĞèÒªµÄ×îĞ¡Ñù±¾Êı
+{//æŒ‰ç…§ç®—æ³•ï¼Œç®—çš„æ˜¯ p0*E*x1=0ï¼Œ å…¶ä¸­p0,p1æ˜¯åŸä½ç½®
+#define SAMPLE_COUNT 8	//ä¼°è®¡è¿™ä¸ªæ¨¡å‹æ‰€éœ€è¦çš„æœ€å°æ ·æœ¬æ•°
 	Mem_Mgr* poMem_Mgr;
 	short* pSample_Index;
 	_T* pResidual, (*pX_Inlier)[2], (*pY_Inlier)[2],
-		(*pNorm_Point_1)[2], (*pNorm_Point_2)[2];	//ÎªÁËËÙ¶È£¬Norm_Point ÏÈ·ÖÅäÄÚ´æ
+		(*pNorm_Point_1)[2], (*pNorm_Point_2)[2];	//ä¸ºäº†é€Ÿåº¦ï¼ŒNorm_Point å…ˆåˆ†é…å†…å­˜
 
 	_T X_rand[SAMPLE_COUNT][2], Y_rand[SAMPLE_COUNT][2], F[3 * 3];
 	Light_Ptr oPtr;
 	int i, j, iTrial, dyn_max_num_trials = 0, bAbort = 0;
-	//ËùÎ½LocalÖ¸µÄÊÇÓÃ´Ö²ÚµÄ8µã·¨Çó³öµÄ±ä»»Îª»ù´¡£¬½«ËùÓĞµÄµã¶¼¼ÓÈë½øÀ´£¬Ò»Æğµü´ú¶à´ÎÇóµÃµÄ±ä»»
-	Ransac_Support oLocal_Support = {}, oCur_Support = {};	//¹»´ó¾ÍĞĞ
+	//æ‰€è°“LocalæŒ‡çš„æ˜¯ç”¨ç²—ç³™çš„8ç‚¹æ³•æ±‚å‡ºçš„å˜æ¢ä¸ºåŸºç¡€ï¼Œå°†æ‰€æœ‰çš„ç‚¹éƒ½åŠ å…¥è¿›æ¥ï¼Œä¸€èµ·è¿­ä»£å¤šæ¬¡æ±‚å¾—çš„å˜æ¢
+	Ransac_Support oLocal_Support = {}, oCur_Support = {};	//å¤Ÿå¤§å°±è¡Œ
 	Ransac_Report oReport = {};
 
-	//ËùÎ½ Best Ö¸µÄÊÇ×îÓÅ½â
+	//æ‰€è°“ Best æŒ‡çš„æ˜¯æœ€ä¼˜è§£
 	_T Best_Modal[3 * 3];
 	//int bBest_Model_is_Local;
 	Ransac_Support oBest_Support = { 0,(float)1e30 };
 
-	//RansacÒªËØ1, ±ØĞëÖ¸¶¨Ò»¸ö×î´óÎó²îãĞÖµ¡£´óÓÚ´ËãĞÖµµÄÑù±¾²»¼ÆÈëÄÚ
+	//Ransacè¦ç´ 1, å¿…é¡»æŒ‡å®šä¸€ä¸ªæœ€å¤§è¯¯å·®é˜ˆå€¼ã€‚å¤§äºæ­¤é˜ˆå€¼çš„æ ·æœ¬ä¸è®¡å…¥å†…
 	_T fMax_Residual = 4 * 4;
-	{//ÒÔÏÂ·ÖÅäÄÚ´æ£¬ÓĞµã´À£¬µ«ÓÖ±ØĞè
+	{//ä»¥ä¸‹åˆ†é…å†…å­˜ï¼Œæœ‰ç‚¹è ¢ï¼Œä½†åˆå¿…éœ€
 		unsigned char* pCur;
 		int iSize = ALIGN_SIZE_128(iCount * sizeof(short) +	//Sample Index
 			iCount * 5 * sizeof(_T) +					//Residual, Norm_Point_1,Norm_Point_2,pDup_Point_1,pDup_Point_2
@@ -548,7 +548,7 @@ template<typename _T> void Ransac_Estimate_F(_T Point_1[][2], _T Point_2[][2], i
 			if (!poMem_Mgr->m_pBuffer)
 				return;
 		}
-		//ReportÄÇµã¿Õ¼ä·ÅÔÚ×îµ×
+		//Reporté‚£ç‚¹ç©ºé—´æ”¾åœ¨æœ€åº•
 		if (pMem_Mgr)
 			oReport.m_pInlier_Mask = (unsigned char*)pMalloc(poMem_Mgr, iCount * sizeof(unsigned char));	//oReport.m_pInlier_Mask
 		else
@@ -571,7 +571,7 @@ template<typename _T> void Ransac_Estimate_F(_T Point_1[][2], _T Point_2[][2], i
 		pNorm_Point_2 = pY_Inlier = (_T(*)[2])pCur;
 	}
 
-	for (i = 0; i < iCount; i++)	//³õÊ¼»¯Ñù±¾Ë÷Òı£¬ºóÃæÊÇËæ»úÑ¡È¡Ñù±¾£¬²»¶Ï´òÂÒ¡£ÕâÀï±£Ö¤Ë÷ÒıÂÒµã²»ÂÒ
+	for (i = 0; i < iCount; i++)	//åˆå§‹åŒ–æ ·æœ¬ç´¢å¼•ï¼Œåé¢æ˜¯éšæœºé€‰å–æ ·æœ¬ï¼Œä¸æ–­æ‰“ä¹±ã€‚è¿™é‡Œä¿è¯ç´¢å¼•ä¹±ç‚¹ä¸ä¹±
 		pSample_Index[i] = i;
 
 	for (oReport.m_iTrial_Count = 0; oReport.m_iTrial_Count < 1381551042; oReport.m_iTrial_Count++)
@@ -581,15 +581,15 @@ template<typename _T> void Ransac_Estimate_F(_T Point_1[][2], _T Point_2[][2], i
 			oReport.m_iTrial_Count++;
 			break;
 		}
-		//RansacÒªËØ2£¬Ëæ»úÈ¡Ò»×éµã¹¹ÔìÒ»¸ö´Ö²ÚµÄ½â¡£Õâ¸ö½â¶ÔÓÚÕâĞ¡ÊıÁ¿µãÊÇ³ÉÁ¢µÄ£¬
-		//µ«¶ÔËùÓĞµÄÆäËûµã¼¯ÊÇ´Ö²ÚµÄ		
+		//Ransacè¦ç´ 2ï¼Œéšæœºå–ä¸€ç»„ç‚¹æ„é€ ä¸€ä¸ªç²—ç³™çš„è§£ã€‚è¿™ä¸ªè§£å¯¹äºè¿™å°æ•°é‡ç‚¹æ˜¯æˆç«‹çš„ï¼Œ
+		//ä½†å¯¹æ‰€æœ‰çš„å…¶ä»–ç‚¹é›†æ˜¯ç²—ç³™çš„		
 		Sample_XY(Point_1, Point_2, pSample_Index, iCount, X_rand, Y_rand, SAMPLE_COUNT);
-		//RansacÒªËØ3£¬Çó½âËã·¨¡£Ã¿ÖÖÊı¾İ¶¼ÓĞ²»Í¬µÄÇó½â·½·¨£¬²»Ò»¶ø×ã£¬¹Ê´ËRansacÖ»ÓĞ
-		//³ÌĞò½á¹¹ÉÏµÄÒâÒå£¬Ã»ÓĞÏ¸½ÚÉÏµÄÒâÒå£¬´Ë´¦Òª×Ô¼ºĞ´×Ô¼ºµÄÇó½â·½·¨
+		//Ransacè¦ç´ 3ï¼Œæ±‚è§£ç®—æ³•ã€‚æ¯ç§æ•°æ®éƒ½æœ‰ä¸åŒçš„æ±‚è§£æ–¹æ³•ï¼Œä¸ä¸€è€Œè¶³ï¼Œæ•…æ­¤Ransacåªæœ‰
+		//ç¨‹åºç»“æ„ä¸Šçš„æ„ä¹‰ï¼Œæ²¡æœ‰ç»†èŠ‚ä¸Šçš„æ„ä¹‰ï¼Œæ­¤å¤„è¦è‡ªå·±å†™è‡ªå·±çš„æ±‚è§£æ–¹æ³•
 		Estimate_F(X_rand, Y_rand, SAMPLE_COUNT, F, pNorm_Point_1, pNorm_Point_2, oPtr);
 		//Estimate_F(X_rand, Y_rand, SAMPLE_COUNT, F);
 		
-		//ÇóSampsonÎó²î
+		//æ±‚Sampsonè¯¯å·®
 		Compute_Squared_Sampson_Error(Point_1, Point_2, iCount, F, pResidual);
 		Get_Support(pResidual, iCount, fMax_Residual, &oCur_Support.m_iInlier_Count, &oCur_Support.m_fResidual_Sum);
 		if (oCur_Support.m_iInlier_Count > oBest_Support.m_iInlier_Count || (oCur_Support.m_iInlier_Count == oBest_Support.m_iInlier_Count && oCur_Support.m_fResidual_Sum < oBest_Support.m_fResidual_Sum))
@@ -602,7 +602,7 @@ template<typename _T> void Ransac_Estimate_F(_T Point_1[][2], _T Point_2[][2], i
 			{
 				for (iTrial = 0; iTrial < 10; iTrial++)
 				{
-					//ÔÙ°Ñm_iInlier_Count¸öÑù±¾×öÒ»´ÎE¹À¼Æ£¬Õâ´Î¾Í²»ÊÇÓÃ°ËµãÁË
+					//å†æŠŠm_iInlier_Countä¸ªæ ·æœ¬åšä¸€æ¬¡Eä¼°è®¡ï¼Œè¿™æ¬¡å°±ä¸æ˜¯ç”¨å…«ç‚¹äº†
 					for (j = i = 0; i < iCount; i++)
 					{
 						if (pResidual[i] < fMax_Residual)
@@ -657,36 +657,36 @@ template<typename _T> void Ransac_Estimate_F(_T Point_1[][2], _T Point_2[][2], i
 		*poReport = oReport;
 
 	//Disp((_T*)oReport.m_Modal, 3, 3);
-	//×îºóÊÍ·Å
+	//æœ€åé‡Šæ”¾
 	if (pMem_Mgr)
 		Free(poMem_Mgr, oPtr.m_pBuffer);
 	else
-	{//×Ô¼º¿ªµÄMem_Mgr×Ô¼º¸ºÔğÊÍ·Å
+	{//è‡ªå·±å¼€çš„Mem_Mgrè‡ªå·±è´Ÿè´£é‡Šæ”¾
 		Free_Mem_Mgr(poMem_Mgr);
 		free(poMem_Mgr);
 	}
 }
 template<typename _T> void Ransac_Estimate_E(_T Point_1[][2], _T Point_2[][2], int iCount, float f,float c1,  float c2, Ransac_Report* poReport, Mem_Mgr* pMem_Mgr)
-{//×¢Òâ£¬´Ë´¦Ó¦µ±ÓëÇó½âH¾ØÕóµÄ·½·¨ÓĞ±ğ£¬À´µÄPoint_1£¬Point_2ÒÑ¾­ÊÇNormalized
-//°´ÕÕËã·¨£¬ËãµÄÊÇ x0*E*x1=0, ÆäÖĞ x0,x1ÊÇ¹éÒ»»¯ºóµÄµã
+{//æ³¨æ„ï¼Œæ­¤å¤„åº”å½“ä¸æ±‚è§£HçŸ©é˜µçš„æ–¹æ³•æœ‰åˆ«ï¼Œæ¥çš„Point_1ï¼ŒPoint_2å·²ç»æ˜¯Normalized
+//æŒ‰ç…§ç®—æ³•ï¼Œç®—çš„æ˜¯ x0*E*x1=0, å…¶ä¸­ x0,x1æ˜¯å½’ä¸€åŒ–åçš„ç‚¹
 
-#define SAMPLE_COUNT 8	//¹À¼ÆÕâ¸öÄ£ĞÍËùĞèÒªµÄ×îĞ¡Ñù±¾Êı
+#define SAMPLE_COUNT 8	//ä¼°è®¡è¿™ä¸ªæ¨¡å‹æ‰€éœ€è¦çš„æœ€å°æ ·æœ¬æ•°
 	Mem_Mgr* poMem_Mgr;
 	short* pSample_Index;
 	_T* pResidual, (*pX_Inlier)[2], (*pY_Inlier)[2],
-		(*pDup_Point_1)[2], (*pDup_Point_2)[2],		//ÕâÊÇPoint_1, Point_2»Ö¸´µ½¹éÒ»»¯Æ½ÃæµÄ×ø±ê
-		(*pNorm_Point_1)[2], (*pNorm_Point_2)[2];	//ÎªÁËËÙ¶È£¬Norm_Point ÏÈ·ÖÅäÄÚ´æ
+		(*pDup_Point_1)[2], (*pDup_Point_2)[2],		//è¿™æ˜¯Point_1, Point_2æ¢å¤åˆ°å½’ä¸€åŒ–å¹³é¢çš„åæ ‡
+		(*pNorm_Point_1)[2], (*pNorm_Point_2)[2];	//ä¸ºäº†é€Ÿåº¦ï¼ŒNorm_Point å…ˆåˆ†é…å†…å­˜
 
 	_T Best_Modal[3 * 3], X_rand[SAMPLE_COUNT][2], Y_rand[SAMPLE_COUNT][2], E[3 * 3];
 	Light_Ptr oPtr;
 	int i, j, iTrial,/* bBest_Model_is_Local,*/ dyn_max_num_trials = 0, bAbort = 0;
-	Ransac_Support oLocal_Support = {}, oCur_Support = {}, oBest_Support = { 0,(float)1e30 };	//¹»´ó¾ÍĞĞ
+	Ransac_Support oLocal_Support = {}, oCur_Support = {}, oBest_Support = { 0,(float)1e30 };	//å¤Ÿå¤§å°±è¡Œ
 	Ransac_Report oReport = {};
 
-	//RansacÒªËØ1, ±ØĞëÖ¸¶¨Ò»¸ö×î´óÎó²îãĞÖµ¡£´óÓÚ´ËãĞÖµµÄÑù±¾²»¼ÆÈëÄÚ
+	//Ransacè¦ç´ 1, å¿…é¡»æŒ‡å®šä¸€ä¸ªæœ€å¤§è¯¯å·®é˜ˆå€¼ã€‚å¤§äºæ­¤é˜ˆå€¼çš„æ ·æœ¬ä¸è®¡å…¥å†…
 	_T fMax_Residual = 0.005208333333333333f * 0.005208333333333333f;
 
-	{//ÒÔÏÂ·ÖÅäÄÚ´æ£¬ÓĞµã´À£¬µ«ÓÖ±ØĞè
+	{//ä»¥ä¸‹åˆ†é…å†…å­˜ï¼Œæœ‰ç‚¹è ¢ï¼Œä½†åˆå¿…éœ€
 		unsigned char* pCur;
 		int iSize = ALIGN_SIZE_128(iCount * sizeof(short) +	//Sample Index
 			iCount * 9 * sizeof(_T) +					//Residual, Norm_Point_1,Norm_Point_2,pDup_Point_1,pDup_Point_2
@@ -702,7 +702,7 @@ template<typename _T> void Ransac_Estimate_E(_T Point_1[][2], _T Point_2[][2], i
 			if (!poMem_Mgr->m_pBuffer)
 				return;
 		}
-		//ReportÄÇµã¿Õ¼ä·ÅÔÚ×îµ×
+		//Reporté‚£ç‚¹ç©ºé—´æ”¾åœ¨æœ€åº•
 		if (pMem_Mgr)
 			oReport.m_pInlier_Mask = (unsigned char*)pMalloc(poMem_Mgr, iCount * sizeof(unsigned char));	//oReport.m_pInlier_Mask
 		else
@@ -728,10 +728,10 @@ template<typename _T> void Ransac_Estimate_E(_T Point_1[][2], _T Point_2[][2], i
 		Malloc(oPtr, iCount * 2 * sizeof(_T), pCur);	//pDup_Point_2
 		pDup_Point_2 = (_T(*)[2])pCur;
 	}
-	for (i = 0; i < iCount; i++)	//³õÊ¼»¯Ñù±¾Ë÷Òı£¬ºóÃæÊÇËæ»úÑ¡È¡Ñù±¾£¬²»¶Ï´òÂÒ¡£ÕâÀï±£Ö¤Ë÷ÒıÂÒµã²»ÂÒ
+	for (i = 0; i < iCount; i++)	//åˆå§‹åŒ–æ ·æœ¬ç´¢å¼•ï¼Œåé¢æ˜¯éšæœºé€‰å–æ ·æœ¬ï¼Œä¸æ–­æ‰“ä¹±ã€‚è¿™é‡Œä¿è¯ç´¢å¼•ä¹±ç‚¹ä¸ä¹±
 		pSample_Index[i] = i;
 
-	//½«µã»Ö¸´µ½¹éÒ»»¯Æ½Ãæ
+	//å°†ç‚¹æ¢å¤åˆ°å½’ä¸€åŒ–å¹³é¢
 	Normalize_Point(Point_1, Point_2, iCount, pDup_Point_1, pDup_Point_2, f, c1, c2);
 
 	for (oReport.m_iTrial_Count = 0; oReport.m_iTrial_Count < 1381551042; oReport.m_iTrial_Count++)
@@ -741,15 +741,15 @@ template<typename _T> void Ransac_Estimate_E(_T Point_1[][2], _T Point_2[][2], i
 			oReport.m_iTrial_Count++;
 			break;
 		}
-		//RansacÒªËØ2£¬Ëæ»úÈ¡Ò»×éµã¹¹ÔìÒ»¸ö´Ö²ÚµÄ½â¡£Õâ¸ö½â¶ÔÓÚÕâĞ¡ÊıÁ¿µãÊÇ³ÉÁ¢µÄ£¬
-		//µ«¶ÔËùÓĞµÄÆäËûµã¼¯ÊÇ´Ö²ÚµÄ		
+		//Ransacè¦ç´ 2ï¼Œéšæœºå–ä¸€ç»„ç‚¹æ„é€ ä¸€ä¸ªç²—ç³™çš„è§£ã€‚è¿™ä¸ªè§£å¯¹äºè¿™å°æ•°é‡ç‚¹æ˜¯æˆç«‹çš„ï¼Œ
+		//ä½†å¯¹æ‰€æœ‰çš„å…¶ä»–ç‚¹é›†æ˜¯ç²—ç³™çš„		
 		Sample_XY(pDup_Point_1, pDup_Point_2, pSample_Index, iCount, X_rand, Y_rand, SAMPLE_COUNT);
 
-		//RansacÒªËØ3£¬Çó½âËã·¨¡£Ã¿ÖÖÊı¾İ¶¼ÓĞ²»Í¬µÄÇó½â·½·¨£¬²»Ò»¶ø×ã£¬¹Ê´ËRansacÖ»ÓĞ
-		//³ÌĞò½á¹¹ÉÏµÄÒâÒå£¬Ã»ÓĞÏ¸½ÚÉÏµÄÒâÒå£¬´Ë´¦Òª×Ô¼ºĞ´×Ô¼ºµÄÇó½â·½·¨
+		//Ransacè¦ç´ 3ï¼Œæ±‚è§£ç®—æ³•ã€‚æ¯ç§æ•°æ®éƒ½æœ‰ä¸åŒçš„æ±‚è§£æ–¹æ³•ï¼Œä¸ä¸€è€Œè¶³ï¼Œæ•…æ­¤Ransacåªæœ‰
+		//ç¨‹åºç»“æ„ä¸Šçš„æ„ä¹‰ï¼Œæ²¡æœ‰ç»†èŠ‚ä¸Šçš„æ„ä¹‰ï¼Œæ­¤å¤„è¦è‡ªå·±å†™è‡ªå·±çš„æ±‚è§£æ–¹æ³•
 		//Estimate_E(X_rand, Y_rand, SAMPLE_COUNT, E, pNorm_Point_1, pNorm_Point_2, oPtr);
 		Estimate_E(X_rand, Y_rand, SAMPLE_COUNT, E);
-		//ÇóSampsonÎó²î
+		//æ±‚Sampsonè¯¯å·®
 		Compute_Squared_Sampson_Error(pDup_Point_1, pDup_Point_2, iCount, E, pResidual);
 		Get_Support(pResidual, iCount, fMax_Residual, &oCur_Support.m_iInlier_Count, &oCur_Support.m_fResidual_Sum);
 		//if (oCur_Support.m_iInlier_Count == 8)
@@ -764,7 +764,7 @@ template<typename _T> void Ransac_Estimate_E(_T Point_1[][2], _T Point_2[][2], i
 			{
 				for (iTrial = 0; iTrial < 10; iTrial++)
 				{
-					//ÔÙ°Ñm_iInlier_Count¸öÑù±¾×öÒ»´ÎE¹À¼Æ£¬Õâ´Î¾Í²»ÊÇÓÃ°ËµãÁË
+					//å†æŠŠm_iInlier_Countä¸ªæ ·æœ¬åšä¸€æ¬¡Eä¼°è®¡ï¼Œè¿™æ¬¡å°±ä¸æ˜¯ç”¨å…«ç‚¹äº†
 					for (j = i = 0; i < iCount; i++)
 					{
 						if (pResidual[i] < fMax_Residual)
@@ -819,11 +819,11 @@ template<typename _T> void Ransac_Estimate_E(_T Point_1[][2], _T Point_2[][2], i
 		*poReport = oReport;
 
 	//Disp((_T*)oReport.m_Modal, 3, 3);
-	//×îºóÊÍ·Å
+	//æœ€åé‡Šæ”¾
 	if (pMem_Mgr)
 		Free(poMem_Mgr, oPtr.m_pBuffer);
 	else
-	{//×Ô¼º¿ªµÄMem_Mgr×Ô¼º¸ºÔğÊÍ·Å
+	{//è‡ªå·±å¼€çš„Mem_Mgrè‡ªå·±è´Ÿè´£é‡Šæ”¾
 		Free_Mem_Mgr(poMem_Mgr);
 		free(poMem_Mgr);
 	}
@@ -831,31 +831,31 @@ template<typename _T> void Ransac_Estimate_E(_T Point_1[][2], _T Point_2[][2], i
 #undef SAMPLE_COUNT
 }
 template<typename _T> void Ransac_Estimate_H(_T Point_1[][2], _T Point_2[][2], int iCount, Ransac_Report* poReport, Mem_Mgr* pMem_Mgr)
-{//·µ»ØµÄReportÍ³Ò»ÎªdoubleÀàĞÍ
+{//è¿”å›çš„Reportç»Ÿä¸€ä¸ºdoubleç±»å‹
 #define SAMPLE_COUNT 4
 	Mem_Mgr* poMem_Mgr;
 	short* pSample_Index;
 	_T* pResidual, (*pX_Inlier)[2], (*pY_Inlier)[2],
-		(*pNorm_Point_1)[2], (*pNorm_Point_2)[2];	//ÎªÁËËÙ¶È£¬Norm_Point ÏÈ·ÖÅäÄÚ´æ
+		(*pNorm_Point_1)[2], (*pNorm_Point_2)[2];	//ä¸ºäº†é€Ÿåº¦ï¼ŒNorm_Point å…ˆåˆ†é…å†…å­˜
 
 	_T Best_Modal[3 * 3], X_rand[SAMPLE_COUNT][2], Y_rand[SAMPLE_COUNT][2], H[3 * 3];
 	Light_Ptr oPtr;
 	int i, j, iTrial,/* bBest_Model_is_Local, */dyn_max_num_trials = 0, bAbort = 0;
 	int prev_best_num_inliers;
-	Ransac_Support oLocal_Support = {}, oCur_Support = {}, oBest_Support = { 0,(float)1e30 };	//¹»´ó¾ÍĞĞ
+	Ransac_Support oLocal_Support = {}, oCur_Support = {}, oBest_Support = { 0,(float)1e30 };	//å¤Ÿå¤§å°±è¡Œ
 	Ransac_Report oReport = {};
 
-	//RansacÒªËØ1, ±ØĞëÖ¸¶¨Ò»¸ö×î´óÎó²îãĞÖµ¡£´óÓÚ´ËãĞÖµµÄÑù±¾²»¼ÆÈëÄÚ
+	//Ransacè¦ç´ 1, å¿…é¡»æŒ‡å®šä¸€ä¸ªæœ€å¤§è¯¯å·®é˜ˆå€¼ã€‚å¤§äºæ­¤é˜ˆå€¼çš„æ ·æœ¬ä¸è®¡å…¥å†…
 	_T fMax_Residual = 4 * 4;
 
 	unsigned char* pCur;
 	int iSize;
 
-	{//ÒÔÏÂ·ÖÅäÄÚ´æ£¬ÓĞµã´À£¬µ«ÓÖ±ØĞè
+	{//ä»¥ä¸‹åˆ†é…å†…å­˜ï¼Œæœ‰ç‚¹è ¢ï¼Œä½†åˆå¿…éœ€
 		iSize = ALIGN_SIZE_128(iCount * sizeof(short) + 
 			iCount * 5 * sizeof(_T) +
 			iCount * 9 * sizeof(_T)+		//A Vt S //iCount * iCount +
-			128 * 4);						//²¹ÓàÊı´Õ128×Ö½Ú¶ÔÆë
+			128 * 4);						//è¡¥ä½™æ•°å‡‘128å­—èŠ‚å¯¹é½
 		if (pMem_Mgr)
 			poMem_Mgr = pMem_Mgr;
 		else
@@ -888,7 +888,7 @@ template<typename _T> void Ransac_Estimate_H(_T Point_1[][2], _T Point_2[][2], i
 		pNorm_Point_2 = pY_Inlier = (_T(*)[2])pCur;
 		//Malloc(oPtr, iCount * sizeof(unsigned char), pCur);
 	}	
-	for (i = 0; i < iCount; i++)	//³õÊ¼»¯Ñù±¾Ë÷Òı£¬ºóÃæÊÇËæ»úÑ¡È¡Ñù±¾£¬²»¶Ï´òÂÒ¡£ÕâÀï±£Ö¤Ë÷ÒıÂÒµã²»ÂÒ
+	for (i = 0; i < iCount; i++)	//åˆå§‹åŒ–æ ·æœ¬ç´¢å¼•ï¼Œåé¢æ˜¯éšæœºé€‰å–æ ·æœ¬ï¼Œä¸æ–­æ‰“ä¹±ã€‚è¿™é‡Œä¿è¯ç´¢å¼•ä¹±ç‚¹ä¸ä¹±
 		pSample_Index[i] = i;
 
 	for (oReport.m_iTrial_Count = 0; oReport.m_iTrial_Count < 1381551042; oReport.m_iTrial_Count++)
@@ -899,15 +899,15 @@ template<typename _T> void Ransac_Estimate_H(_T Point_1[][2], _T Point_2[][2], i
 			break;
 		}
 
-		//RansacÒªËØ2£¬Ëæ»úÈ¡Ò»×éµã¹¹ÔìÒ»¸ö´Ö²ÚµÄ½â¡£Õâ¸ö½â¶ÔÓÚÕâĞ¡ÊıÁ¿µãÊÇ³ÉÁ¢µÄ£¬
-		//µ«¶ÔËùÓĞµÄÆäËûµã¼¯ÊÇ´Ö²ÚµÄ		
+		//Ransacè¦ç´ 2ï¼Œéšæœºå–ä¸€ç»„ç‚¹æ„é€ ä¸€ä¸ªç²—ç³™çš„è§£ã€‚è¿™ä¸ªè§£å¯¹äºè¿™å°æ•°é‡ç‚¹æ˜¯æˆç«‹çš„ï¼Œ
+		//ä½†å¯¹æ‰€æœ‰çš„å…¶ä»–ç‚¹é›†æ˜¯ç²—ç³™çš„		
 		Sample_XY(Point_1, Point_2, pSample_Index, iCount, X_rand, Y_rand, 4);
 
-		//RansacÒªËØ3£¬Çó½âËã·¨¡£Ã¿ÖÖÊı¾İ¶¼ÓĞ²»Í¬µÄÇó½â·½·¨£¬²»Ò»¶ø×ã£¬¹Ê´ËRansacÖ»ÓĞ
-		//³ÌĞò½á¹¹ÉÏµÄÒâÒå£¬Ã»ÓĞÏ¸½ÚÉÏµÄÒâÒå£¬´Ë´¦Òª×Ô¼ºĞ´×Ô¼ºµÄÇó½â·½·¨
+		//Ransacè¦ç´ 3ï¼Œæ±‚è§£ç®—æ³•ã€‚æ¯ç§æ•°æ®éƒ½æœ‰ä¸åŒçš„æ±‚è§£æ–¹æ³•ï¼Œä¸ä¸€è€Œè¶³ï¼Œæ•…æ­¤Ransacåªæœ‰
+		//ç¨‹åºç»“æ„ä¸Šçš„æ„ä¹‰ï¼Œæ²¡æœ‰ç»†èŠ‚ä¸Šçš„æ„ä¹‰ï¼Œæ­¤å¤„è¦è‡ªå·±å†™è‡ªå·±çš„æ±‚è§£æ–¹æ³•
 		Estimate_H(X_rand, Y_rand, 4, H, pNorm_Point_1, pNorm_Point_2,oPtr);
 		//Estimate_H(X_rand, Y_rand, SAMPLE_COUNT, H);
-		//´Ë´¦ËÆºõÓÃÅ·ÊÏ¾àÀë
+		//æ­¤å¤„ä¼¼ä¹ç”¨æ¬§æ°è·ç¦»
 		Get_Residual_H(Point_1, Point_2, iCount, H, pResidual);
 		Get_Support(pResidual, iCount, fMax_Residual, &oCur_Support.m_iInlier_Count, &oCur_Support.m_fResidual_Sum);
 		//printf("4 Point Trial:%d Inlier:%d Residual:%f\n", oReport.m_iTrial_Count, oCur_Support.m_iInlier_Count, oCur_Support.m_fResidual_Sum);
@@ -922,9 +922,9 @@ template<typename _T> void Ransac_Estimate_H(_T Point_1[][2], _T Point_2[][2], i
 			if (oCur_Support.m_iInlier_Count > 4)
 			{
 				for (iTrial = 0; iTrial < 10; iTrial++)
-				{//´Ë´¦µÄ½á¹¹ºÜÃ÷ÁË£¬´ÓÒ»¸öModal³ö·¢£¬²»¶ÏÓÃÈ«²¿µãµ÷ÕûÕâ¸öModal£¬Ö±µ½µãÊı²»ÔÙÔö¼Ó
-				//²ÅÌø³öµü´ú¡£ºóÃæ¸ãÁË¸öµü´ú´ÎÊıË¥¼õµÄ²ÎÊı£¬Ò²Ã»É¶ÓªÑø£¬ÍêÈ«¿ÉÒÔ×Ô¼ºÅÄÄÔ´ü
-					//ÔÙ°Ñm_iInlier_Count¸öÑù±¾×öÒ»´ÎE¹À¼Æ£¬Õâ´Î¾Í²»ÊÇÓÃ°ËµãÁË
+				{//æ­¤å¤„çš„ç»“æ„å¾ˆæ˜äº†ï¼Œä»ä¸€ä¸ªModalå‡ºå‘ï¼Œä¸æ–­ç”¨å…¨éƒ¨ç‚¹è°ƒæ•´è¿™ä¸ªModalï¼Œç›´åˆ°ç‚¹æ•°ä¸å†å¢åŠ 
+				//æ‰è·³å‡ºè¿­ä»£ã€‚åé¢æäº†ä¸ªè¿­ä»£æ¬¡æ•°è¡°å‡çš„å‚æ•°ï¼Œä¹Ÿæ²¡å•¥è¥å…»ï¼Œå®Œå…¨å¯ä»¥è‡ªå·±æ‹è„‘è¢‹
+					//å†æŠŠm_iInlier_Countä¸ªæ ·æœ¬åšä¸€æ¬¡Eä¼°è®¡ï¼Œè¿™æ¬¡å°±ä¸æ˜¯ç”¨å…«ç‚¹äº†
 					for (j = i = 0; i < iCount; i++)
 					{
 						if (pResidual[i] < fMax_Residual)
@@ -953,7 +953,7 @@ template<typename _T> void Ransac_Estimate_H(_T Point_1[][2], _T Point_2[][2], i
 						//oBest_Support.m_iInlier_Count,oBest_Support.m_fResidual_Sum);
 				}
 			}
-			//ÍêÈ«¿ÉÒÔ×Ô¼ºÅÄÄÔ´ü
+			//å®Œå…¨å¯ä»¥è‡ªå·±æ‹è„‘è¢‹
 			dyn_max_num_trials = iCompute_Num_Trials(oBest_Support.m_iInlier_Count, iCount, 4);
 			//printf("dyn_max_num_trials:%d\n", dyn_max_num_trials);
 		}
@@ -981,11 +981,11 @@ template<typename _T> void Ransac_Estimate_H(_T Point_1[][2], _T Point_2[][2], i
 	if (poReport)
 		*poReport = oReport;
 
-	//×îºóÊÍ·Å
+	//æœ€åé‡Šæ”¾
 	if (pMem_Mgr)
 		Free(poMem_Mgr, oPtr.m_pBuffer);
 	else
-	{//×Ô¼º¿ªµÄMem_Mgr×Ô¼º¸ºÔğÊÍ·Å
+	{//è‡ªå·±å¼€çš„Mem_Mgrè‡ªå·±è´Ÿè´£é‡Šæ”¾
 		Free_Mem_Mgr(poMem_Mgr);
 		free(poMem_Mgr);
 	}
@@ -1016,8 +1016,8 @@ void Disp_Report(Ransac_Report oReport)
 }
 
 template<typename _T>void Decompose_E(_T E[3 * 3], _T R1[3 * 3], _T R2[3 * 3], _T t1[3], _T t2[3], int bNormalize_t)
-{//´ÓÒ»¸öE¾ØÕóÖĞ·Ö½â³öÁ½¸öR ºÍÁ½¸öt
-//×¢Òâ£¬ÕâÀïµÄ·Ö½â²»ÊÇÍêÈ«°´ÕÕ¶¨ÒåÀ´ E = t^ * R , ¶øÊÇ½«t¹éÒ»»¯ÁË
+{//ä»ä¸€ä¸ªEçŸ©é˜µä¸­åˆ†è§£å‡ºä¸¤ä¸ªR å’Œä¸¤ä¸ªt
+//æ³¨æ„ï¼Œè¿™é‡Œçš„åˆ†è§£ä¸æ˜¯å®Œå…¨æŒ‰ç…§å®šä¹‰æ¥ E = t^ * R , è€Œæ˜¯å°†tå½’ä¸€åŒ–äº†
 	SVD_Info oSVD;
 	SVD_Alloc<_T>(3, 3, &oSVD);
 	svd_3(E, oSVD, &oSVD.m_bSuccess);
@@ -1027,8 +1027,8 @@ template<typename _T>void Decompose_E(_T E[3 * 3], _T R1[3 * 3], _T R2[3 * 3], _
 	if (fGet_Determinant((_T*)oSVD.Vt, 3) < 0)
 		Matrix_Multiply((_T*)oSVD.Vt, 3, 3,(_T)(- 1), (_T*)oSVD.Vt);
 
-	//ËãÃ»ÎÊÌâ£¬µ«ÊÇÉĞÎ´ÏêÏ¸ÍÆµ¼£¬Õâ¸ö·Ö½âÊÇÔõÑùÊµÏÖµÄ£¬ÈçºÎºÍÇ°ÃæµÄ(s0,s0,0)·Ö½â½áºÏÆğÀ´
-	//ÒÔÏÂÎªCol_Map´úÂë
+	//ç®—æ²¡é—®é¢˜ï¼Œä½†æ˜¯å°šæœªè¯¦ç»†æ¨å¯¼ï¼Œè¿™ä¸ªåˆ†è§£æ˜¯æ€æ ·å®ç°çš„ï¼Œå¦‚ä½•å’Œå‰é¢çš„(s0,s0,0)åˆ†è§£ç»“åˆèµ·æ¥
+	//ä»¥ä¸‹ä¸ºCol_Mapä»£ç 
 	_T W[3 * 3] = { 0, 1, 0, -1, 0, 0, 0, 0, 1 };
 
 	//R_1 = U * W * V
@@ -1049,35 +1049,44 @@ template<typename _T>void Decompose_E(_T E[3 * 3], _T R1[3 * 3], _T R2[3 * 3], _
 	}
 	Free_SVD(&oSVD);
 
-	//ÑéËãÒ»ÏÂÊÇ·ñ E= R_1 * t^, Ê§°Ü£¬´æÒÉ
+	//éªŒç®—ä¸€ä¸‹æ˜¯å¦ E= R_1 * t^, å¤±è´¥ï¼Œå­˜ç–‘
 	//Test_Decompose_E(E, R_2, t);
 
 	//Disp(R_1, 3, 3, "R_1");
 	//Disp(R_2, 3, 3, "R_2");
 
-	////³¢ÊÔÓÃÀíÂÛÉÏµÄ·½·¨
-	//float R_z_t_1[3 * 3],		//Rz(pi/2)		ºóĞø×ö³É³£Á¿
+	////å°è¯•ç”¨ç†è®ºä¸Šçš„æ–¹æ³•
+	//float R_z_t_1[3 * 3],		//Rz(pi/2)		åç»­åšæˆå¸¸é‡
 	//    R_z_t_2[3 * 3];		    //Rz(-pi/2)
 	//float V[] = { 0,0,1,PI / 2.f };
 	//Rotation_Vector_2_Matrix_3D(V, R_z_t_1);
 	//Disp(R_z_t_1, 3, 3);
-	////¿ÉÒÔ¿´³ö£¬ R_z_t_1={  0, -1, 0,
+	////å¯ä»¥çœ‹å‡ºï¼Œ R_z_t_1={  0, -1, 0,
 	////                      1, 0, 0,
 	////                      0, 0,0 }
 
 	//V[3] = -PI / 2.f;
 	//Rotation_Vector_2_Matrix_3D(V, R_z_t_2);
 	//Disp(R_z_t_2, 3, 3);
-	////¶ø R_z_t_2={   0, 1, 0,
+	////è€Œ R_z_t_2={   0, 1, 0,
 	////              -1, 0, 0,
 	////               0, 0, 0 }
-	////¿É¼û£¬Á½¸ö×ª»»½á¹ûÒ»Ñù
+	////å¯è§ï¼Œä¸¤ä¸ªè½¬æ¢ç»“æœä¸€æ ·
 
 	//Disp(t, 1, 3, "t");
 }
 
 void SB_Reconstruct()
-{//Õâ¾ÍÊÇ¸öÉµ±Æ·½·¨£¬ÓÃÀ´ÆÛÆ­template
+{//è¿™å°±æ˜¯ä¸ªå‚»é€¼æ–¹æ³•ï¼Œç”¨æ¥æ¬ºéª—template
+	ICP_SVD((double(*)[3])NULL, (double(*)[3])NULL, 0, (double*)NULL, NULL);
+	ICP_SVD((float(*)[3])NULL, (float(*)[3])NULL, 0, (float*)NULL, NULL);
+
+	ICP_Bundle_Adjust((double(*)[3])NULL, (double(*)[3])NULL, 0, (double*)NULL, NULL);
+	ICP_Bundle_Adjust((float(*)[3])NULL, (float(*)[3])NULL, 0, (float*)NULL, NULL);
+
+	Get_Deriv_TP_Ksi((double*)NULL, (double*)NULL, (double*)NULL);
+	Get_Deriv_TP_Ksi((float*)NULL, (float*)NULL, (float*)NULL);
+
 	Bundle_Adjust_3D2D_1((double(*)[3])NULL, (double(*)[2])NULL, 0, (double*)NULL, (double*)NULL, NULL);
 	Bundle_Adjust_3D2D_1((float(*)[3])NULL, (float(*)[2])NULL, 0, (float*)NULL, (float*)NULL, NULL);
 
@@ -1125,25 +1134,25 @@ void SB_Reconstruct()
 }
 
 template<typename _T>void Triangulate_Point(_T x0[2], _T x1[2], _T KP_0[], _T KP_1[], _T Point_3D[])
-{//Õâ¸ö·½³ÌÓĞÒìÒé£¬¶ÔÓÚ x = PXÖĞ£¬ Èç¹ûXÎª¿Õ¼äµã£¬ÄÇÃ´PÓ¦ÎªÏà»ú²ÎÊı£¬×îºóÍ¶Ó°µ½¹éÒ»»¯Æ½ÃæÉÏ
-	//×¢Òâ£¬´Ë´¦µÄÏà»ú²ÎÊıKP¿ÉÒÔÊÇÍâ²Î£¨Æ½ĞĞÍ¶Ó°£©£¬¿ÉÒÔÊÇÄÚ²Î¾ØÕó³ËÒÔÍâ²Î¾ØÕó¡£Èç¹ûÓĞÄÚ²Î
-	//x0 = (1/z) * KP * P	zÍêÈ«²»Ó°Ïì»Ö¸´
+{//è¿™ä¸ªæ–¹ç¨‹æœ‰å¼‚è®®ï¼Œå¯¹äº x = PXä¸­ï¼Œ å¦‚æœXä¸ºç©ºé—´ç‚¹ï¼Œé‚£ä¹ˆPåº”ä¸ºç›¸æœºå‚æ•°ï¼Œæœ€åæŠ•å½±åˆ°å½’ä¸€åŒ–å¹³é¢ä¸Š
+	//æ³¨æ„ï¼Œæ­¤å¤„çš„ç›¸æœºå‚æ•°KPå¯ä»¥æ˜¯å¤–å‚ï¼ˆå¹³è¡ŒæŠ•å½±ï¼‰ï¼Œå¯ä»¥æ˜¯å†…å‚çŸ©é˜µä¹˜ä»¥å¤–å‚çŸ©é˜µã€‚å¦‚æœæœ‰å†…å‚
+	//x0 = (1/z) * KP * P	zå®Œå…¨ä¸å½±å“æ¢å¤
 
 	int x;
-	_T A[4 * 4] = {};    //Õâ¸öÊÇÏµÊı¾ØÕó£¬×îºóÎÒÃÇÇóÒ»¸ö×îĞ¡¶ş³ËÎÊÌâ£¬ ÇóAx=0µÄ×îĞ¡¶ş³Ë½â
-	////µÚÒ»ĞĞ
+	_T A[4 * 4] = {};    //è¿™ä¸ªæ˜¯ç³»æ•°çŸ©é˜µï¼Œæœ€åæˆ‘ä»¬æ±‚ä¸€ä¸ªæœ€å°äºŒä¹˜é—®é¢˜ï¼Œ æ±‚Ax=0çš„æœ€å°äºŒä¹˜è§£
+	////ç¬¬ä¸€è¡Œ
 	//A[0] = -1, A[2] = Point_1[0];
-	////µÚ¶şĞĞ
+	////ç¬¬äºŒè¡Œ
 	//A[1*4+ 1] = -1, A[1*4+2] = Point_1[1];
-	////µÚÈıĞĞ
+	////ç¬¬ä¸‰è¡Œ
 	//for (x = 0; x < 4; x++)
 	//    A[2 * 4 + x] = Point_2[0] * P_2[2 * 4 + x] - P_2[0 * 4 + x];
-	////µÚ4ĞĞ
+	////ç¬¬4è¡Œ
 	//for (x = 0; x < 4; x++)
 	//    A[3 * 4 + x] = Point_2[1] * P_2[2 * 4 + x] - P_2[1 * 4 + x];
 
 	//Disp(A, 4, 4, "A");
-	//°´ÀíÂÛ×Ô¼º¸ãÒ»ÏÂA£¬Êµ¼ùÖ¤Ã÷£¬²¿·Ö·ûºÅÈ¡·´Ö®Íâ£¬²î±ğ²»´ó£¬½âÒ»Ñù
+	//æŒ‰ç†è®ºè‡ªå·±æä¸€ä¸‹Aï¼Œå®è·µè¯æ˜ï¼Œéƒ¨åˆ†ç¬¦å·å–åä¹‹å¤–ï¼Œå·®åˆ«ä¸å¤§ï¼Œè§£ä¸€æ ·
 	for (x = 0; x < 4; x++)
 	{
 		A[0 * 4 + x] = x0[1] * KP_0[2 * 4 + x] - KP_0[1 * 4 + x];
@@ -1161,7 +1170,7 @@ template<typename _T>void Triangulate_Point(_T x0[2], _T x1[2], _T KP_0[], _T KP
 	Disp(P_1, 4, 4, "P1");
 	Disp(P_2, 4, 4, "P2");*/
 
-	//È»ºóÇó½â AxµÄ×îĞ¡¶ş³Ë½â
+	//ç„¶åæ±‚è§£ Axçš„æœ€å°äºŒä¹˜è§£
 	SVD_Info oSVD;
 	SVD_Alloc<_T>(4, 4, &oSVD);
 	svd_3(A, oSVD, &oSVD.m_bSuccess);
@@ -1175,23 +1184,23 @@ template<typename _T>void Triangulate_Point(_T x0[2], _T x1[2], _T KP_0[], _T KP
 }
 
 template<typename _T>void Check_Cheirality(_T Point_1[][2], _T Point_2[][2], int* piCount, _T R[], _T t[], _T Point_3d[][3])
-{//¶Ô¸ø¶¨µÄR,t¼ìÑéÊÇ·ñ·ûºÏÏÖÊµ
-//×¢Òâ£¬´Ë´¦ÊÇÒ»ÖÖÍµÀÁËã·¨£¬Ã»ÓĞ°ÑÏà»úÄÚ²Î´ø½øÀ´£¬ÒòÎªÆä³õÖÔ½ö½öÊÇÑéÖ¤¼¸¸ö R t×éºÏÖĞÄÄ¸öÄÜÂú×ã z>0 
-//¹Ê´Ë»Ö¸´³öÀ´µÄPoin_3D¸ù±¾¾Í²»ÊÇÔ­À´µÄµã×ø±ê£¬¶øÊÇÊ¡ÂÔÏà»úÄÚ²ÎÇé¿öÏÂµÄ¿Õ¼äµã×ø±ê
+{//å¯¹ç»™å®šçš„R,tæ£€éªŒæ˜¯å¦ç¬¦åˆç°å®
+//æ³¨æ„ï¼Œæ­¤å¤„æ˜¯ä¸€ç§å·æ‡’ç®—æ³•ï¼Œæ²¡æœ‰æŠŠç›¸æœºå†…å‚å¸¦è¿›æ¥ï¼Œå› ä¸ºå…¶åˆè¡·ä»…ä»…æ˜¯éªŒè¯å‡ ä¸ª R tç»„åˆä¸­å“ªä¸ªèƒ½æ»¡è¶³ z>0 
+//æ•…æ­¤æ¢å¤å‡ºæ¥çš„Poin_3Dæ ¹æœ¬å°±ä¸æ˜¯åŸæ¥çš„ç‚¹åæ ‡ï¼Œè€Œæ˜¯çœç•¥ç›¸æœºå†…å‚æƒ…å†µä¸‹çš„ç©ºé—´ç‚¹åæ ‡
 
 	_T P1[4 * 4], P2[4 * 4], Temp_1[4 * 4];
-	_T New_Point[4] = {};   //¼ÆËã³öÀ´µÄµãP£¬¶ÔÓ¦¾ØÕóEµÄÔ¶´¦µã
+	_T New_Point[4] = {};   //è®¡ç®—å‡ºæ¥çš„ç‚¹Pï¼Œå¯¹åº”çŸ©é˜µEçš„è¿œå¤„ç‚¹
 
-	//´Ë´¦°ÑÒ»¸öScale(ÆæÒìÖµ)È¥µôÁË
+	//æ­¤å¤„æŠŠä¸€ä¸ªScale(å¥‡å¼‚å€¼)å»æ‰äº†
 	Gen_Homo_Matrix(R, t, P2);
 	//Disp(P2, 4, 4, "P2");
 
 	_T fMax_Depth, kMinDepth = 2.2204460492503131e-16;
 
-	//P1ÎªI£¬ËµµÃ¹ıÈ¥£¬¾Íµ±ÊÓµã£¨Ïà»úÖĞĞÄ£©µ½ÏñËØµÄ·½ÏòÓë¹éÒ»»¯Æ½Ãæ´¹Ö±£¨Õı½»£©
+	//P1ä¸ºIï¼Œè¯´å¾—è¿‡å»ï¼Œå°±å½“è§†ç‚¹ï¼ˆç›¸æœºä¸­å¿ƒï¼‰åˆ°åƒç´ çš„æ–¹å‘ä¸å½’ä¸€åŒ–å¹³é¢å‚ç›´ï¼ˆæ­£äº¤ï¼‰
 	Gen_I_Matrix(P1, 4, 4);
 
-	//Ëã¸öfMax_Depth;
+	//ç®—ä¸ªfMax_Depth;
 	Matrix_Transpose(R, 3, 3, Temp_1);
 	Matrix_Multiply(Temp_1, 3, 3, t, 1, Temp_1);
 	fMax_Depth = 1000.f * fGet_Mod(Temp_1, 3);
@@ -1200,7 +1209,7 @@ template<typename _T>void Check_Cheirality(_T Point_1[][2], _T Point_2[][2], int
 
 	_T fDepth_1, fDepth_2, fMod_P2_Col_2;
 	int i, j, iCount = *piCount;
-	//Õâ²½ÊÇ·ñÓĞ±ØÒª£¬P2ÊÇ·ñÕı½»£¿
+	//è¿™æ­¥æ˜¯å¦æœ‰å¿…è¦ï¼ŒP2æ˜¯å¦æ­£äº¤ï¼Ÿ
 	_T V[4] = { P2[2],P2[6],P2[10],P2[14] };
 	fMod_P2_Col_2 = fGet_Mod(V, 4);
 
@@ -1212,12 +1221,12 @@ template<typename _T>void Check_Cheirality(_T Point_1[][2], _T Point_2[][2], int
 		Triangulate_Point(Point_1[i], Point_2[i], P1, P2, New_Point);
 		//Disp((_T*)New_Point, 1, 4);
 
-		//ÔÙËãÉî¶È, P1µÄµÚ¶şĞĞÎª(0,0,1,0), ËùÒÔ£¬±ğ¸ãÄÇÃ´¸´ÔÓ£¬Ö±½Ó¸³Öµ
+		//å†ç®—æ·±åº¦, P1çš„ç¬¬äºŒè¡Œä¸º(0,0,1,0), æ‰€ä»¥ï¼Œåˆ«æé‚£ä¹ˆå¤æ‚ï¼Œç›´æ¥èµ‹å€¼
 		fDepth_1 = New_Point[2];
 		if (fDepth_1 > kMinDepth && fDepth_1 < fMax_Depth)
 		{
-			//´Ë´¦£¬P*X=x => PµÄµÚ¶şĞĞµã³ËX¾ÍÊÇ(x,y,z)ÖĞµÄz
-			//ºóÃæÔÙ³ËÒ»¸öÁĞÏòÁ¿µÄÄ£´ı¿¼£¬Ä¿Ç°Ö»ÊÇ1
+			//æ­¤å¤„ï¼ŒP*X=x => Pçš„ç¬¬äºŒè¡Œç‚¹ä¹˜Xå°±æ˜¯(x,y,z)ä¸­çš„z
+			//åé¢å†ä¹˜ä¸€ä¸ªåˆ—å‘é‡çš„æ¨¡å¾…è€ƒï¼Œç›®å‰åªæ˜¯1
 			fDepth_2 = fDot(&P2[2 * 4], New_Point, 3) * fMod_P2_Col_2;
 			if (fDepth_2 > kMinDepth && fDepth_2 < fMax_Depth)
 			{
@@ -1232,17 +1241,17 @@ template<typename _T>void Check_Cheirality(_T Point_1[][2], _T Point_2[][2], int
 }
 
 template<typename _T>void E_2_R_t(_T E[3 * 3], _T Norm_Point_1[][2], _T Norm_Point_2[][2], int iCount, _T R[3 * 3], _T t[3], _T Point_3D[][3])
-{//´ÓEÖĞ»Ö¸´R¾ØÕóÓë Î»ÒÆ t, ×¢ÒâÁË£¬ÓÉÓÚÏòÁ¿¿ÉĞĞ¿ÉÁĞ£¬ÔÚÁĞÏòÁ¿Ç°ÌáÏÂ£¬
-	//´Ë´¦ÓÃ¹éÒ»»¯×ø±ê
-	//E= t^ * R Õâ²Å¸úÔ­À´Ò»Ö±µÄ¼ÆËã¶ÔÆë£¬ÏÈĞı×ªºóÎ»ÒÆ¡£·ñÔòÌìÏÂ´óÂÒ
-	//²¢ÇÒ£¬×¼È·µÄ±í´ïÊÇ E = a * t^ * R, ÆäÖĞ aÊÇEµÄÌØÕ÷Öµ¡£·ñÔòÊıÖµ²»¶Ô
+{//ä»Eä¸­æ¢å¤RçŸ©é˜µä¸ ä½ç§» t, æ³¨æ„äº†ï¼Œç”±äºå‘é‡å¯è¡Œå¯åˆ—ï¼Œåœ¨åˆ—å‘é‡å‰æä¸‹ï¼Œ
+	//æ­¤å¤„ç”¨å½’ä¸€åŒ–åæ ‡
+	//E= t^ * R è¿™æ‰è·ŸåŸæ¥ä¸€ç›´çš„è®¡ç®—å¯¹é½ï¼Œå…ˆæ—‹è½¬åä½ç§»ã€‚å¦åˆ™å¤©ä¸‹å¤§ä¹±
+	//å¹¶ä¸”ï¼Œå‡†ç¡®çš„è¡¨è¾¾æ˜¯ E = a * t^ * R, å…¶ä¸­ aæ˜¯Eçš„ç‰¹å¾å€¼ã€‚å¦åˆ™æ•°å€¼ä¸å¯¹
 	_T R1[3 * 3], R2[3 * 3], t1[3], t2[3];
 	_T* Comb[4][2] = { {R1,t1},{R2,t1},{R1,t2},{R2,t2} };
 
 	int i;
 	Decompose_E(E, R1, R2, t1, t2); //E = a * t^ * R
 
-	//²»·ş¿ÉÒÔÑéËãÒ»ÏÂ
+	//ä¸æœå¯ä»¥éªŒç®—ä¸€ä¸‹
 	//Test_Decompose_E(E, R1, t1);
 
 	/*Disp(R1, 3, 3, "R1");
@@ -1250,7 +1259,7 @@ template<typename _T>void E_2_R_t(_T E[3 * 3], _T Norm_Point_1[][2], _T Norm_Poi
 	Disp(t1, 1, 3, "t1");
 	Disp(t2, 1, 3, "t2");*/
 
-	//×é³É4¶Ô (R1,t1), (R2,t1),(R1,t2),(R2,t2),·Ö±ğ¼ìÑé×ª»»ºó½á¹ûµÄ¶Ô´í
+	//ç»„æˆ4å¯¹ (R1,t1), (R2,t1),(R1,t2),(R2,t2),åˆ†åˆ«æ£€éªŒè½¬æ¢åç»“æœçš„å¯¹é”™
 	int Count_1[4], iMax_Count=0,iMax_Index;;
 	for (i = 0; i < 4; i++)
 	{
@@ -1262,7 +1271,7 @@ template<typename _T>void E_2_R_t(_T E[3 * 3], _T Norm_Point_1[][2], _T Norm_Poi
 			iMax_Index = i;
 		}
 		if (Count_1[i] == iCount)
-			break;  //ÕÒµ½ÁË
+			break;  //æ‰¾åˆ°äº†
 	}
 
 	if (iMax_Count)
@@ -1274,10 +1283,10 @@ template<typename _T>void E_2_R_t(_T E[3 * 3], _T Norm_Point_1[][2], _T Norm_Poi
 }
 
 template<typename _T>void Test_E(_T E[], _T Norm_Point_1[][2], _T Norm_Point_2[][2], int iCount)
-{//ÕâÀïÑéËãÒ»ÏÂ¸ø¶¨µÄE ÖØĞÂËãÒ»´Î R t£¬Ö÷ÒªÑéËã NP2= (x1/x2) * Rt * NP1
-//×¢Òâ£¬´Ë´¦µÄtÊÇ¹éÒ»»¯ÏòÁ¿
-//Õâ¸öÑéËãµÄ³õÖÔÊÇÍ¨¹ıÈı½Ç»¯Çó³öÁ½Æ¥Åäµã¶ÔÓ¦µÄÈıÎ¬µãX£¬Õâ¸öX¶ÔÓÚ xÓëx0À´ËµÊÇÏàµÈÖµ£¬È»ºó
-//Í¨¹ıÕâ¸ö¹ØÏµÕ¹¿ª£¬²»¶ÏµÃ½øĞĞÑéËãµÃµ½½á¹û
+{//è¿™é‡ŒéªŒç®—ä¸€ä¸‹ç»™å®šçš„E é‡æ–°ç®—ä¸€æ¬¡ R tï¼Œä¸»è¦éªŒç®— NP2= (x1/x2) * Rt * NP1
+//æ³¨æ„ï¼Œæ­¤å¤„çš„tæ˜¯å½’ä¸€åŒ–å‘é‡
+//è¿™ä¸ªéªŒç®—çš„åˆè¡·æ˜¯é€šè¿‡ä¸‰è§’åŒ–æ±‚å‡ºä¸¤åŒ¹é…ç‚¹å¯¹åº”çš„ä¸‰ç»´ç‚¹Xï¼Œè¿™ä¸ªXå¯¹äº xä¸x0æ¥è¯´æ˜¯ç›¸ç­‰å€¼ï¼Œç„¶å
+//é€šè¿‡è¿™ä¸ªå…³ç³»å±•å¼€ï¼Œä¸æ–­å¾—è¿›è¡ŒéªŒç®—å¾—åˆ°ç»“æœ
 	_T R[3 * 3], t[4],Rt[4*4],I[4*4];
 	_T Temp_1[4 * 4],Point_3D[4], z1, z2;
 	int i;
@@ -1290,47 +1299,47 @@ template<typename _T>void Test_E(_T E[], _T Norm_Point_1[][2], _T Norm_Point_2[]
 	Gen_I_Matrix(I, 4, 4);
 	for (i = 0; i < 8; i++)
 	{
-		//ÏÈÀ´¸öÈı½Ç»¯£¬·ñÔòµÃ²»µ½Éî¶Èz1,z2
+		//å…ˆæ¥ä¸ªä¸‰è§’åŒ–ï¼Œå¦åˆ™å¾—ä¸åˆ°æ·±åº¦z1,z2
 		Triangulate_Point(Norm_Point_1[i], Norm_Point_2[i], I, Rt, Point_3D);
 
-		//¶ÔÓÚÏà»ú1£¬Ïà»ú²ÎÊı¿ÉÒÔÊÓÎªµ¥Î»¾ØÕó£¬ÄÇÃ´Éî¶Èz¾ÍÊÇ¸ÃµãµÄzÖµ
+		//å¯¹äºç›¸æœº1ï¼Œç›¸æœºå‚æ•°å¯ä»¥è§†ä¸ºå•ä½çŸ©é˜µï¼Œé‚£ä¹ˆæ·±åº¦zå°±æ˜¯è¯¥ç‚¹çš„zå€¼
 		Matrix_Multiply(I, 4, 4, Point_3D, 1, Temp_1);
 		z1 = Temp_1[2];
 
-		//¶ÔÓÚÏà»ú¶ş£¬KPÏà»ú²ÎÊıÖĞÈ±¸öK£¬¾Í½öÓÃÍâ²ÎRt
+		//å¯¹äºç›¸æœºäºŒï¼ŒKPç›¸æœºå‚æ•°ä¸­ç¼ºä¸ªKï¼Œå°±ä»…ç”¨å¤–å‚Rt
 		Matrix_Multiply(Rt, 4, 4, Point_3D, 1, Temp_1);
 		z2 = Temp_1[2];
 		
-		//ÉèxÎªAÍ¼ÔÚ¹éÒ»»¯Æ½ÃæÉÏµÄµã£¬x'ÊÇBÍ¼ÔÚ¹éÒ»»¯Æ½ÃæÉÏ¶ÔÓ¦xµÄµã
-		//ÕıÈ·µÄ¹ØÏµÊÇ x' = (z1/z2) * Rt * x, ´ËÊ±£¬z1,z2µÄ²ÎÓë±Ø²»¿ÉÉÙ£¬ÒòÎªÒª»Ö¸´Æë´Î
-		//¶øz1,z2Ö»ÓĞÈı½Ç»¯ÒÔºó²ÅÓĞ£¬¹Ê´ËÒªÑéËãÕâ¸ö½á¹û£¬±ØĞëÖğ²½»Ö¸´Æë´Î×ø±ê
+		//è®¾xä¸ºAå›¾åœ¨å½’ä¸€åŒ–å¹³é¢ä¸Šçš„ç‚¹ï¼Œx'æ˜¯Bå›¾åœ¨å½’ä¸€åŒ–å¹³é¢ä¸Šå¯¹åº”xçš„ç‚¹
+		//æ­£ç¡®çš„å…³ç³»æ˜¯ x' = (z1/z2) * Rt * x, æ­¤æ—¶ï¼Œz1,z2çš„å‚ä¸å¿…ä¸å¯å°‘ï¼Œå› ä¸ºè¦æ¢å¤é½æ¬¡
+		//è€Œz1,z2åªæœ‰ä¸‰è§’åŒ–ä»¥åæ‰æœ‰ï¼Œæ•…æ­¤è¦éªŒç®—è¿™ä¸ªç»“æœï¼Œå¿…é¡»é€æ­¥æ¢å¤é½æ¬¡åæ ‡
 		memcpy(Temp_1, Norm_Point_1[i], 2 * sizeof(_T));
-		Matrix_Multiply(Temp_1, 1, 2, z1, Temp_1);	//µÚÒ»´Î»¯Æë´Î×ø±ê (x,y,1) * z1
-		Temp_1[2] = z1, Temp_1[3] = 1;						//µÚ¶ş´Î»¯Æë´Î×ø±ê (z1*x, z1*y, z1, 1)
+		Matrix_Multiply(Temp_1, 1, 2, z1, Temp_1);	//ç¬¬ä¸€æ¬¡åŒ–é½æ¬¡åæ ‡ (x,y,1) * z1
+		Temp_1[2] = z1, Temp_1[3] = 1;						//ç¬¬äºŒæ¬¡åŒ–é½æ¬¡åæ ‡ (z1*x, z1*y, z1, 1)
 
-		Matrix_Multiply(Rt, 4, 4, Temp_1, 1, Temp_1);		//ÔÙËã Rt * x
-		Matrix_Multiply(Temp_1, 1, 4, 1.f / z2, Temp_1);	//×îºóÔÙ³ıÒÔ z2, ´ËÊ±¾Í·ûºÏÈı½Ç»¯¹«Ê½ÁË
+		Matrix_Multiply(Rt, 4, 4, Temp_1, 1, Temp_1);		//å†ç®— Rt * x
+		Matrix_Multiply(Temp_1, 1, 4, 1.f / z2, Temp_1);	//æœ€åå†é™¤ä»¥ z2, æ­¤æ—¶å°±ç¬¦åˆä¸‰è§’åŒ–å…¬å¼äº†
 		Disp(Norm_Point_2[i], 1, 2, "NP2");
 		Disp(Temp_1, 1, 4, "z1/z2 * Rt * NP1");
 
-		//×Ü½áÒ»ÏÂ£¬x' = (z1/z2) * Rt * x£¬ µ«¿´ÕâÌõÊ½×ÓÊÇÓĞÎÊÌâµÄ£¬ÒòÎªxÊÇ2dµã£¬RtÊÇÈıÎ¬±ä»»Õó£¬Â¿´½¶ÔÂí×ì
-		//ËùÒÔ£¬ÒªÁ½ÕßÄÜÒ»ÆğÔËËã£¬¹Ø¼üÊÇ½«x±äÎªÈıÎ¬µã
-		//x= (x,y,1)*z1 ±ä³É(x*z1,y*z1,z1) ÔÙ²¹1£¬×îºó x=£¨x*z1,y*z1,z1,1) Õâ¾Í¿ÉÒÔ²ÎÓëÔËËãÁË
-		//×îºóx'µÄ½á¹û  x' = (z1/z2) * Rt * x Õâ¾Í¶ÔÁË
+		//æ€»ç»“ä¸€ä¸‹ï¼Œx' = (z1/z2) * Rt * xï¼Œ ä½†çœ‹è¿™æ¡å¼å­æ˜¯æœ‰é—®é¢˜çš„ï¼Œå› ä¸ºxæ˜¯2dç‚¹ï¼ŒRtæ˜¯ä¸‰ç»´å˜æ¢é˜µï¼Œé©´å”‡å¯¹é©¬å˜´
+		//æ‰€ä»¥ï¼Œè¦ä¸¤è€…èƒ½ä¸€èµ·è¿ç®—ï¼Œå…³é”®æ˜¯å°†xå˜ä¸ºä¸‰ç»´ç‚¹
+		//x= (x,y,1)*z1 å˜æˆ(x*z1,y*z1,z1) å†è¡¥1ï¼Œæœ€å x=ï¼ˆx*z1,y*z1,z1,1) è¿™å°±å¯ä»¥å‚ä¸è¿ç®—äº†
+		//æœ€åx'çš„ç»“æœ  x' = (z1/z2) * Rt * x è¿™å°±å¯¹äº†
 	}
 	return;
 }
 
 template<typename _T>void Gen_Camera_Intrinsic(_T K[3 * 3], float fFocal, float a, float b, float cx, float cy)
-{//´Ë´¦Éú³ÉÒ»¸öÏà»úÄÚ²ÎK,Òª³¹µ×¸ãÃ÷°×ÄÚ²ÎµÄÀ´ÁúÈ¥Âö
-//fFocal: Õë¿×Ïà»úµÄ½¹¾à£¬Õâ¸öÓëZ·½ÏòµÄ¾àÀëÏà¹Ø¡£
-//a:	Ò»¸öÏà»úÓĞ¸ö³ÉÏñÆ½Ãæ£¬²»¹ÜÕâ¸öÇøÓòÓÃÊ²Ã´µ¥Î»£¬Ã×»¹ÊÇÀåÃ×£¬¶¼»áÂäÊµ
-//		µ½Ã¿¸öµ¥Î»¶ÔÓ¦¶àÉÙ¸öÏñËØ¡£Õâ¸öÖµ¾ÍÊÇÃ¿µ¥Î»Ë®Æ½·½ÏòÉÏ¶ÔÓ¦¶àÉÙ¸öÏñËØ
-//b:	Ã¿µ¥Î»ÔÚ´¹Ö±·½ÏòÉÏ¶ÔÓÃ¶àÉÙ¸öÏñËØ¡£¾­³£»áa=b
-//cx:	¼ÓÉÏÒ»¸öÆ«ÒÆÁ¿¹¹³ÉÆÁÄ»×ø±ê¡£cxÎªË®Æ½Æ«ÒÆÁ¿
-//cy:	´¹Ö±Æ«ÒÆÁ¿¡£ ¶ÔÓÚÒ»¸öw*hµÄÆÁÄ»£¬ (cx,cy)=(w/2,h/2)
-//È»¶ø£¬Ö»ÓĞK×ø±ê»¹²»×ãÒÔÓÉÒ»¸ö¿Õ¼äµã×ø±ê(x,y,z)Ö±½ÓÍÆµ¼³öÆä¶ÔÓ¦µÄÏñËØ×ø±ê(u,v,1)£¬»¹È±¸öZ
-//ÒòÎª»¹ÓĞÔ¶Ğ¡½ü´óµÄÍ¶Ó°¹ØÏµ¡£ ËùÒÔ£¬¶ÔÓÚ¿Õ¼äÖĞµÄÒ»µã(x,y,z)£¬ÓĞ (u,v)'=1/z * K * (x,y,z)'
+{//æ­¤å¤„ç”Ÿæˆä¸€ä¸ªç›¸æœºå†…å‚K,è¦å½»åº•ææ˜ç™½å†…å‚çš„æ¥é¾™å»è„‰
+//fFocal: é’ˆå­”ç›¸æœºçš„ç„¦è·ï¼Œè¿™ä¸ªä¸Zæ–¹å‘çš„è·ç¦»ç›¸å…³ã€‚
+//a:	ä¸€ä¸ªç›¸æœºæœ‰ä¸ªæˆåƒå¹³é¢ï¼Œä¸ç®¡è¿™ä¸ªåŒºåŸŸç”¨ä»€ä¹ˆå•ä½ï¼Œç±³è¿˜æ˜¯å˜ç±³ï¼Œéƒ½ä¼šè½å®
+//		åˆ°æ¯ä¸ªå•ä½å¯¹åº”å¤šå°‘ä¸ªåƒç´ ã€‚è¿™ä¸ªå€¼å°±æ˜¯æ¯å•ä½æ°´å¹³æ–¹å‘ä¸Šå¯¹åº”å¤šå°‘ä¸ªåƒç´ 
+//b:	æ¯å•ä½åœ¨å‚ç›´æ–¹å‘ä¸Šå¯¹ç”¨å¤šå°‘ä¸ªåƒç´ ã€‚ç»å¸¸ä¼ša=b
+//cx:	åŠ ä¸Šä¸€ä¸ªåç§»é‡æ„æˆå±å¹•åæ ‡ã€‚cxä¸ºæ°´å¹³åç§»é‡
+//cy:	å‚ç›´åç§»é‡ã€‚ å¯¹äºä¸€ä¸ªw*hçš„å±å¹•ï¼Œ (cx,cy)=(w/2,h/2)
+//ç„¶è€Œï¼Œåªæœ‰Kåæ ‡è¿˜ä¸è¶³ä»¥ç”±ä¸€ä¸ªç©ºé—´ç‚¹åæ ‡(x,y,z)ç›´æ¥æ¨å¯¼å‡ºå…¶å¯¹åº”çš„åƒç´ åæ ‡(u,v,1)ï¼Œè¿˜ç¼ºä¸ªZ
+//å› ä¸ºè¿˜æœ‰è¿œå°è¿‘å¤§çš„æŠ•å½±å…³ç³»ã€‚ æ‰€ä»¥ï¼Œå¯¹äºç©ºé—´ä¸­çš„ä¸€ç‚¹(x,y,z)ï¼Œæœ‰ (u,v)'=1/z * K * (x,y,z)'
 	memset(K, 0, 3 * 3 * sizeof(_T));
 	K[0] = a * fFocal;
 	K[4] = b * fFocal;
@@ -1342,7 +1351,7 @@ template<typename _T>void Gen_Camera_Intrinsic(_T K[3 * 3], float fFocal, float 
 
 template<typename _T> void Determine_Confg(Two_View_Geometry* poGeo, _T Point_1[][2], _T Point_2[][2], int iCount,
 	_T(**ppNew_Point_1)[2], _T(**ppNew_Point_2)[2], Mem_Mgr* poMem_Mgr)
-{//ÕâÀï¸ãµ½ºÜ†ªàÂ
+{//è¿™é‡Œæåˆ°å¾ˆå•°å—¦
 	float fEF_Ratio = (float)poGeo->m_oReport_E.m_oSupport.m_iInlier_Count / poGeo->m_oReport_F.m_oSupport.m_iInlier_Count,
 		fHF_Ratio = (float)poGeo->m_oReport_H.m_oSupport.m_iInlier_Count / poGeo->m_oReport_F.m_oSupport.m_iInlier_Count,
 		fHE_Ratio = (float)poGeo->m_oReport_H.m_oSupport.m_iInlier_Count / poGeo->m_oReport_E.m_oSupport.m_iInlier_Count;
@@ -1350,7 +1359,7 @@ template<typename _T> void Determine_Confg(Two_View_Geometry* poGeo, _T Point_1[
 	unsigned char* best_inlier_mask = NULL;
 
 	if (poGeo->m_oReport_E.m_bSuccess && fEF_Ratio > 0.95f && poGeo->m_oReport_E.m_oSupport.m_iInlier_Count >= 15)
-	{//0.95Óë15¶¼ÊÇ¾­ÑéÖµ
+	{//0.95ä¸15éƒ½æ˜¯ç»éªŒå€¼
 		// Calibrated configuration.
 		if (poGeo->m_oReport_E.m_oSupport.m_iInlier_Count >= poGeo->m_oReport_F.m_oSupport.m_iInlier_Count)
 		{
@@ -1404,7 +1413,7 @@ template<typename _T> void Determine_Confg(Two_View_Geometry* poGeo, _T Point_1[
 	_T(*pNew_Point_1)[2] = NULL, (*pNew_Point_2)[2] = NULL;
 	int i, j;
 	if (best_inlier_mask)
-	{//´Ë´¦½«ÕÒµ½µÄ×îÓÅinlier¶ÔÕÒ³öÀ´£¬ĞÎ³ÉĞÂµã¼¯
+	{//æ­¤å¤„å°†æ‰¾åˆ°çš„æœ€ä¼˜inlierå¯¹æ‰¾å‡ºæ¥ï¼Œå½¢æˆæ–°ç‚¹é›†
 		if (poMem_Mgr)
 			pNew_Point_1 = (_T(*)[2])pMalloc(poMem_Mgr, num_inliers * 4 * sizeof(_T));
 		else
@@ -1433,11 +1442,11 @@ template<typename _T> void Calculate_Triangulation_Angles(_T R[3 * 3], _T t[3], 
 	_T Temp_1[4], Q[4], Center_1[3] = {}, Center_2[3];
 	_T fBaseline_Length_Square = fGet_Mod(t, 3);
 
-	//×ª»»Îª4Ôª×é
+	//è½¬æ¢ä¸º4å…ƒç»„
 	Rotation_Matrix_2_Quaternion(R, Q);
 	//Disp(Q, 1, 4, "Q");
 
-	//¶ÔR = -R'
+	//å¯¹R = -R'
 	Matrix_Transpose(R, 3, 3, R);
 	Matrix_Multiply(R, 3, 3, (_T)-1, R);
 	//Disp(R, 3, 3, "R");
@@ -1450,7 +1459,7 @@ template<typename _T> void Calculate_Triangulation_Angles(_T R[3 * 3], _T t[3], 
 
 	for (int i = 0; i < iCount; i++)
 	{
-		//ÏòÁ¿³Ë·½ÇóºÍÓÃµã»ıÁËÊÂ
+		//å‘é‡ä¹˜æ–¹æ±‚å’Œç”¨ç‚¹ç§¯äº†äº‹
 		ray_length_squared1 = fDot(Point_3D[i], Point_3D[i], 3);
 		Vector_Minus(Point_3D[i], Center_2, 3, Temp_1);
 		ray_length_squared2 = fDot(Temp_1, Temp_1, 3);
@@ -1491,7 +1500,7 @@ template<typename _T> void Estimate_Relative_Pose(Two_View_Geometry oGeo, float 
 	//Disp((_T*)pPoint_3D, iCount, 3);
 	//Disp(oGeo.m_oReport_E.m_Modal_d, 3, 3, "E");
 
-	//ÑéÖ¤Î´Ëì
+	//éªŒè¯æœªé‚
 	//E_Test_1(pNorm_Point_1, pNorm_Point_2,iCount, (_T*)oGeo.m_oReport_E.m_Modal, R, t);
 	_T fAngle;
 	int bSuccess;
@@ -1512,7 +1521,7 @@ template<typename _T> void Estimate_Relative_Pose(Two_View_Geometry oGeo, float 
 }
 
 template<typename _T> void RGBD_2_Point_3D(Image oImage, unsigned short* pDepth, _T K[][3], _T fDepth_Factor, _T Point_3D[][3], int* piPoint_Count, unsigned char Color[][3])
-{//Í¨¹ıÏà»úÄÚ²ÎºÍÏñËØÆ½ÃæÉÏµÄ×ø±ê»¹Ô­¿Õ¼äµã
+{//é€šè¿‡ç›¸æœºå†…å‚å’Œåƒç´ å¹³é¢ä¸Šçš„åæ ‡è¿˜åŸç©ºé—´ç‚¹
 	int y, x, i, iPoint_Count = 0, iDepth;
 	for (y = i = 0; y < oImage.m_iHeight; y++)
 	{
@@ -1524,7 +1533,7 @@ template<typename _T> void RGBD_2_Point_3D(Image oImage, unsigned short* pDepth,
 				Point_3D[iPoint_Count][2] = (_T)iDepth / fDepth_Factor;
 				Point_3D[iPoint_Count][0] = ((x - K[0][2]) * Point_3D[iPoint_Count][2]) / K[0][0];
 				Point_3D[iPoint_Count][1] = ((y - K[1][2]) * Point_3D[iPoint_Count][2]) / K[1][1];
-				//ÏÈ¿´u,vµÄÀ´Àú£¬ÏñËØÆ½ÃæÉÏµÄ×ø±ê
+				//å…ˆçœ‹u,vçš„æ¥å†ï¼Œåƒç´ å¹³é¢ä¸Šçš„åæ ‡
 				//u = X* f * s / Z
 				//X = (u / f*s)*Z
 				if (Color)
@@ -1542,8 +1551,8 @@ template<typename _T> void RGBD_2_Point_3D(Image oImage, unsigned short* pDepth,
 	return;
 }
 template<typename _T>void Image_Pos_2_3D(_T Image_Pos[][3], int iCount,_T K[], _T fDepth_Factor,_T Pos_3D[][3])
-{//Image_Pos: ÏñËØÆ½ÃæÉÏµÄµã×ø±ê(x,y)¼°Éî¶ÈÍ¼ÉÏµÄdĞÅÏ¢, K Ïà»úÄÚ²Î£» fDepth_Factor:Éî¶ÈÍ¼Á¿»¯Òò×Ó
-	//¸Ğ¾õÕâ¸öº¯ÊıÒ²ºÜÊµÓÃ£¬ºÜ¶àÊ±ºòÖ»¹ØĞÄ¼¸ºÎĞÅÏ¢£¬´ÓµÚÒ»ÊÖĞÅÏ¢»Ö¸´¿Õ¼ä×ø±êºÜÖØÒª
+{//Image_Pos: åƒç´ å¹³é¢ä¸Šçš„ç‚¹åæ ‡(x,y)åŠæ·±åº¦å›¾ä¸Šçš„dä¿¡æ¯, K ç›¸æœºå†…å‚ï¼› fDepth_Factor:æ·±åº¦å›¾é‡åŒ–å› å­
+	//æ„Ÿè§‰è¿™ä¸ªå‡½æ•°ä¹Ÿå¾ˆå®ç”¨ï¼Œå¾ˆå¤šæ—¶å€™åªå…³å¿ƒå‡ ä½•ä¿¡æ¯ï¼Œä»ç¬¬ä¸€æ‰‹ä¿¡æ¯æ¢å¤ç©ºé—´åæ ‡å¾ˆé‡è¦
 	int i;
 	for (i = 0; i < iCount; i++)
 	{
@@ -1554,76 +1563,270 @@ template<typename _T>void Image_Pos_2_3D(_T Image_Pos[][3], int iCount,_T K[], _
 	return;
 }
 
-template<typename _T>void Bundle_Adjust_3D2D_1(_T Point_3D_Source_1[][3], _T Point_2D_Source_2[][2],int iCount,_T K[],_T Pose[],int *piResult)
-{//ÓÃ¸ßË¹Å£¶Ù·¨¸ãBA¹À¼Æ£¬×î¼òĞÎÊ½£¬Ö»¿¼ÂÇ KsiÁùÔª×éµÄÆ«µ¼
-	//¸ø¶¨Ìõ¼ş£º Point_3D_1£º¿Õ¼äµã¼¯1£¬Ò²¿ÉÒÔÊÓÎªÏà»ú1¹Û²ìµ½µÄ¿Õ¼äµã¼¯
-	//Point_2D_2£¬ÏñËØÆ½ÃæÉÏµÄµã¼¯2
-	//K£º Ïà»ú1ºÍÏà»ú2Í¬Ò»ÄÚ²Î
-	_T e[3], fx = K[0], fy = K[1 * 3 + 1], cx = K[2], cy = K[1 * 3 + 2];
-	_T fSum_e, fSum_e_Pre = 1e10, Temp[6 * 6], Delta_Ksi[6];
-	_T Pose_Pre[4 * 4], Pose_Estimate[4 * 4], Delta_Pose[4 * 4];
-	int i,iResult=1,iIter;
-	const _T eps = 1e-10;
-	//³õÊ¼Ìõ¼şÏÂ£¬µü´ú¸ñÖĞµÄÎ»ÖÃÎªµ¥Î»¾ØÕó£¬±íÊ¾ÎŞÒÆ¶¯
+template<typename _T>void Bundle_Adjust_3D2D_1(_T Point_3D_Source_1[][3], _T Point_2D_Source_2[][2], int iCount, _T K[], _T Pose[], int* piResult)
+{//ç”¨é«˜æ–¯ç‰›é¡¿æ³•æBAä¼°è®¡ï¼Œæœ€ç®€å½¢å¼ï¼Œåªè€ƒè™‘ Ksiå…­å…ƒç»„çš„åå¯¼
+	//ç»™å®šæ¡ä»¶ï¼š Point_3D_1ï¼šç©ºé—´ç‚¹é›†1ï¼Œä¹Ÿå¯ä»¥è§†ä¸ºç›¸æœº1è§‚å¯Ÿåˆ°çš„ç©ºé—´ç‚¹é›†
+	//Point_2D_2ï¼Œåƒç´ å¹³é¢ä¸Šçš„ç‚¹é›†2
+	//Kï¼š ç›¸æœº1å’Œç›¸æœº2åŒä¸€å†…å‚
+	_T Pose_Estimate[4 * 4], Delta_Pose[4 * 4], Pose_Pre[4 * 4],
+		Delta_Ksi[6];
+	_T fSum_e, fSum_e_Pre = 1e10,
+		E[2], JJt[6 * 6], H_Inv[6 * 6];
+	int i, iResult = 1, iIter;
+	const _T eps = (_T)1e-10;
+	_T fx = K[0], fy = K[1 * 3 + 1], cx = K[2], cy = K[1 * 3 + 2];
+	//åˆå§‹æ¡ä»¶ä¸‹ï¼Œè¿­ä»£æ ¼ä¸­çš„ä½ç½®ä¸ºå•ä½çŸ©é˜µï¼Œè¡¨ç¤ºæ— ç§»åŠ¨
 	Gen_I_Matrix(Pose_Estimate, 4, 4);
-
 	for (iIter = 0;; iIter++)
 	{
 		fSum_e = 0;
-		_T  H[6 * 6] = { 0 }, //H=¡ÆJ'J
-			b[6] = { 0 };
+		_T  Sigma_H[6 * 6] = { 0 }, //H=âˆ‘J'J
+			Sigma_JE[6] = { 0 };	//âˆ‘JE
 		for (i = 0; i < iCount; i++)
 		{
-			_T Point_3D_1[4], *pPoint_2D_2;
+			_T Point_3D_1[4], * pPoint_2D_2;
 			memcpy(Point_3D_1, Point_3D_Source_1[i], 3 * sizeof(_T));
 			Point_3D_1[3] = 1;
-			//ÓÃÉÏ´Îµü´úµÃµ½µÄĞÂÎ»×Ë¼ÆËãµã¼¯1µÄĞÂÎ»ÖÃ
+			//ç”¨ä¸Šæ¬¡è¿­ä»£å¾—åˆ°çš„æ–°ä½å§¿è®¡ç®—ç‚¹é›†1çš„æ–°ä½ç½®
 			Matrix_Multiply(Pose_Estimate, 4, 4, Point_3D_1, 1, Point_3D_1);
-			if ( abs(Point_3D_1[2]) < eps)
-				continue;	//²¡Ì¬Êı¾İ²»Ëã
-			//ÓÃÏà»úÄÚ²ÎKÍ¶Ó°µ½ÏñËØÆ½ÃæÉÏ£¬×îÀíÏëÊÇÓëµã¼¯2Î»ÖÃÖØºÏ
+			if (abs(Point_3D_1[2]) < eps)
+				continue;	//ç—…æ€æ•°æ®ä¸ç®—
+			//ç”¨ç›¸æœºå†…å‚KæŠ•å½±åˆ°åƒç´ å¹³é¢ä¸Šï¼Œæœ€ç†æƒ³æ˜¯ä¸ç‚¹é›†2ä½ç½®é‡åˆ
 			_T Point_2D_1[2] = { fx * Point_3D_1[0] / Point_3D_1[2] + cx, fy * Point_3D_1[1] / Point_3D_1[2] + cy };
 			pPoint_2D_2 = Point_2D_Source_2[i];
-			e[0] = pPoint_2D_2[0] - Point_2D_1[0];	//¶ÔÓ¦µãiµÄÊıÖµ²î
-			e[1] = pPoint_2D_2[1] - Point_2D_1[1];
+			E[0] = pPoint_2D_2[0] - Point_2D_1[0];	//å¯¹åº”ç‚¹içš„æ•°å€¼å·®
+			E[1] = pPoint_2D_2[1] - Point_2D_1[1];
 
-			fSum_e += e[0] * e[0] + e[1] * e[1];
+			fSum_e += E[0] * E[0] + E[1] * E[1];
+
 			_T  X_Sqr = Point_3D_1[0] * Point_3D_1[0],
 				Y_Sqr = Point_3D_1[1] * Point_3D_1[1],
 				Z_Sqr = Point_3D_1[2] * Point_3D_1[2];
 
-			_T Jt[6 * 2], 
-				J[2 * 6] = { -fx / Point_3D_1[2], 0 , fx * Point_3D_1[0] / Z_Sqr, fx * Point_3D_1[0] * Point_3D_1[1] / Z_Sqr, -fx - fx * X_Sqr / Z_Sqr, fx * Point_3D_1[1] / Point_3D_1[2],
-				0, -fy / Point_3D_1[2], fy * Point_3D_1[1] / Z_Sqr, fy + fy * Y_Sqr / Z_Sqr, -fy * Point_3D_1[0] * Point_3D_1[1] / Z_Sqr, -fy * Point_3D_1[0] / Point_3D_1[2] };
+			_T JE[6], J[6 * 2], //ä»¥ä¸‹æ‰æ˜¯çœŸæ­£çš„Jtï¼Œå’Œä¹¦ä¸Šä¸€è‡´ã€‚æºä»£ç ä¸­æ˜¯è·³æ­¥èµ°ï¼Œä¸åˆ©äºå­¦ä¹ 
+				Jt[2 * 6] = { fx / Point_3D_1[2], 0 , -fx * Point_3D_1[0] / Z_Sqr, -fx * Point_3D_1[0] * Point_3D_1[1] / Z_Sqr, fx + fx * X_Sqr / Z_Sqr, -fx * Point_3D_1[1] / Point_3D_1[2],
+								0, fy / Point_3D_1[2], -fy * Point_3D_1[1] / Z_Sqr, -fy - fy * Y_Sqr / Z_Sqr, fy * Point_3D_1[0] * Point_3D_1[1] / Z_Sqr, fy * Point_3D_1[0] / Point_3D_1[2] };
+			Matrix_Multiply(Jt, 2, 6, (_T)-1.f, Jt);      //ä¹˜ä»¥-1åï¼Œè¿™ä¸ªå°±æ˜¯æ‰€éœ€çš„Jt,é›…å¯æ¯”æ˜¯æ±‚è§£çš„å…³é”®
 
-			Matrix_Transpose(J, 2, 6, Jt);
-			Matrix_Multiply(Jt, 6, 2, J, 6, Temp);
-			Matrix_Add(H, Temp, 6, H);  //H += J'J;
+			Matrix_Transpose(Jt, 2, 6, J);
+			Matrix_Multiply(J, 6, 2, E, 1, JE);             //JE
+			Vector_Add(Sigma_JE, JE, 6, Sigma_JE);
 
-			Matrix_Multiply(Jt, 6, 2, e, 1, Temp);
-			Vector_Add(b, Temp, 6, b);
+			Matrix_Multiply(J, 6, 2, Jt, 6, JJt);           //JJ'
+			Matrix_Add(Sigma_H, JJt, 6, Sigma_H);           //
 		}
-		Matrix_Multiply(b, 1, 6, (_T)-1, b);
-		
-		//½â·½³Ì Hx = b
-		Solve_Linear_Gause(H, 6, b, Delta_Ksi, &iResult);
 
-		//´Ë´¦µÄÍ£»úÌõ¼şÓĞ½²¾¿£¬ÒòÎªDelta_KsiÊÇÇ°Î»ÒÆºóĞı×ª£¬ËùÒÔ²»ÄÜÓÃ´«Í³µÄ|¦¤¦Î|¡Ö 0 ÍêÊÂ
-		//Ö»ÄÜÓÃÎó²î²»·¢É¢Îª×¼
-		if (fSum_e >= fSum_e_Pre || !iResult)
+		Get_Inv_Matrix_Row_Op(Sigma_H, H_Inv, 6, &iResult);		//æ±‚H(-1)
+		Matrix_Multiply(H_Inv, 6, 6, Sigma_JE, 1, Delta_Ksi);	//H(-1)*JE
+		Matrix_Multiply(Delta_Ksi, 1, 6, (_T)-1, Delta_Ksi);
+		if (fSum_e_Pre <= fSum_e || !iResult)
 			break;
 
-		//½«ÔöÁ¿»¹Ô­ÎªÆë´Î¾ØÕó
+		//æ¥ç€ä»Î¾æ¢å¤T, å°†å¢é‡è¿˜åŸä¸ºé½æ¬¡çŸ©é˜µ
 		se3_2_SE3(Delta_Ksi, Delta_Pose);
 
 		memcpy(Pose_Pre, Pose_Estimate, 4 * 4 * sizeof(_T));
 		Matrix_Multiply(Delta_Pose, 4, 4, Pose_Estimate, 4, Pose_Estimate);
-		//Disp(Pose, 4, 4, "Pose");
+
 		fSum_e_Pre = fSum_e;
 	}
-
-	*piResult = iResult;
 	if (iResult)
-		memcpy(Pose, Pose_Pre, 4 * 4 * sizeof(_T));
+		*piResult = 1;
+	memcpy(Pose, Pose_Pre, 4 * 4 * sizeof(_T));
+}
 
+//template<typename _T>void Bundle_Adjust_3D2D_1(_T Point_3D_Source_1[][3], _T Point_2D_Source_2[][2],int iCount,_T K[],_T Pose[],int *piResult)
+//{//ç”¨é«˜æ–¯ç‰›é¡¿æ³•æBAä¼°è®¡ï¼Œæœ€ç®€å½¢å¼ï¼Œåªè€ƒè™‘ Ksiå…­å…ƒç»„çš„åå¯¼
+//	//ç»™å®šæ¡ä»¶ï¼š Point_3D_1ï¼šç©ºé—´ç‚¹é›†1ï¼Œä¹Ÿå¯ä»¥è§†ä¸ºç›¸æœº1è§‚å¯Ÿåˆ°çš„ç©ºé—´ç‚¹é›†
+//	//Point_2D_2ï¼Œåƒç´ å¹³é¢ä¸Šçš„ç‚¹é›†2
+//	//Kï¼š ç›¸æœº1å’Œç›¸æœº2åŒä¸€å†…å‚
+//	_T e[3], fx = K[0], fy = K[1 * 3 + 1], cx = K[2], cy = K[1 * 3 + 2];
+//	_T fSum_e, fSum_e_Pre = 1e10, Temp[6 * 6], Delta_Ksi[6];
+//	_T Pose_Pre[4 * 4], Pose_Estimate[4 * 4], Delta_Pose[4 * 4];
+//	int i,iResult=1,iIter;
+//	const _T eps = (_T)1e-10;
+//	//åˆå§‹æ¡ä»¶ä¸‹ï¼Œè¿­ä»£æ ¼ä¸­çš„ä½ç½®ä¸ºå•ä½çŸ©é˜µï¼Œè¡¨ç¤ºæ— ç§»åŠ¨
+//	Gen_I_Matrix(Pose_Estimate, 4, 4);
+//
+//	for (iIter = 0;; iIter++)
+//	{
+//		fSum_e = 0;
+//		_T  H[6 * 6] = { 0 }, //H=âˆ‘J'J
+//			b[6] = { 0 };
+//		for (i = 0; i < iCount; i++)
+//		{
+//			_T Point_3D_1[4], *pPoint_2D_2;
+//			memcpy(Point_3D_1, Point_3D_Source_1[i], 3 * sizeof(_T));
+//			Point_3D_1[3] = 1;
+//			//ç”¨ä¸Šæ¬¡è¿­ä»£å¾—åˆ°çš„æ–°ä½å§¿è®¡ç®—ç‚¹é›†1çš„æ–°ä½ç½®
+//			Matrix_Multiply(Pose_Estimate, 4, 4, Point_3D_1, 1, Point_3D_1);
+//			if ( abs(Point_3D_1[2]) < eps)
+//				continue;	//ç—…æ€æ•°æ®ä¸ç®—
+//			//ç”¨ç›¸æœºå†…å‚KæŠ•å½±åˆ°åƒç´ å¹³é¢ä¸Šï¼Œæœ€ç†æƒ³æ˜¯ä¸ç‚¹é›†2ä½ç½®é‡åˆ
+//			_T Point_2D_1[2] = { fx * Point_3D_1[0] / Point_3D_1[2] + cx, fy * Point_3D_1[1] / Point_3D_1[2] + cy };
+//			pPoint_2D_2 = Point_2D_Source_2[i];
+//			e[0] = pPoint_2D_2[0] - Point_2D_1[0];	//å¯¹åº”ç‚¹içš„æ•°å€¼å·®
+//			e[1] = pPoint_2D_2[1] - Point_2D_1[1];
+//
+//			fSum_e += e[0] * e[0] + e[1] * e[1];
+//			_T  X_Sqr = Point_3D_1[0] * Point_3D_1[0],
+//				Y_Sqr = Point_3D_1[1] * Point_3D_1[1],
+//				Z_Sqr = Point_3D_1[2] * Point_3D_1[2];
+//
+//			_T Jt[6 * 2], //æ³¨æ„ï¼Œä¸‹é¢è¿™ä¸ªæ‰æ˜¯çœŸæ­£çš„Jtã€‚ ä¹¦ä¸Šé‚£ä¸ªæ˜¯è·³æ­¥ï¼ŒæŠŠç¬¦å·æé‡Œå¤´
+//				J[2 * 6] = { -fx / Point_3D_1[2], 0 , fx * Point_3D_1[0] / Z_Sqr, fx * Point_3D_1[0] * Point_3D_1[1] / Z_Sqr, -fx - fx * X_Sqr / Z_Sqr, fx * Point_3D_1[1] / Point_3D_1[2],
+//				0, -fy / Point_3D_1[2], fy * Point_3D_1[1] / Z_Sqr, fy + fy * Y_Sqr / Z_Sqr, -fy * Point_3D_1[0] * Point_3D_1[1] / Z_Sqr, -fy * Point_3D_1[0] / Point_3D_1[2] };
+//
+//			Matrix_Transpose(J, 2, 6, Jt);
+//			Matrix_Multiply(Jt, 6, 2, J, 6, Temp);
+//			Matrix_Add(H, Temp, 6, H);  //H += J'J;
+//
+//			Matrix_Multiply(Jt, 6, 2, e, 1, Temp);
+//			Vector_Add(b, Temp, 6, b);
+//		}
+//		Matrix_Multiply(b, 1, 6, (_T)-1, b);
+//		
+//		//è§£æ–¹ç¨‹ Hx = b
+//		Solve_Linear_Gause(H, 6, b, Delta_Ksi, &iResult);
+//
+//		//æ­¤å¤„çš„åœæœºæ¡ä»¶æœ‰è®²ç©¶ï¼Œå› ä¸ºDelta_Ksiæ˜¯å‰ä½ç§»åæ—‹è½¬ï¼Œæ‰€ä»¥ä¸èƒ½ç”¨ä¼ ç»Ÿçš„|Î”Î¾|â‰ˆ 0 å®Œäº‹
+//		//åªèƒ½ç”¨è¯¯å·®ä¸å‘æ•£ä¸ºå‡†
+//		if (fSum_e >= fSum_e_Pre || !iResult)
+//			break;
+//
+//		//å°†å¢é‡è¿˜åŸä¸ºé½æ¬¡çŸ©é˜µ
+//		se3_2_SE3(Delta_Ksi, Delta_Pose);
+//
+//		memcpy(Pose_Pre, Pose_Estimate, 4 * 4 * sizeof(_T));
+//		Matrix_Multiply(Delta_Pose, 4, 4, Pose_Estimate, 4, Pose_Estimate);
+//		//Disp(Pose, 4, 4, "Pose");
+//		fSum_e_Pre = fSum_e;
+//	}
+//
+//	*piResult = iResult;
+//	if (iResult)
+//		memcpy(Pose, Pose_Pre, 4 * 4 * sizeof(_T));
+//}
+
+template<typename _T>void Get_Deriv_TP_Ksi(_T T[4 * 4], _T P[3], _T Deriv[4 * 6])
+{//æœ‰å¿…è¦æŠŠæ‰°åŠ¨æ¨¡å‹ä¹Ÿåšå‡ºæ¥ã€‚å…¶å®å°±æ˜¯âˆ‚TP/âˆ‚Î¾ã€‚ç»™å®šä¸€ç‚¹PåŠå…¶å˜æ¢Tã€‚ç»™Tä¸€ç‚¹æ‰°åŠ¨ï¼Œçœ‹å˜åŒ–ç‡ã€‚
+//æ­¤æ—¶ï¼ŒÎ¾å°±æ˜¯6ç»´å‘é‡å˜é‡ï¼Œä½†æ˜¯éšå«äº†ã€‚TPä¸º4ç»´é½æ¬¡åæ ‡ã€‚æ‰€ä»¥ï¼Œç›®æ ‡ä¸º4x6çŸ©é˜µ
+	_T _P[4] = { P[0],P[1],P[2],1 };
+	_T P1[4];
+	_T P1_M[3 * 3];
+
+	Matrix_Multiply(T, 4,4,_P,1,P1);
+	//âˆ‚TP/âˆ‚Î¾ = âˆ‚P'/âˆ‚Î¾= I -P'^
+	Hat(P1, P1_M);
+
+	//I
+	Deriv[0 * 6 + 0] = 1; Deriv[0 * 6 + 1] = 0; Deriv[0 * 6 + 2] = 0;
+	Deriv[1 * 6 + 0] = 0; Deriv[1 * 6 + 1] = 1; Deriv[1 * 6 + 2] = 0;
+	Deriv[2 * 6 + 0] = 0; Deriv[2 * 6 + 1] = 0; Deriv[2 * 6 + 2] = 1;
+	//-P'^
+	Deriv[0 * 6 + 3] = -P1_M[0]; Deriv[0 * 6 + 4] = -P1_M[1]; Deriv[0 * 6 + 5] = -P1_M[2];
+	Deriv[1 * 6 + 3] = -P1_M[3]; Deriv[1 * 6 + 4] = -P1_M[4]; Deriv[1 * 6 + 5] = -P1_M[5];
+	Deriv[2 * 6 + 3] = -P1_M[6]; Deriv[2 * 6 + 4] = -P1_M[7]; Deriv[2 * 6 + 5] = -P1_M[8];
+
+	memset(&Deriv[3 * 6], 0, 6 * sizeof(_T));
+	return;
+}
+template<typename _T>void ICP_Bundle_Adjust(_T P_1[][3], _T P_2[][3], int iCount, _T Pose[],int *piResult)
+{//ç”¨é«˜æ–¯ç‰›é¡¿æ³•è§£ICPï¼Œç´§å’¬é«˜æ–¯ç‰›é¡¿æ³•å½¢å¼
+	_T Pose_Estimate[4 * 4], Delta_Pose[4 * 4], Pose_Pre[4 * 4],
+		Delta_Ksi[6];
+	_T fSum_e, fSum_e_Pre = 1e10,
+		E[3], JJt[6 * 6], H_Inv[6 * 6];
+	_T P_11[4]; //P1'
+	int i, iResult, iIter;
+	Gen_I_Matrix(Pose_Estimate, 4, 4);
+	for (iIter = 0;; iIter++)
+	{
+		fSum_e = 0;
+		_T  Sigma_H[6 * 6] = { 0 }, //H=âˆ‘J'J
+			Sigma_JE[6] = { 0 };  //âˆ‘JE
+		for (i = 0; i < iCount; i++)
+		{
+			memcpy(P_11, P_1[i], 3 * sizeof(_T));
+			P_11[3] = 1;
+			Matrix_Multiply(Pose_Estimate, 4, 4, P_11, 1, P_11);
+			Vector_Minus(P_2[i], P_11, 3, E);
+			fSum_e += E[0] * E[0] + E[1] * E[1] + E[2] * E[2];
+
+			_T Jt[4 * 6], J[6 * 3], JE[6];    //æ³¨æ„ï¼ŒJå’ŒJtæ²¡æœ‰æœ¬è´¨ä¸Šçš„ä¸åŒï¼Œåªæ˜¯è¡Œè·Ÿåˆ—çš„æ’åˆ—é—®é¢˜
+			Get_Deriv_TP_Ksi(Pose_Estimate, P_1[i], Jt);    //è¿™ä¸ªè¿˜ä¸ç®—Jtï¼Œå› ä¸ºä»–æ˜¯g(x)çš„Jt,è¦æ±‚ e(x)çš„jt
+			Matrix_Multiply(Jt, 3, 6, (_T)-1.f, Jt);      //ä¹˜ä»¥-1åï¼Œè¿™ä¸ªå°±æ˜¯æ‰€éœ€çš„Jt,é›…å¯æ¯”æ˜¯æ±‚è§£çš„å…³é”®
+			//åªè¦é“¾å¯¼æ³•ç»“æœæ­£ç¡®ï¼Œåé¢å°±èƒ½ç®—å‡ºæ¥
+
+			Matrix_Transpose(Jt, 3, 6, J);
+			Matrix_Multiply(J, 6, 3, E, 1, JE);             //JE
+			Vector_Add(Sigma_JE, JE, 6, Sigma_JE);
+
+			Matrix_Multiply(J, 6, 3, Jt, 6, JJt);           //JJ'
+			Matrix_Add(Sigma_H, JJt, 6, Sigma_H);           //
+		}
+
+		Get_Inv_Matrix_Row_Op(Sigma_H, H_Inv, 6, &iResult);		//æ±‚H(-1)
+		Matrix_Multiply(H_Inv, 6, 6, Sigma_JE, 1, Delta_Ksi);	//H(-1)*JE
+		Matrix_Multiply(Delta_Ksi, 1, 6, (_T)-1, Delta_Ksi);	//
+
+		if (fSum_e_Pre <= fSum_e || !iResult)
+			break;
+
+		//æ¥ç€ä»Î¾æ¢å¤T, å°†å¢é‡è¿˜åŸä¸ºé½æ¬¡çŸ©é˜µ
+		se3_2_SE3(Delta_Ksi, Delta_Pose);
+
+		memcpy(Pose_Pre, Pose_Estimate, 4 * 4 * sizeof(_T));
+		Matrix_Multiply(Delta_Pose, 4, 4, Pose_Estimate, 4, Pose_Estimate);
+		//Disp(Pose_Estimate, 4, 4, "Pose");
+		//printf("Iter:%d Cost:%f\n", iIter, fSum_e);
+		fSum_e_Pre = fSum_e;
+	}
+	memcpy(Pose, Pose_Pre, 4 * 4 * sizeof(_T));
+	return;
+}
+
+template<typename _T>void ICP_SVD(_T P_1[][3], _T P_2[][3], int iCount, _T Pose[], int* piResult)
+{//ç”¨SVDæ–¹æ³•è§£ICPé—®é¢˜ï¼Œè¿™ä¸ªé€Ÿåº¦åº”è¯¥å¿«å¾ˆå¤š
+	_T P_1_Centroid[3] = { 0 },
+		P_2_Centroid[3] = { 0 };
+	_T w[3 * 3] = { 0 }, q1[3], q2[3], q1q2t[3 * 3];
+	int i, iResult = 1;
+
+	for (i = 0; i < iCount; i++)
+	{
+		Vector_Add(P_1_Centroid, P_1[i], 3, P_1_Centroid);
+		Vector_Add(P_2_Centroid, P_2[i], 3, P_2_Centroid);
+	}
+	Matrix_Multiply(P_1_Centroid, 1, 3, (_T)1.f / iCount, P_1_Centroid);
+	Matrix_Multiply(P_2_Centroid, 1, 3, (_T)1.f / iCount, P_2_Centroid);
+
+	for (i = 0; i < iCount; i++)
+	{
+		Vector_Minus(P_1[i], P_1_Centroid, 3, q1);
+		Vector_Minus(P_2[i], P_2_Centroid, 3, q2);
+		Matrix_Multiply(q1, 3, 1, q2, 3, q1q2t);
+		Matrix_Add(w, q1q2t, 3, w);
+	}
+	//Disp(w, 3, 3, "w");
+
+	SVD_Info oSVD;
+	SVD_Alloc<_T>(3, 3, &oSVD);
+	svd_3(w, oSVD);
+
+	_T R[3 * 3];
+	Matrix_Multiply((_T*)oSVD.U, 3, 3, (_T*)oSVD.Vt, 3, R);
+	Free_SVD(&oSVD);
+	//æ­¤å¤„è¦åšä¸€ä¸ªè¡Œåˆ—å¼çš„åˆ¤æ–­
+	if (fGet_Determinant(R, 3) < 0)
+		Matrix_Multiply(R, 3, 3, (_T)(- 1.f), R);
+	//Disp(R, 3, 3, "R");
+
+	//æ ¹æ® p - Rp' -t =0 æ±‚t, t= p - Rp'
+	_T t[3], Rp2[3 * 3];
+	Matrix_Multiply(R, 3, 3, P_2_Centroid, 1, Rp2);
+	Vector_Minus(P_1_Centroid, Rp2, 3, t);
+
+	Gen_Homo_Matrix(R, t, Pose);
+	*piResult = iResult;
 }

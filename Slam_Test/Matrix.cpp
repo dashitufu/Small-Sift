@@ -3310,7 +3310,7 @@ template<typename _T>void se3_2_SE3(_T Ksi[6], _T T[])
 	T[4] = R[1][0], T[5] = R[1][1], T[6] = R[1][2], T[7] = J_Rho[1];
 	T[8] = R[2][0], T[9] = R[2][1], T[10] = R[2][2], T[11] = J_Rho[2];
 	T[12] = T[13] = T[14] = 0, T[15] = 1;
-
+	
 	return;
 }
 
@@ -4807,6 +4807,11 @@ template<typename _T> void Matrix_Multiply(_T* A, int ma, int na, _T* B, int nb,
 
 void SB_Matrix()
 {//这就是个傻逼方法，用来欺骗template
+	Gen_Roation_Matrix_2D((double*)NULL, (double)0,(double*)NULL);
+	Gen_Roation_Matrix_2D((float*)NULL, (float)0, (float*)NULL);
+
+
+
 	se3_2_SE3((double*)NULL, (double*)NULL);
 	se3_2_SE3((float*)NULL, (float*)NULL);
 
@@ -5334,4 +5339,46 @@ template<typename _T> void Transpose_Multiply(_T A[], int m, int n, _T B[], int 
 	else
 		Matrix_Multiply(A, m, n, At,m, B);	//AAt
 	Free(&oMatrix_Mem, At);
+}
+
+template<typename _T> void Gen_Translation_Matrix_2D(_T P_1[2], _T P_2[2], _T T[3 * 3])
+{//从P_1点平移到P_2点，求齐次平移矩阵T
+	T[0] = T[4] = T[8] = 1;
+	T[1] = T[3] = T[6] = T[7] = 0;
+	T[2] = P_2[0] - P_1[0];
+	T[5] = P_2[1] - P_2[1];
+	return;
+}
+template<typename _T> void Gen_Rotation_Matrix_2D(_T theta, _T R[3 * 3])
+{//绕原点逆时针旋转θ角度
+	//x' = x*cosθ - y*sinθ => x'	= cosθ -sinθ	*	x
+	//y' = x*sinθ + y*cosθ	y'	  sinθ  cosθ		y
+	R[0] = R[4] = cos(theta);
+	R[3] = sin(theta), R[1] = -R[3];
+	R[2] = R[5] = R[6] = R[7] = 0;
+	R[8] = 1;
+	return;
+}
+
+template<typename _T> void Gen_Roation_Matrix_2D(_T Rotation_Center[2], _T theta, _T R[3* 3])
+{//绕某点旋转θ角度，返回齐次矩阵
+	//第一步，将Rotation_Center移到原点
+	_T T_1[3 * 3];	// = { 1, 0, -Rotation_Center[0],
+						//0, 1, -Rotation_Center[1],
+						//0, 0, 1 };
+	_T O[2] = { 0.f,0.f };
+	Gen_Translation_Matrix_2D(Rotation_Center, O, T_1);
+
+	//第二步，构造旋转变换
+	_T R_2[3 * 3];
+	Gen_Rotation_Matrix_2D(theta, R_2);
+
+	//第三步，移回原来位置
+	_T T_3[3 * 3];
+	Gen_Translation_Matrix_2D(O, Rotation_Center, T_3);
+
+	//矩阵连乘 T_3 * R_2 * T_1
+	Matrix_Multiply(T_3, 3, 3, R_2,3, R);
+	Matrix_Multiply(R, 3, 3, T_1,3, R);
+	Disp(R, 3, 3, "R");
 }
