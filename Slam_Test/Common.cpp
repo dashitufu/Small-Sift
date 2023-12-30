@@ -236,9 +236,7 @@ template<typename _T> _T oGet_Nth_Elem(_T Seq[],int iCount, int iStart, int iEnd
 			}
 			return (_T)((Seq[iStart] + fMax) / 2.f);
 		}
-	}
-		
-		
+	}		
 }
 template<typename _T> void Quick_Sort(_T Seq[], int iStart, int iEnd)
 {

@@ -32,6 +32,8 @@ extern "C"
 #define MAX_FLOAT ((float)0xFFFFFFFFFFFFFFFF)	//仅仅给一个足够大的数字，并不是iEEE的浮点数最大值
 #define ZERO_APPROCIATE	0.00001f
 
+#define Get_Homo_Pos(Pos, Homo_Pos) Homo_Pos[0]=Pos[0], Homo_Pos[1]=Pos[1], Homo_Pos[2]=Pos[2],Homo_Pos[3]=1;
+
 
 typedef struct Complex_d {//双精度复数
 	double real;	//实部
@@ -106,7 +108,7 @@ template<typename _T>void Disp(_T* M, int iHeight, int iWidth,const char* pcCapt
 			if (std::is_same_v<_T, float> || std::is_same_v<_T,double>)
 				printf("%.8f, ", M[i * iWidth + j]);
 			else if (std::is_same_v<_T, int> || std::is_same_v<_T,short>)
-				printf("%d,, ", (int)M[i * iWidth + j]);
+				printf("%d,", (int)M[i * iWidth + j]);
 		}
 			
 		printf("\n");
@@ -164,7 +166,8 @@ unsigned long long iGet_Random_No_cv();
 unsigned long long iGet_Random_No_cv(unsigned long long* piState);
 int iGet_Random_No_cv(int a, int b);
 
-void Schmidt_Orthogon(float* A, int m, int n, float* B);	//施密特正交化
+//void Schmidt_Orthogon(float* A, int m, int n, float* B);	//施密特正交化
+template<typename _T>void Schmidt_Orthogon(_T* A, int m, int n, _T* B);
 
 void Polor_2_Rect_Coordinate(float rho, float theta, float phi, float* px, float* py, float* pz);	//极坐标转直角坐标系
 void Polor_2_Rect_Coordinate(float rho, float theta, float* px, float* py);							//二维
@@ -177,13 +180,20 @@ void Cholosky_Decompose(float A[], int iOrder, float B[]);
 void Conjugate_Gradient(float* A, const int n, float B[], float X[]);
 void Get_Inv_Matrix(float* pM, float* pInv, int iOrder, int* pbSuccess);
 void Solve_Linear_Cramer(float* A, int iOrder, float* B, float* X, int* pbSuccess); //克莱姆法则解线性方程组
+
 template<typename _T>void Solve_Linear_Gause(_T* A, int iOrder, _T* B, _T* X, int* pbSuccess);	//高斯法求解线性方程组
+//void Solve_Linear_Gause(float* A, int iOrder, float* B, float* X, int* pbSuccess=NULL);
+
 void Solve_Linear_Jocabi(float A[], float B[], int iOrder, float X[], int* pbResult);				//雅可比迭代法求解线性方程组
 void Solve_Linear_Gauss_Seidel(float A[], float B[], int iOrder, float X[], int* pbResult);
 void Solve_Linear_Contradictory(float* A, int m, int n, float* B, float* X, int* pbSuccess);	//解矛盾方程组，求最小二乘解
-void Solve_Linear_Solution_Construction(float* A, int m, int n, float B[], int* pbSuccess, float* pBasic_Solution = NULL, int* piBasic_Solution_Count = NULL, float* pSpecial_Solution = NULL);
+//void Solve_Linear_Solution_Construction(float* A, int m, int n, float B[], int* pbSuccess, float* pBasic_Solution = NULL, int* piBasic_Solution_Count = NULL, float* pSpecial_Solution = NULL);
+template<typename _T> void Solve_Linear_Solution_Construction(_T* A, int m, int n, _T B[], int* pbSuccess, _T* pBasic_Solution=NULL, int* piBasic_Solution_Count=NULL, _T* pSpecial_Solution=NULL);
+
 void Get_Linear_Solution_Construction(float A[], int m, int n, float B[]);//看解的结构
-void Elementary_Row_Operation(float A[], int m, int n, float A_1[], int* piRank = NULL, float** ppBasic_Solution = NULL, float** ppSpecial_Solution = NULL);		//初等行变换至最简形
+//void Elementary_Row_Operation(float A[], int m, int n, float A_1[], int* piRank = NULL, float** ppBasic_Solution = NULL, float** ppSpecial_Solution = NULL);		//初等行变换至最简形
+template<typename _T>void Elementary_Row_Operation(_T A[], int m, int n, _T A_1[], int* piRank=NULL, _T** ppBasic_Solution=NULL, _T** ppSpecial_Solution=NULL);
+
 template<typename _T>void Elementary_Row_Operation_1(_T A[], int m, int n, _T A_1[], int* piRank=NULL, _T** ppBasic_Solution=NULL, _T** ppSpecial_Solution=NULL);
 
 int bIs_Linearly_Dependent(float A[], int m, int n);	//判断向量组A是否线性相关
@@ -214,7 +224,7 @@ template<typename _T>void Vector_Minus(_T A[], _T B[], int n, _T C[]);
 template<typename _T> void Matrix_Multiply(_T* A, int ma, int na, _T a, _T* C);
 
 template<typename _T> void Matrix_Multiply(_T* A, int ma, int na, _T* B, int nb, _T* C);
-template<typename _T> void Transpose_Multiply(_T A[], int m, int n, _T B[], int iFlag=1);
+template<typename _T> void Transpose_Multiply(_T A[], int m, int n, _T B[], int bAAt=1);
 
 void Matrix_Multiply(Sparse_Matrix A, Sparse_Matrix B, Sparse_Matrix* poC);
 void Matrix_Transpose_1(Sparse_Matrix A, Sparse_Matrix* poAt);
@@ -259,7 +269,7 @@ void Quaternion_Conj(float Q_1[], float Q_2[]);				//简单求个共轭
 void Quaternion_Multiply(float Q_1[], float Q_2[], float Q_3[]);	//四元数乘法
 void Quaternion_Inv(float Q_1[], float Q_2[]);	//四元数求逆
 template<typename _T>void Rotation_Matrix_2_Quaternion(_T R[], _T Q[]);		//旋转矩阵转换四元数
-template<typename _T>void Rotation_Matrix_2_Vector(_T R[], _T V[]);		//旋转矩阵转旋转向量
+template<typename _T>void Rotation_Matrix_2_Vector(_T R[3*3], _T V[4]);		//旋转矩阵转旋转向量
 
 template<typename _T>void Rotation_Vector_2_Matrix(_T V[4], _T R[3 * 3]);		//旋转向量转换旋转矩阵
 template<typename _T>void Rotation_Vector_2_Quaternion(_T V[4], _T Q[4]);	//旋转向量转换四元数
@@ -275,7 +285,10 @@ template<typename _T>void Get_J_by_Rotation_Vector(_T Rotation_Vector[4], _T J[]
 template<typename _T> void Gen_Ksi_by_Rotation_Vector_t(_T Rotation_Vector[4], _T t[3], _T Ksi[6], int n=4);
 
 template<typename _T> void Exp_Ref(_T A[], int n, _T B[]);
-template<typename _T>void Gen_Homo_Matrix(_T R[], _T t[], _T c2w[]);			//用旋转坐标与位移坐标构成一个SE3变换矩阵
+template<typename _T>void Gen_Homo_Matrix(_T R[3*3], _T t[3], _T c2w[3*3]);			//用旋转坐标与位移坐标构成一个SE3变换矩阵
+template<typename _T>void Gen_Homo_Matrix_1(_T Rotation_Vector[3], _T t[3], _T c2w[]);
+
+template<typename _T>void Get_R_t(_T T[4 * 4], _T R[3 * 3]=NULL, _T t[3]=NULL);
 
 void Gen_Homo_Matrix(float R[], float t[], float s, float M[]);	//用旋转,位移，缩放构成一个变换矩阵
 template<typename _T> void Gen_Cube(_T Cube[][4], float fScale, _T x_Center=0, _T y_Center=0, _T z_Center=0);//生成一个Cube

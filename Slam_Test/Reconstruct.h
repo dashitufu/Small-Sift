@@ -90,7 +90,13 @@ template<typename _T>void Image_Pos_2_3D(_T Image_Pos[][3], int iCount, _T K[], 
 
 //Bundle_Adjust，这是估计的关键，估计有很多种变种
 template<typename _T>void Bundle_Adjust_3D2D_1(_T Point_3D_1[][3], _T Point_2D_2[][2], int iCount, _T K[], _T Pose[], int* piResult);
-template<typename _T>void ICP_Bundle_Adjust(_T P_1[][3], _T P_2[][3], int iCount, _T Pose[], int* piResult);
+template<typename _T>void ICP_BA_2_Image_1(_T P_1[][3], _T P_2[][3], int iCount, _T Pose[], int* piResult);
+template<typename _T>void ICP_BA_2_Image_2(_T P1[][3], _T P2[][3], int iCount, _T Pose[], int* piResult);
 template<typename _T>void ICP_SVD(_T P_1[][3], _T P_2[][3], int iCount, _T Pose[], int* piResult);
 
 template<typename _T>void Get_Deriv_TP_Ksi(_T T[4 * 4], _T P[3], _T Deriv[4 * 6]);
+template<typename _T>void Get_Delta_Pose(_T Pose_1[4 * 4], _T Pose_2[4 * 4], _T Delta_Pose[4 * 4]);
+
+template<typename _T> void Optical_Flow_1(Image oImage_1, Image oImage_2, _T KP_1[][2], _T KP_2[][2], int iCount, int* piMatch_Count, int bHas_Initial = 0, int bInverse = false);
+
+template<typename _T>void Disp_Error(_T P1[][3], _T P2[][3], int iCount, _T Pose[4 * 4]);

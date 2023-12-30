@@ -2230,6 +2230,7 @@ void Sift_Match_Path(const char* pcPath, Sift_Match_Map* poMap, Mem_Mgr* poMem_M
 	poMap->m_iImage_Count = iImage_Count;
 	return;
 }
+
 void Copy_Match_Map(Sift_Match_Map oSource, Sift_Match_Map* poDest)
 {//此处假定poDest虚有其壳
 	int i,j, iIndex,iSize;	// = iGet_Simple_Match_Size(oSource.m_iImage_Count);

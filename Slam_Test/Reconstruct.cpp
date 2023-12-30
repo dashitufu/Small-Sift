@@ -1078,11 +1078,23 @@ template<typename _T>void Decompose_E(_T E[3 * 3], _T R1[3 * 3], _T R2[3 * 3], _
 
 void SB_Reconstruct()
 {//这就是个傻逼方法，用来欺骗template
+	Get_Delta_Pose((double*)NULL, (double*)NULL, (double*)NULL);
+	Get_Delta_Pose((float*)NULL, (float*)NULL, (float*)NULL);
+
+	Disp_Error((double(*)[3])NULL, (double(*)[3])NULL, 0, (double*)NULL);
+	Disp_Error((float(*)[3])NULL, (float(*)[3])NULL, 0, (float*)NULL);
+
+	Optical_Flow_1({}, {}, (double(*)[2])NULL, (double(*)[2])NULL, 0, NULL);
+	Optical_Flow_1({}, {}, (float(*)[2])NULL, (float(*)[2])NULL, 0, NULL);
+
 	ICP_SVD((double(*)[3])NULL, (double(*)[3])NULL, 0, (double*)NULL, NULL);
 	ICP_SVD((float(*)[3])NULL, (float(*)[3])NULL, 0, (float*)NULL, NULL);
 
-	ICP_Bundle_Adjust((double(*)[3])NULL, (double(*)[3])NULL, 0, (double*)NULL, NULL);
-	ICP_Bundle_Adjust((float(*)[3])NULL, (float(*)[3])NULL, 0, (float*)NULL, NULL);
+	ICP_BA_2_Image_1((double(*)[3])NULL, (double(*)[3])NULL, 0, (double*)NULL, NULL);
+	ICP_BA_2_Image_1((float(*)[3])NULL, (float(*)[3])NULL, 0, (float*)NULL, NULL);
+
+	ICP_BA_2_Image_2((double(*)[3])NULL, (double(*)[3])NULL, 0, (double*)NULL, NULL);
+	ICP_BA_2_Image_2((float(*)[3])NULL, (float(*)[3])NULL, 0, (float*)NULL, NULL);
 
 	Get_Deriv_TP_Ksi((double*)NULL, (double*)NULL, (double*)NULL);
 	Get_Deriv_TP_Ksi((float*)NULL, (float*)NULL, (float*)NULL);
@@ -1731,8 +1743,9 @@ template<typename _T>void Get_Deriv_TP_Ksi(_T T[4 * 4], _T P[3], _T Deriv[4 * 6]
 	memset(&Deriv[3 * 6], 0, 6 * sizeof(_T));
 	return;
 }
-template<typename _T>void ICP_Bundle_Adjust(_T P_1[][3], _T P_2[][3], int iCount, _T Pose[],int *piResult)
-{//用高斯牛顿法解ICP，紧咬高斯牛顿法形式
+template<typename _T>void ICP_BA_2_Image_1(_T P1[][3], _T P2[][3], int iCount, _T Pose[],int *piResult)
+{//简单两图ICP，只做位姿调整，不做原点集位置调整
+//用高斯牛顿法解ICP，紧咬高斯牛顿法形式
 	_T Pose_Estimate[4 * 4], Delta_Pose[4 * 4], Pose_Pre[4 * 4],
 		Delta_Ksi[6];
 	_T fSum_e, fSum_e_Pre = 1e10,
@@ -1747,14 +1760,14 @@ template<typename _T>void ICP_Bundle_Adjust(_T P_1[][3], _T P_2[][3], int iCount
 			Sigma_JE[6] = { 0 };  //∑JE
 		for (i = 0; i < iCount; i++)
 		{
-			memcpy(P_11, P_1[i], 3 * sizeof(_T));
+			memcpy(P_11, P1[i], 3 * sizeof(_T));
 			P_11[3] = 1;
 			Matrix_Multiply(Pose_Estimate, 4, 4, P_11, 1, P_11);
-			Vector_Minus(P_2[i], P_11, 3, E);
+			Vector_Minus(P2[i], P_11, 3, E);
 			fSum_e += E[0] * E[0] + E[1] * E[1] + E[2] * E[2];
 
 			_T Jt[4 * 6], J[6 * 3], JE[6];    //注意，J和Jt没有本质上的不同，只是行跟列的排列问题
-			Get_Deriv_TP_Ksi(Pose_Estimate, P_1[i], Jt);    //这个还不算Jt，因为他是g(x)的Jt,要求 e(x)的jt
+			Get_Deriv_TP_Ksi(Pose_Estimate, P1[i], Jt);    //这个还不算Jt，因为他是g(x)的Jt,要求 e(x)的jt
 			Matrix_Multiply(Jt, 3, 6, (_T)-1.f, Jt);      //乘以-1后，这个就是所需的Jt,雅可比是求解的关键
 			//只要链导法结果正确，后面就能算出来
 
@@ -1770,7 +1783,7 @@ template<typename _T>void ICP_Bundle_Adjust(_T P_1[][3], _T P_2[][3], int iCount
 		Matrix_Multiply(H_Inv, 6, 6, Sigma_JE, 1, Delta_Ksi);	//H(-1)*JE
 		Matrix_Multiply(Delta_Ksi, 1, 6, (_T)-1, Delta_Ksi);	//
 
-		if (fSum_e_Pre <= fSum_e || !iResult)
+		if ( (fSum_e_Pre <= fSum_e && iIter>0) || !iResult)
 			break;
 
 		//接着从ξ恢复T, 将增量还原为齐次矩阵
@@ -1779,7 +1792,7 @@ template<typename _T>void ICP_Bundle_Adjust(_T P_1[][3], _T P_2[][3], int iCount
 		memcpy(Pose_Pre, Pose_Estimate, 4 * 4 * sizeof(_T));
 		Matrix_Multiply(Delta_Pose, 4, 4, Pose_Estimate, 4, Pose_Estimate);
 		//Disp(Pose_Estimate, 4, 4, "Pose");
-		//printf("Iter:%d Cost:%f\n", iIter, fSum_e);
+		printf("Iter:%d Cost:%f\n", iIter, fSum_e);
 		fSum_e_Pre = fSum_e;
 	}
 	memcpy(Pose, Pose_Pre, 4 * 4 * sizeof(_T));
@@ -1790,7 +1803,7 @@ template<typename _T>void ICP_SVD(_T P_1[][3], _T P_2[][3], int iCount, _T Pose[
 {//用SVD方法解ICP问题，这个速度应该快很多
 	_T P_1_Centroid[3] = { 0 },
 		P_2_Centroid[3] = { 0 };
-	_T w[3 * 3] = { 0 }, q1[3], q2[3], q1q2t[3 * 3];
+	_T w[3 * 3] = { 0 }, q1[3], q2[3], q2q1t[3 * 3];
 	int i, iResult = 1;
 
 	for (i = 0; i < iCount; i++)
@@ -1805,8 +1818,8 @@ template<typename _T>void ICP_SVD(_T P_1[][3], _T P_2[][3], int iCount, _T Pose[
 	{
 		Vector_Minus(P_1[i], P_1_Centroid, 3, q1);
 		Vector_Minus(P_2[i], P_2_Centroid, 3, q2);
-		Matrix_Multiply(q1, 3, 1, q2, 3, q1q2t);
-		Matrix_Add(w, q1q2t, 3, w);
+		Matrix_Multiply(q2, 3, 1, q1, 3, q2q1t);
+		Matrix_Add(w, q2q1t, 3, w);
 	}
 	//Disp(w, 3, 3, "w");
 
@@ -1819,14 +1832,273 @@ template<typename _T>void ICP_SVD(_T P_1[][3], _T P_2[][3], int iCount, _T Pose[
 	Free_SVD(&oSVD);
 	//此处要做一个行列式的判断
 	if (fGet_Determinant(R, 3) < 0)
-		Matrix_Multiply(R, 3, 3, (_T)(- 1.f), R);
+		Matrix_Multiply(R, 3, 3, (_T)(-1.f), R);
 	//Disp(R, 3, 3, "R");
 
 	//根据 p - Rp' -t =0 求t, t= p - Rp'
-	_T t[3], Rp2[3 * 3];
-	Matrix_Multiply(R, 3, 3, P_2_Centroid, 1, Rp2);
-	Vector_Minus(P_1_Centroid, Rp2, 3, t);
+	_T t[3], Rp1[3 * 3];
+	Matrix_Multiply(R, 3, 3, P_1_Centroid, 1, Rp1);
+	Vector_Minus(P_2_Centroid, Rp1, 3, t);
 
 	Gen_Homo_Matrix(R, t, Pose);
 	*piResult = iResult;
+}
+
+int iGet_Pixel(Image oImage, int x, int y)
+{
+	return oImage.m_pChannel[0][y * oImage.m_iWidth + x];
+}
+float fGet_Pixel(Image oImage, float x, float y)
+{
+	const int iWidth_Minus_1 = oImage.m_iWidth - 1,
+		iHeight_Minus_1 = oImage.m_iHeight - 1;
+	float x1 = Clip3(0, iWidth_Minus_1, x),
+		y1 = Clip3(0, iHeight_Minus_1, y);
+	float xx = x - (int)x1;
+	float yy = y - (int)y1;
+	if (xx == 0 && yy == 0)
+		return (float)iGet_Pixel(oImage, (int)x1, (int)y1);
+
+	int x_a1 = min(iWidth_Minus_1, int(x1) + 1);
+	int y_a1 = min(iHeight_Minus_1, int(y) + 1);
+
+	//双线性而已，不想自己搞了，没营养
+	return (1 - xx) * (1 - yy) * iGet_Pixel(oImage, (int)x1, (int)y1)
+		+ xx * (1 - yy) * iGet_Pixel(oImage, (int)x_a1, (int)y1)
+		+ (1 - xx) * yy * iGet_Pixel(oImage, (int)x, (int)y_a1)
+		+ xx * yy * iGet_Pixel(oImage, (int)x_a1, (int)y_a1);
+}
+
+template<typename _T> void Optical_Flow_1(Image oImage_1, Image oImage_2, _T KP_1[][2], _T KP_2[][2], int iCount, int* piMatch_Count, int bHas_Initial, int bInverse)
+{//以光流算法计算KP_1 对应在图二中的位置，未必全都找到
+	//pbHas_Initial: 暂时不知意义，只知道在多层判断时用上
+	int i, iResult, iIter, x, y, iMatch_Count = 0;
+	_T x1, y1;
+	_T dx, dy;
+	const int r = 4, iIter_Count = 10;
+	const int iWidth_Minus_1 = oImage_1.m_iWidth - 1,
+		iHeight_Minus_1 = oImage_1.m_iHeight - 1;
+	for (i = 0; i < iCount; i++)
+	{
+		dx = dy = 0;
+		_T Keypoint_1[2] = { KP_1[i][0], KP_1[i][1] };
+		if (bHas_Initial)
+		{
+			_T Keypoint_2[2] = { KP_2[i][0], KP_2[i][1] };
+			dx = Keypoint_2[0] - Keypoint_1[0];
+			dy = Keypoint_2[1] - Keypoint_1[1];
+		}
+		_T fCost, fPre_Cost = 0, fError;
+		iResult = 1;
+		for (iIter = 0; iIter < iIter_Count; iIter++)
+		{
+			_T H[2 * 2] = { 0 }, J[2], JJt[2 * 2], JE[2], b[2] = { 0 };    //这三件宝一出就知道是高斯牛顿法
+			_T Delta_x[2];
+			fCost = 0;
+			for (x = -r; x < r; x++)
+			{
+				x1 = Keypoint_1[0] + x;
+				for (y = -r; y < r; y++)
+				{
+					y1 = Keypoint_1[1] + y;
+					fError = fGet_Pixel(oImage_1, (float)x1, (float)y1) - fGet_Pixel(oImage_2, (float)(x1 + dx), (float)(y1 + dy));
+					if (bInverse == false)
+					{//此处直接x-1
+						J[0] = -(fGet_Pixel(oImage_2, (float)(x1 + dx + 1), (float)(y1 + dy)) - fGet_Pixel(oImage_2, (float)(x1 + dx - 1), (float)(y1 + dy))) * 0.5f;
+						J[1] = -(fGet_Pixel(oImage_2, (float)(x1 + dx), (float)(y1 + dy + 1)) - fGet_Pixel(oImage_2, (float)(x1 + dx), (float)(y1 + dy - 1))) * 0.5f;
+					}
+					else if (iIter = -0)
+					{
+						J[0] = -(fGet_Pixel(oImage_1, (float)(x1 + 1), (float)(y1)) - fGet_Pixel(oImage_1, (float)(x1 - 1), (float)(y1)));
+						J[1] = -(fGet_Pixel(oImage_1, (float)(x1), (float)(y1 + 1)) - fGet_Pixel(oImage_1, (float)(x1), (float)(y1 - 1)));
+					}
+
+					Matrix_Multiply(J, 1, 2, -fError, JE);
+					Vector_Add(b, JE, 2, b);
+					fCost += fError * fError;
+					if (bInverse == false || iIter == 0)
+					{
+						Transpose_Multiply(J, 2, 1, JJt);//H += JJt
+						Matrix_Add(H, JJt, 2, H);
+					}
+				}
+			}
+			//解个方程
+			Solve_Linear_Gause(H, 2, b, Delta_x, &iResult);
+
+			//未必每个方程都有解
+			if (!iResult)
+			{
+				if (fError)
+				{//真错
+					printf("error");
+					break;
+				}
+				else
+					iResult = 1;
+			}
+			if (iIter > 0 && fCost > fPre_Cost)
+				break;
+
+			dx += Delta_x[0];
+			dy += Delta_x[1];
+			fPre_Cost = fCost;
+			if (fGet_Mod(Delta_x, 2) < 1e-2)
+				break;// converge
+		}
+
+		if (iResult)
+		{
+			KP_2[i][0] = KP_1[i][0] + dx;
+			KP_2[i][1] = KP_1[i][1] + dy;
+		}
+		else
+			KP_2[i][0] = KP_2[i][1] = 1e10;
+	}
+
+	//调整Keypoint, 两图都调
+	for (i = 0; i < iCount; i++)
+	{
+		if (KP_2[i][0] == 1e10)
+		{//失配
+			swap(KP_1[i][0], KP_1[iCount - 1][0]);
+			swap(KP_1[i][1], KP_1[iCount - 1][1]);
+			swap(KP_2[i][0], KP_2[iCount - 1][0]);
+			swap(KP_2[i][1], KP_2[iCount - 1][1]);
+			iCount--;
+		}
+	}
+	iMatch_Count = iCount;
+	if (piMatch_Count)
+		*piMatch_Count = iMatch_Count;
+	return;
+}
+
+template<typename _T>void ICP_BA_2_Image_2(_T P1[][3], _T P2[][3], int iCount, _T Pose[], int* piResult)
+{//简单两图ICP，既做位姿调整，也做原点集位置调整。用高斯牛顿法解ICP，紧咬高斯牛顿法形式
+	_T E[3], R[3 * 3], P11[4], fSum_e, fSum_e_Pre = 1e10, X[9];
+	_T Pose_Estimate[4 * 4], Delta_Pose[4 * 4], Pose_Pre[4 * 4],
+		Jct[4 * 6], Jt[3 * 9], J[9 * 3], JEt[9], H_Inv[9 * 9];
+	union {
+		_T H[9 * 9];
+		_T I[9 * 9];
+	};
+	_T Sigma_H[9 * 9], Sigma_JEt[9];
+	_T(*P1_Pre)[3];
+
+	int iIter, i, j, k, iResult;
+	Gen_I_Matrix(Pose_Estimate, 4, 4);
+	P1_Pre = (_T(*)[3])pMalloc(&oMatrix_Mem, iCount * 3 * sizeof(_T));
+
+	for (iIter = 0;; iIter++)
+	{
+		//把R分离出来，因为这是 ∂P'/∂P
+		Get_R_t(Pose_Estimate, R);
+		fSum_e = 0;
+		memset(Sigma_H, 0, 9 * 9 * sizeof(_T));
+		memset(Sigma_JEt, 0, 9 * sizeof(_T));
+		for (i = 0; i < iCount; i++)
+		{
+			Get_Homo_Pos(P1[i], P11);
+			Matrix_Multiply(Pose_Estimate, 4, 4, P11, 1, P11);
+			Vector_Minus(P2[i], P11, 3, E);         //求得误差E
+			fSum_e += E[0] * E[0] + E[1] * E[1] + E[2] * E[2];
+
+			Get_Deriv_TP_Ksi(Pose_Estimate, P1[i], Jct);    //∂TP/∂ξ
+			for (j = 0; j < 3; j++)         //将∂TP/∂ξ与 ∂P'/∂P 
+			{
+				for (k = 0; k < 6; k++)
+					Jt[j * 9 + k] = Jct[j * 6 + k];
+				for (k = 0; k < 3; k++)
+					Jt[j * 9 + 6 + k] = R[j * 3 + k];
+			}
+			Matrix_Multiply(Jt, 3, 9, (_T)-1.f, Jt);    //J'已经到位
+
+			Matrix_Transpose(Jt, 3, 9, J);
+			Matrix_Multiply(J, 9, 3, E, 1, JEt);    //JE'到位
+
+			Matrix_Multiply(J, 9, 3, Jt, 9, H);
+
+			Matrix_Add(Sigma_H, H, 9, Sigma_H);         //∑H JJ'到位
+
+			Vector_Add(Sigma_JEt, JEt, 9, Sigma_JEt);   //∑JE'
+		}
+
+		Get_Inv_Matrix_Row_Op(Sigma_H, H_Inv, 9, &iResult);
+		if (!iResult)
+		{//此处对∑H的调整是关键，否则很有可能不满秩，注意，此处调整量应该是
+			// H + λI，只不过H 没有呈现比较大的数值，故此λ=1已经够用
+			Gen_I_Matrix(I, 9, 9);
+			Matrix_Add(Sigma_H, I, 9, Sigma_H);
+			Get_Inv_Matrix_Row_Op(Sigma_H, H_Inv, 9, &iResult);
+		}
+
+		//Δx= -(∑H)(-1) * ∑JE'	 (E'为3x1)
+		Matrix_Multiply(H_Inv, 9, 9, Sigma_JEt, 1, X);
+		Matrix_Multiply(X, 1, 9, (_T)-1, X);
+
+		if ((fSum_e_Pre <= fSum_e && iIter > 0) || !iResult)
+			break;
+
+		//先更新一下Pose_Estimate
+		se3_2_SE3(X, Delta_Pose);
+
+		memcpy(Pose_Pre, Pose_Estimate, 4 * 4 * sizeof(_T));
+		Matrix_Multiply(Delta_Pose, 4, 4, Pose_Estimate, 4, Pose_Estimate);
+
+		//备份P1_Pre
+		memcpy(P1_Pre, P1, iCount * 3 * sizeof(_T));
+
+		//继续调整P1
+		for (i = 0; i < iCount; i++)
+			Vector_Add(P1[i], &X[6], 3, P1[i]);
+
+		//Disp(Pose_Estimate, 4, 4, "Pose");
+		printf("Iter:%d Cost:%f\n", iIter, fSum_e);
+		fSum_e_Pre = fSum_e;
+	}
+
+	memcpy(Pose, Pose_Pre, 4 * 4 * sizeof(_T));
+	memcpy(P1, P1_Pre, iCount * 3 * sizeof(_T));
+	Free(&oMatrix_Mem, P1_Pre);
+	Disp(Pose, 4, 4, "Pose");
+	return;
+}
+
+template<typename _T>void Disp_Error(_T P1[][3], _T P2[][3], int iCount, _T Pose[4 * 4])
+{
+	int i;
+	_T P11[4];
+	_T fError = 0;
+	for (i = 0; i < iCount; i++)
+	{
+		memcpy(P11, P1[i], 4 * sizeof(_T));
+		P11[3] = 1;
+		Matrix_Multiply(Pose, 4, 4, P11, 1, P11);
+		fError += (P11[0] - P2[i][0]) * (P11[0] - P2[i][0]) +
+			(P11[1] - P2[i][1]) * (P11[1] - P2[i][1]) +
+			(P11[2] - P2[i][2]) * (P11[2] - P2[i][2]);
+	}
+	printf("Error:%f\n", fError);
+	return;
+}
+
+template<typename _T>void Get_Delta_Pose(_T Pose_1[4 * 4], _T Pose_2[4 * 4], _T Delta_Pose[4 * 4])
+{//已知Pose_1经过Rt变换到 Pose_2, 求这个变换
+	//其实就是解方程 ΔPose * Pose_1 = Pose_2, 两边右乘 Pose_1(-1)即可，问题是，玩意是不是一个Homo_Matrix
+	_T Pose_1_Inv[4 * 4];
+	int iResult;
+	Get_Inv_Matrix_Row_Op(Pose_1, Pose_1_Inv, 4, &iResult);
+	Matrix_Multiply(Pose_2, 4, 4, Pose_1_Inv, 4, Delta_Pose);
+
+	////验算Delta_Pose是不是一个Rt，如果是个一般矩阵有个毛用
+	//_T R[3 * 3],R1[3*3], t[3], Rotation_Vector[4];
+	//Get_R_t(Pose_1, R, t);
+	//Disp(R, 3, 3, "R");
+	//Rotation_Matrix_2_Vector(R, Rotation_Vector);
+	//Rotation_Vector_2_Matrix(Rotation_Vector, R1);
+	//if (fGet_Distance(R, R1, 9) > 0.0001f)
+	//    printf("err");
+
+	return;
 }
