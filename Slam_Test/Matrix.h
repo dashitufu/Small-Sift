@@ -32,6 +32,8 @@ extern "C"
 #define MAX_FLOAT ((float)0xFFFFFFFFFFFFFFFF)	//仅仅给一个足够大的数字，并不是iEEE的浮点数最大值
 #define ZERO_APPROCIATE	0.00001f
 
+#define Get_Homo_Pos(Pos, Homo_Pos) Homo_Pos[0]=Pos[0], Homo_Pos[1]=Pos[1], Homo_Pos[2]=Pos[2],Homo_Pos[3]=1;
+
 
 typedef struct Complex_d {//双精度复数
 	double real;	//实部
@@ -62,20 +64,23 @@ typedef struct SVD_Info {	//有必要给SVD做一个单独的参数结构
 	int m_bSuccess;
 }SVD_Info;
 
-typedef struct Sparse_Matrix {
-	typedef struct Item {
-		int x, y;
-		float m_fValue;
+template<typename _T> struct Sparse_Matrix {
+public:
+	typedef class Item {
+	public:
+		unsigned int x, y;	//0xFFFFFFFF未非法值
+		_T m_fValue;
 		int m_iRow_Next;	//行方向下一个，向右
 		int m_iCol_Next;	//列方向下一个，向下
 	}Item;
 	unsigned int* m_pRow;	//行桶
 	unsigned int* m_pCol;	//列桶
 	Item* m_pBuffer;		//内容从[1]开始 [0]表示NULL
-	int m_iItem_Count;		//整个matrix共右多少个matrix
+	int m_iCur_Item=1;		//当前在哪个Item
+	int m_iMax_Item_Count=0;		//整个matrix共右多少个item
 	int m_iRow_Count;
 	int m_iCol_Count;
-}Sparse_Matrix;
+};
 
 extern Mem_Mgr oMatrix_Mem;
 
@@ -106,20 +111,14 @@ template<typename _T>void Disp(_T* M, int iHeight, int iWidth,const char* pcCapt
 			if (std::is_same_v<_T, float> || std::is_same_v<_T,double>)
 				printf("%.8f, ", M[i * iWidth + j]);
 			else if (std::is_same_v<_T, int> || std::is_same_v<_T,short>)
-				printf("%d,, ", (int)M[i * iWidth + j]);
+				printf("%d,", (int)M[i * iWidth + j]);
 		}
 			
 		printf("\n");
 	}
 	return;
 }
-
-
-
-
-
-template<typename _T>
-void Matrix_Transpose(_T* A, int ma, int na, _T* At)
+template<typename _T>void Matrix_Transpose(_T* A, int ma, int na, _T* At)
 {//矩阵转置
 	int y, x;
 	_T* At_1;
@@ -164,7 +163,8 @@ unsigned long long iGet_Random_No_cv();
 unsigned long long iGet_Random_No_cv(unsigned long long* piState);
 int iGet_Random_No_cv(int a, int b);
 
-void Schmidt_Orthogon(float* A, int m, int n, float* B);	//施密特正交化
+//void Schmidt_Orthogon(float* A, int m, int n, float* B);	//施密特正交化
+template<typename _T>void Schmidt_Orthogon(_T* A, int m, int n, _T* B);
 
 void Polor_2_Rect_Coordinate(float rho, float theta, float phi, float* px, float* py, float* pz);	//极坐标转直角坐标系
 void Polor_2_Rect_Coordinate(float rho, float theta, float* px, float* py);							//二维
@@ -177,13 +177,20 @@ void Cholosky_Decompose(float A[], int iOrder, float B[]);
 void Conjugate_Gradient(float* A, const int n, float B[], float X[]);
 void Get_Inv_Matrix(float* pM, float* pInv, int iOrder, int* pbSuccess);
 void Solve_Linear_Cramer(float* A, int iOrder, float* B, float* X, int* pbSuccess); //克莱姆法则解线性方程组
+
 template<typename _T>void Solve_Linear_Gause(_T* A, int iOrder, _T* B, _T* X, int* pbSuccess);	//高斯法求解线性方程组
+//void Solve_Linear_Gause(float* A, int iOrder, float* B, float* X, int* pbSuccess=NULL);
+
 void Solve_Linear_Jocabi(float A[], float B[], int iOrder, float X[], int* pbResult);				//雅可比迭代法求解线性方程组
 void Solve_Linear_Gauss_Seidel(float A[], float B[], int iOrder, float X[], int* pbResult);
 void Solve_Linear_Contradictory(float* A, int m, int n, float* B, float* X, int* pbSuccess);	//解矛盾方程组，求最小二乘解
-void Solve_Linear_Solution_Construction(float* A, int m, int n, float B[], int* pbSuccess, float* pBasic_Solution = NULL, int* piBasic_Solution_Count = NULL, float* pSpecial_Solution = NULL);
+//void Solve_Linear_Solution_Construction(float* A, int m, int n, float B[], int* pbSuccess, float* pBasic_Solution = NULL, int* piBasic_Solution_Count = NULL, float* pSpecial_Solution = NULL);
+template<typename _T> void Solve_Linear_Solution_Construction(_T* A, int m, int n, _T B[], int* pbSuccess, _T* pBasic_Solution=NULL, int* piBasic_Solution_Count=NULL, _T* pSpecial_Solution=NULL);
+
 void Get_Linear_Solution_Construction(float A[], int m, int n, float B[]);//看解的结构
-void Elementary_Row_Operation(float A[], int m, int n, float A_1[], int* piRank = NULL, float** ppBasic_Solution = NULL, float** ppSpecial_Solution = NULL);		//初等行变换至最简形
+//void Elementary_Row_Operation(float A[], int m, int n, float A_1[], int* piRank = NULL, float** ppBasic_Solution = NULL, float** ppSpecial_Solution = NULL);		//初等行变换至最简形
+template<typename _T>void Elementary_Row_Operation(_T A[], int m, int n, _T A_1[], int* piRank=NULL, _T** ppBasic_Solution=NULL, _T** ppSpecial_Solution=NULL);
+
 template<typename _T>void Elementary_Row_Operation_1(_T A[], int m, int n, _T A_1[], int* piRank=NULL, _T** ppBasic_Solution=NULL, _T** ppSpecial_Solution=NULL);
 
 int bIs_Linearly_Dependent(float A[], int m, int n);	//判断向量组A是否线性相关
@@ -203,21 +210,333 @@ void Solve_Eigen_Vector(float A[], int iOrder, float fEigen_Value, float Q[], in
 
 void Solve_Poly(float Coeff[], int iCoeff_Count, Complex_f Root[], int* piRoot_Count = NULL);
 
-//稀疏矩阵
-void Init_Sparse_Matrix(Sparse_Matrix* poMatrix, int iItem_Count, int iMax_Order);
-void Compact_Sparse_Matrix(Sparse_Matrix* poMatrix);
-void Free_Sparse_Matrix(Sparse_Matrix* poMatrix);
-void Matrix_Add(Sparse_Matrix* poA, float a, Sparse_Matrix* poB, float b, float* pC);
-void Matrix_Add(Sparse_Matrix* poA, float a, Sparse_Matrix* poB, float b);
+//**************************稀疏矩阵*******************************
+#define Get_Item(oMatrix, x1, y1, poItem) \
+{ \
+	int iCur; \
+	iCur = oMatrix.m_pRow[y1]; \
+	if (!iCur) \
+		poItem = NULL; \
+	else \
+	{\
+		poItem = &oMatrix.m_pBuffer[iCur];\
+		while (poItem)\
+		{\
+			if (poItem->x == x1)\
+				break;\
+			if (poItem->m_iRow_Next && poItem->x < x1)\
+				poItem = &oMatrix.m_pBuffer[poItem->m_iRow_Next];\
+			else\
+			{\
+				poItem = NULL;\
+				break;\
+			}\
+		}\
+	}\
+}
+
+template<typename _T>void Set_Value(Sparse_Matrix<_T>* poMatrix, int x, int y, _T fValue)
+{//对稀疏矩阵赋值某单元
+	/*Sparse_Matrix<_T>::Item* poItem;
+	Get_Item(oMatrix, x, y, poItem);
+	if (poItem)
+	{
+		poItem->m_fValue = fValue;
+		return;
+	}
+	if (oMatrix.m_iCur_Item >= oMatrix.m_iItem_Count)
+	{
+		printf("Exceed max Item _Count:%d in Set_Value\n", oMatrix.m_iItem_Count);
+		return;
+	}
+	poItem =&oMatrix.m_pBuffer[oMatrix.m_iCur_Item++];
+	poItem->x = x;
+	poItem->y = y;
+	poItem->m_fValue = fValue;*/
+
+	Sparse_Matrix<_T> oMatrix = *poMatrix;
+	//插入到相应为止
+	Sparse_Matrix<_T>::Item* poCur, * poPrevious, oItem;
+	int iCur_Link_Item;
+	oItem.x = x;
+	oItem.y = y;
+	oItem.m_fValue = fValue;
+	//先找到相应的行
+	if (!(iCur_Link_Item = oMatrix.m_pRow[oItem.y]))
+	{	//桶中没有指向，直接插入
+		oMatrix.m_pRow[oItem.y] = oMatrix.m_iCur_Item;
+		oItem.m_iRow_Next = 0;
+	}
+	else {
+		poCur = &oMatrix.m_pBuffer[iCur_Link_Item];
+		poPrevious = NULL;
+		while (poCur->x < oItem.x && poCur->m_iRow_Next)
+		{
+			poPrevious = poCur;
+			poCur = &oMatrix.m_pBuffer[poCur->m_iRow_Next];
+		}
+		if (poCur->x < oItem.x)
+		{
+			oItem.m_iRow_Next = poCur->m_iRow_Next;
+			poCur->m_iRow_Next = oMatrix.m_iCur_Item;
+		}
+		else if (poCur->x == oItem.x)
+		{//该位置已经有值，改写了事
+			poCur->m_fValue = fValue;
+			return;
+		}
+		else
+		{
+			if (poPrevious)
+			{//插在previous与cur之间
+				oItem.m_iRow_Next = poPrevious->m_iRow_Next;
+				poPrevious->m_iRow_Next = oMatrix.m_iCur_Item;
+			}
+			else
+			{
+				oItem.m_iRow_Next = iCur_Link_Item;
+				oMatrix.m_pRow[oItem.y] = oMatrix.m_iCur_Item;
+			}
+		}
+	}
+
+	//按顺序插入到列链表中
+	if (!(iCur_Link_Item = oMatrix.m_pCol[oItem.x]))
+	{	//桶中没有指向，直接插入
+		oMatrix.m_pCol[oItem.x] = oMatrix.m_iCur_Item;
+		oItem.m_iCol_Next = 0;
+	}
+	else {
+		poCur = &oMatrix.m_pBuffer[iCur_Link_Item];
+		poPrevious = NULL;
+		while (poCur->y < oItem.y && poCur->m_iCol_Next)
+		{
+			poPrevious = poCur;
+			poCur = &oMatrix.m_pBuffer[poCur->m_iCol_Next];
+		}
+		if (poCur->y < oItem.y)
+		{
+			oItem.m_iCol_Next = poCur->m_iCol_Next;
+			poCur->m_iCol_Next = oMatrix.m_iCur_Item;
+		}
+		else
+		{
+			if (poPrevious)
+			{//插在previous与cur之间
+				oItem.m_iCol_Next = poPrevious->m_iCol_Next;
+				poPrevious->m_iCol_Next = oMatrix.m_iCur_Item;
+			}
+			else
+			{
+				oItem.m_iCol_Next = iCur_Link_Item;
+				oMatrix.m_pCol[oItem.x] = oMatrix.m_iCur_Item;
+			}
+		}
+	}
+
+	if (oItem.y >= (unsigned int)oMatrix.m_iRow_Count)
+		oMatrix.m_iRow_Count = oItem.y + 1;
+	if (oItem.x >= (unsigned int)oMatrix.m_iCol_Count)
+		oMatrix.m_iCol_Count = oItem.x + 1;
+
+	if (oMatrix.m_iCur_Item > oMatrix.m_iMax_Item_Count)
+	{
+		printf("Exceed max item count in Set_Value:%d %d\n", x, y);
+		return;
+	}
+	oMatrix.m_pBuffer[oMatrix.m_iCur_Item++] = oItem;
+	*poMatrix = oMatrix;
+	return;
+}
+
+template<typename _T>void Resize_Matrix(Sparse_Matrix<_T>* poA, int iNew_Item_Count);
+template<typename _T>void Matrix_Multiply(Sparse_Matrix<_T> A, Sparse_Matrix<_T> B, Sparse_Matrix<_T>* poC)
+{
+	int y, x, i0_Count = 0, iNew_Item_Count = 0;
+	_T fValue;
+	Sparse_Matrix<_T>::Item* poRow_Cur, * poCol_Cur, * poNew_Row_Pre = NULL, oNew_Item;//* poNew_Col_Pre = NULL,
+	Sparse_Matrix<_T> oC;
+	//pNew_Col_Pre实际上是一行Item, 从以存放上次各列的最后一个Item,以便加快速度
+	Sparse_Matrix<_T>::Item** pNew_Col_Pre = (Sparse_Matrix<_T>::Item**)malloc(B.m_iCol_Count * sizeof(Sparse_Matrix<_T>::Item*));
+
+	if (A.m_iCol_Count != B.m_iRow_Count || !poC)
+		return;
+	if (!poC->m_iMax_Item_Count)
+		Init_Sparse_Matrix(&oC, A.m_iRow_Count * B.m_iCol_Count, Max(A.m_iRow_Count, B.m_iCol_Count));
+	else
+	{
+		oC = *poC;
+		memset(oC.m_pRow, 0, oC.m_iRow_Count * sizeof(int));
+		memset(oC.m_pCol, 0, oC.m_iCol_Count * sizeof(int));
+	}
+	for (y = 0; y < A.m_iRow_Count; y++)
+	{
+		for (x = 0; x < B.m_iCol_Count; x++)
+		{
+			fValue = 0;
+			if (A.m_pRow[y] && B.m_pCol[x])
+			{
+				poRow_Cur = &A.m_pBuffer[A.m_pRow[y]];
+				poCol_Cur = &B.m_pBuffer[B.m_pCol[x]];
+				do
+				{
+					if (poRow_Cur->x == poCol_Cur->y)
+					{
+						fValue += poRow_Cur->m_fValue * poCol_Cur->m_fValue;
+						poRow_Cur = poRow_Cur->m_iRow_Next ? &A.m_pBuffer[poRow_Cur->m_iRow_Next] : NULL;
+						poCol_Cur = poCol_Cur->m_iCol_Next ? &B.m_pBuffer[poCol_Cur->m_iCol_Next] : NULL;
+					}
+					else if (poRow_Cur->x < poCol_Cur->y)
+						poRow_Cur = poRow_Cur->m_iRow_Next ? &A.m_pBuffer[poRow_Cur->m_iRow_Next] : NULL;
+					else
+						poCol_Cur = poCol_Cur->m_iCol_Next ? &B.m_pBuffer[poCol_Cur->m_iCol_Next] : NULL;
+				} while (poRow_Cur && poCol_Cur);
+			}
+
+			if (fValue != 0)
+			{//在目标矩阵c中加一个Item
+				oNew_Item.x = x;
+				oNew_Item.y = y;
+				oNew_Item.m_fValue = fValue;
+				oNew_Item.m_iRow_Next = oNew_Item.m_iCol_Next = 0;
+				oC.m_pBuffer[++iNew_Item_Count] = oNew_Item;
+
+				//先加入行链表
+				if (!oC.m_pRow[y])
+					oC.m_pRow[y] = iNew_Item_Count;
+				else
+					poNew_Row_Pre->m_iRow_Next = iNew_Item_Count;
+
+				//再加入列链表
+				if (!oC.m_pCol[x])
+					oC.m_pCol[x] = iNew_Item_Count;
+				else
+					pNew_Col_Pre[x]->m_iCol_Next = iNew_Item_Count;
+				pNew_Col_Pre[x] = poNew_Row_Pre = &oC.m_pBuffer[iNew_Item_Count];
+			}
+			else
+				i0_Count++;
+		}
+	}
+	oC.m_iRow_Count = A.m_iRow_Count;
+	oC.m_iCol_Count = B.m_iCol_Count;
+
+	oC.m_iCur_Item = iNew_Item_Count;
+	*poC = oC;
+	free(pNew_Col_Pre);
+	return;	
+}
+template<typename _T>void Matrix_Multiply(Sparse_Matrix<_T> A, _T a)
+{//C = aA
+	int i;
+	for (i = 1; i < A.m_iCur_Item; i++)
+		A.m_pBuffer[i].m_fValue *= a;
+	return;
+}
+template<typename _T>void Matrix_Transpose_1(Sparse_Matrix<_T> A, Sparse_Matrix<_T>* poAt)
+{
+	Sparse_Matrix<_T> At = *poAt;
+	Sparse_Matrix<_T>::Item* poCur;
+	unsigned int iTemp;
+	//Init_Sparse_Matrix(&At, A.m_iItem_Count, Max(A.m_iRow_Count, A.m_iCol_Count));
+	if (!At.m_pBuffer || At.m_iRow_Count != A.m_iCol_Count || At.m_iCol_Count != A.m_iRow_Count)
+	{
+		printf("Invalid parameter in Matrix_Transpose_1\n");
+		return;
+	}		
+	At.m_iRow_Count = A.m_iCol_Count;
+	At.m_iCol_Count = A.m_iRow_Count;
+
+	memcpy(At.m_pBuffer + 1, A.m_pBuffer + 1, A.m_iMax_Item_Count * sizeof(Sparse_Matrix<_T>::Item));
+	memcpy(At.m_pRow, A.m_pCol, At.m_iRow_Count * sizeof(unsigned int));
+	memcpy(At.m_pCol, A.m_pRow, At.m_iCol_Count * sizeof(unsigned int));
+
+	for (int i = 1; i <= At.m_iMax_Item_Count; i++)
+	{
+		poCur = &At.m_pBuffer[i];
+		//交换行指针，列指针
+		iTemp = poCur->m_iRow_Next;
+		poCur->m_iRow_Next = poCur->m_iCol_Next;
+		poCur->m_iCol_Next = iTemp;
+
+		//交换行号，列号
+		iTemp = poCur->x;
+		poCur->x = poCur->y;
+		poCur->y = iTemp;
+	}
+	*poAt = At;
+	return;
+}
+template<typename _T>void Init_Sparse_Matrix(Sparse_Matrix<_T>* poMatrix, int iItem_Count, int iMax_Order)
+{
+	poMatrix->m_iMax_Item_Count = iItem_Count;
+	int iSize = poMatrix->m_iMax_Item_Count * sizeof(Sparse_Matrix<_T>::Item);
+	unsigned char* pBuffer = (unsigned char*)pMalloc(&oMatrix_Mem, iSize + iMax_Order * 2 * sizeof(unsigned int));
+	poMatrix->m_pBuffer = (Sparse_Matrix<_T>::Item*)pBuffer;
+	if (!pBuffer)
+		return;
+	poMatrix->m_pBuffer--;	//以便从[1]开始
+	poMatrix->m_pRow = (unsigned int*)(pBuffer + iSize);
+	memset(poMatrix->m_pRow, 0, iMax_Order * 2 * sizeof(unsigned int));
+	poMatrix->m_pCol = poMatrix->m_pRow + iMax_Order;
+	poMatrix->m_iRow_Count = poMatrix->m_iCol_Count = 0;
+}
+template<typename _T>void Init_Sparse_Matrix(Sparse_Matrix<_T>* poMatrix, int iItem_Count, int w,int h)
+{
+	poMatrix->m_iMax_Item_Count = iItem_Count;
+	int iSize = poMatrix->m_iMax_Item_Count * sizeof(Sparse_Matrix<_T>::Item);
+	unsigned char* pBuffer = (unsigned char*)pMalloc(&oMatrix_Mem, iSize + (w + h) * sizeof(unsigned int));
+	poMatrix->m_pBuffer = (Sparse_Matrix<_T>::Item*)pBuffer;
+	poMatrix->m_pBuffer--;	//以便从[1]开始
+	poMatrix->m_pRow = (unsigned int*)(pBuffer + iSize);
+	memset(poMatrix->m_pRow, 0,( w + h )* sizeof(unsigned int));
+	poMatrix->m_pCol = poMatrix->m_pRow + h;
+	poMatrix->m_iRow_Count = h;
+	poMatrix->m_iCol_Count = w;
+}
+template<typename _T>void Compact_Sparse_Matrix(Sparse_Matrix<_T>* poMatrix);
+template<typename _T>void Free_Sparse_Matrix(Sparse_Matrix<_T>* poMatrix);
+
+template<typename _T>void Matrix_Add(Sparse_Matrix<_T>* poA, _T a, Sparse_Matrix<_T>* poB, _T b, _T* pC);
+template<typename _T>void Disp(Sparse_Matrix<_T> oMatrix, const char Caption[] = NULL)
+{
+	int y, x;
+	Sparse_Matrix<_T>::Item* poCur;
+	if (Caption)
+		printf("%s\n", Caption);
+	for (y = 0; y < oMatrix.m_iRow_Count; y++)
+	{
+		if (!oMatrix.m_pRow[y])
+			for (x = 0; x < oMatrix.m_iCol_Count; x++)
+				printf("%f ", 0);
+		else
+		{
+			poCur = &oMatrix.m_pBuffer[oMatrix.m_pRow[y]];
+			x = 0;
+			do {
+				for (; x < poCur->x; x++)
+					printf("%f ", 0);
+				printf("%f ", poCur->m_fValue);
+				x++;
+				if (poCur->m_iRow_Next)
+					poCur = &oMatrix.m_pBuffer[poCur->m_iRow_Next];
+				else
+					break;
+			} while (1);
+			for (; x < oMatrix.m_iCol_Count; x++)
+				printf("%f ", 0);
+		}
+		printf("\n");
+	}
+}
+//**************************稀疏矩阵*******************************
+
 template<typename _T>void Vector_Add(_T A[], _T B[], int n, _T C[]);
 template<typename _T>void Vector_Minus(_T A[], _T B[], int n, _T C[]);
 template<typename _T> void Matrix_Multiply(_T* A, int ma, int na, _T a, _T* C);
 
 template<typename _T> void Matrix_Multiply(_T* A, int ma, int na, _T* B, int nb, _T* C);
-template<typename _T> void Transpose_Multiply(_T A[], int m, int n, _T B[], int iFlag=1);
-
-void Matrix_Multiply(Sparse_Matrix A, Sparse_Matrix B, Sparse_Matrix* poC);
-void Matrix_Transpose_1(Sparse_Matrix A, Sparse_Matrix* poAt);
+template<typename _T> void Transpose_Multiply(_T A[], int m, int n, _T B[], int bAAt=1);
 template<typename _T>void Matrix_Add(_T A[], _T B[], int iOrder, _T C[]);
 
 void Matrix_x_Vector(double A[3][3], double X[3], double Y[3]);
@@ -245,6 +564,7 @@ template<typename _T>_T fDot(_T V0[], _T V1[], int iDim);		//求内积，点积
 
 //以下为一组仿射变换矩阵的生成
 template<typename _T> void Gen_Roation_Matrix_2D(_T Rotation_Center[2], _T theta, _T R[3 * 3]);
+template<typename _T>void Gen_Rotation_Matrix_2D(_T R[2 * 2], float fTheta);
 
 void Gen_Rotation_Matrix(float Axis[3], float fTheta, float R[]);//根据旋转轴与旋转角度生成一个旋转矩阵，此处用列向量，往后一路左乘
 template<typename _T>void Gen_Translation_Matrix(_T Offset[3], _T T[]);	//平移变换
@@ -259,7 +579,7 @@ void Quaternion_Conj(float Q_1[], float Q_2[]);				//简单求个共轭
 void Quaternion_Multiply(float Q_1[], float Q_2[], float Q_3[]);	//四元数乘法
 void Quaternion_Inv(float Q_1[], float Q_2[]);	//四元数求逆
 template<typename _T>void Rotation_Matrix_2_Quaternion(_T R[], _T Q[]);		//旋转矩阵转换四元数
-template<typename _T>void Rotation_Matrix_2_Vector(_T R[], _T V[]);		//旋转矩阵转旋转向量
+template<typename _T>void Rotation_Matrix_2_Vector(_T R[3*3], _T V[4]);		//旋转矩阵转旋转向量
 
 template<typename _T>void Rotation_Vector_2_Matrix(_T V[4], _T R[3 * 3]);		//旋转向量转换旋转矩阵
 template<typename _T>void Rotation_Vector_2_Quaternion(_T V[4], _T Q[4]);	//旋转向量转换四元数
@@ -275,7 +595,11 @@ template<typename _T>void Get_J_by_Rotation_Vector(_T Rotation_Vector[4], _T J[]
 template<typename _T> void Gen_Ksi_by_Rotation_Vector_t(_T Rotation_Vector[4], _T t[3], _T Ksi[6], int n=4);
 
 template<typename _T> void Exp_Ref(_T A[], int n, _T B[]);
-template<typename _T>void Gen_Homo_Matrix(_T R[], _T t[], _T c2w[]);			//用旋转坐标与位移坐标构成一个SE3变换矩阵
+template<typename _T>void Gen_Homo_Matrix_2D(_T R[2 * 2], _T t[2], _T T[3 * 3]);
+template<typename _T>void Gen_Homo_Matrix(_T R[3*3], _T t[3], _T c2w[3*3]);			//用旋转坐标与位移坐标构成一个SE3变换矩阵
+template<typename _T>void Gen_Homo_Matrix_1(_T Rotation_Vector[3], _T t[3], _T c2w[]);
+
+template<typename _T>void Get_R_t(_T T[4 * 4], _T R[3 * 3]=NULL, _T t[3]=NULL);
 
 void Gen_Homo_Matrix(float R[], float t[], float s, float M[]);	//用旋转,位移，缩放构成一个变换矩阵
 template<typename _T> void Gen_Cube(_T Cube[][4], float fScale, _T x_Center=0, _T y_Center=0, _T z_Center=0);//生成一个Cube
@@ -283,7 +607,6 @@ template<typename _T> void Gen_Cube(_T Cube[][4], float fScale, _T x_Center=0, _
 //取代透视变换，一步计算
 void Perspective(float Pos_Source[3], float h[3], float Pos_Dest[3]);
 void Perspective_Camera(float Pos_Source[3], float h[3], float Pos_Dest[3]);
-void Resize_Matrix(Sparse_Matrix* poA, int iNew_Item_Count);
 
 template<typename _T> void svd_3(_T* A,SVD_Info oInfo, int* pbSuccess=NULL, double eps= 2.2204460492503131e-15);
 template<typename _T>void Test_SVD(_T A[], SVD_Info oSVD, int* piResult=NULL, double eps= 2.2204460492503131e-15);

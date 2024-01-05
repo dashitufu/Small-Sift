@@ -205,6 +205,7 @@ float fGet_Line_y(Line_1* poLine, float x);
 void Fill_Region(Image oImage, int iSeed_x, int iSeed_y, int iBack_Color = 0);
 void Mid_Point_Line(Image oImage, int x0, int y0, int x1, int y1, int R = 255, int G = 255, int B = 255);
 void Draw_Point(Image oImage, int x, int y, int r = 10, int R = 255, int G = 255, int B = 255);
+void Draw_Arc(Image oImage, int r, int iCenter_x, int iCenter_y, float fAngle_Start=0, float fAngle_End=PI*2, int R=255, int G=255, int B=255);
 
 void RGB_2_Gray(Image oImage, float* pImage);	//RGB转灰度
 void Float_2_Image(float* pImage, Image oImage);	//浮点数缓冲区转换为Image
