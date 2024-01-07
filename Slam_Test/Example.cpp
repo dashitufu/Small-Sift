@@ -1813,7 +1813,7 @@ void ICP_Test_3()
 
 void ICP_Test_4()
 {//试一下三个点集的ICP，该实验只是估计位姿，不调整点集
-	typedef double _T;
+	typedef float _T;
 	_T xyzs[100][4]; //x, y, f(x), sample
 	const _T a = 3.f, b = 4.f;
 	int y, x, i, iResult;
@@ -1960,7 +1960,7 @@ void ICP_Test_4()
 			Matrix_Add(Sigma_H, H, 12, Sigma_H);         //∑H, JJ'到位
 			Vector_Add(Sigma_JEt, JEt, 12, Sigma_JEt);   //∑JE'
 
-			////以下这步注释掉完全没有影响，收敛还快乐
+			////以下这步注释掉完全没有影响，收敛还快
 			////假如连T12一起也调整了。目前看到这个可有可无，加了对T12的调整以后，收敛慢了，数据基本一致
 			////然而这个实验相机太少，无法评价这一步是否需要。
 			//Get_Deriv_TP_Ksi(T12, P1[i], Jct);    //∂TP/∂ξ
@@ -2241,12 +2241,208 @@ void Transform_Example_2D()
 		Disp(P1, 2, 1, "P1");	//可见，先旋转后位移。反之不然。因为矩阵乘法不可交换
 	}
 }
+void Sparse_Matrix_Test()
+{//稀疏矩阵小试牛刀，试一下三个点集的ICP，该实验只是估计位姿，不调整点集
+	typedef float _T;
+	_T xyzs[100][4]; //x, y, f(x), sample
+	const _T a = 3.f, b = 4.f;
+	int y, x, i, iResult;
+	for (y = 0; y < 10; y++)
+	{
+		for (x = 0; x < 10; x++)
+		{
+			i = y * 10 + x;
+			xyzs[i][0] = (_T)x;
+			xyzs[i][1] = (_T)y;
+			xyzs[i][2] = a * x * x + b * y * y + 1000;	//此处加1000刻意避开z<0的问题
+		}
+	}
+
+	//造两个相机位姿给点集2，点集3
+	_T Pose_Org[2][4 * 4];
+	_T Rotation_Vector[2][4] = { { 0,1,0,-PI / 6.f },
+									{0,0,1,-PI / 3.f } };
+	_T t[2][3] = { { -100,0,0 },
+					{ -200,0,0 } };
+
+	Gen_Homo_Matrix_1(Rotation_Vector[0], t[0], Pose_Org[0]);
+	Gen_Homo_Matrix_1(Rotation_Vector[1], t[1], Pose_Org[1]);
+
+	//Disp(Pose_Org[0], 4, 4, "Pose_Org_1");
+	//Disp(Pose_Org[1], 4, 4, "Pose_Org_2");
+
+	//造三个点集
+	_T P1[101][3], P2[101][3], P3[101][3], P11[4];
+	for (i = 0; i < 100; i++)
+	{//注意，做数据必须合理，比如z>0，否则会出现病态数据造成估计失败
+		memcpy(P1[i], xyzs[i], 3 * sizeof(_T));
+		memcpy(P11, P1[i], 3 * sizeof(_T));
+		P11[3] = 1;
+		Matrix_Multiply(Pose_Org[0], 4, 4, P11, 1, P2[i]);
+		//此处加点噪声
+		for (int j = 0; j < 3; j++)
+			P2[i][j] += (iGet_Random_No() % 100) / 100.f;
+
+		Matrix_Multiply(Pose_Org[1], 4, 4, P11, 1, P3[i]);
+		//此处加点噪声
+		for (int j = 0; j < 3; j++)
+			P3[i][j] += (iGet_Random_No() % 100) / 100.f;
+	}
+
+	//T12: 相机2相对相机1的位姿  T13: 相机3相对于相机1的位姿，这两个是待求位姿
+	//T23: 相机3相对于相机2的位姿，这个是中间位姿，用于求Δx
+	_T T12[4 * 4], T13[4 * 4], T23[4 * 4],
+		Delta_Pose[2][4 * 4], Pose_Pre[2][4 * 4],
+		Jct[4 * 6];
+	_T fSum_e, fSum_e_Pre = 1e10,
+		E[3];
+
+	_T Sigma_JEt[12], X[12];
+	_T P_Temp[4]; //P1'
+	Sparse_Matrix<_T> oSigma_JEt, oSigma_H;
+	Sparse_Matrix<_T> oJ, oJt, oE, oJEt, oH, oH_Inv;
+	int j, k, iIter;
+	Gen_I_Matrix(T12, 4, 4);
+	Gen_I_Matrix(T13, 4, 4);
+	//Init_Sparse_Matrix(&oSigma_JEt, 12,1,12);
+	Init_Sparse_Matrix(&oSigma_H, 12 * 12, 12, 12);
+	Init_Sparse_Matrix(&oJt, 3 * 12, 12, 3);
+	Init_Sparse_Matrix(&oJ, 12 * 3, 3, 12);
+	Init_Sparse_Matrix(&oE, 3 * 1, 1, 3);
+	Init_Sparse_Matrix(&oJEt, 12 * 1, 1, 12);
+	Init_Sparse_Matrix(&oSigma_JEt, 12, 1, 12);
+	Init_Sparse_Matrix(&oH, 12 * 12, 12, 12);
+	Gen_I_Matrix(T12, 4, 4);
+	Gen_I_Matrix(T13, 4, 4);
+
+	for (iIter = 0;; iIter++)
+	{
+		fSum_e = 0;
+		Get_Delta_Pose(T12, T13, T23);
+		Reset_Sparse_Matrix(&oSigma_H);
+		Reset_Sparse_Matrix(&oSigma_JEt);
+
+		for (i = 0; i < 100; i++)
+		{
+			//先搞搞P1,P2匹配
+			memcpy(P_Temp, P1[i], 3 * sizeof(_T));
+			P_Temp[3] = 1;
+			Matrix_Multiply(T12, 4, 4, P_Temp, 1, P_Temp);
+			Vector_Minus(P2[i], P_Temp, 3, E);
+			fSum_e += E[0] * E[0] + E[1] * E[1] + E[2] * E[2];
+			Get_Deriv_TP_Ksi(T12, P1[i], Jct);    //?TP/?ξ
+			Reset_Sparse_Matrix(&oJt);
+			Reset_Sparse_Matrix(&oE);
+			//?T12P1/? 放在前6列
+			for (j = 0; j < 3; j++)         //将?TP/?ξ与 ?P'/?P 
+			{
+				for (k = 0; k < 6; k++)
+					Set_Value(&oJt, k, j, Jct[j * 6 + k]);
+				Set_Value(&oE, 0, j, E[j]);
+			}
+			Matrix_Multiply(oJt, (_T)-1.f);				//J'已经到位
+			Matrix_Transpose_1(oJt, &oJ);
+			Matrix_Multiply(oJ, oE, &oJEt);             //JE
+			//printf("i:%d %f\n",i, fGet_Value(&oJEt, 0, 4));
+			Matrix_Multiply(oJ, oJt, &oH);				//H=JJt			
+			Matrix_Add(oSigma_H, oH, &oSigma_H);		//
+			Matrix_Add(oSigma_JEt, oJEt, &oSigma_JEt);
+
+			//再搞P1, P3匹配
+			memcpy(P_Temp, P1[i], 3 * sizeof(_T));
+			P_Temp[3] = 1;
+			Matrix_Multiply(T13, 4, 4, P_Temp, 1, P_Temp);
+			Vector_Minus(P3[i], P_Temp, 3, E);
+			fSum_e += E[0] * E[0] + E[1] * E[1] + E[2] * E[2];
+			Get_Deriv_TP_Ksi(T13, P1[i], Jct);    //∂TP/∂ξ
+			Reset_Sparse_Matrix(&oJt);
+			Reset_Sparse_Matrix(&oE);
+			//?T12P1/? 放在前6列
+			for (j = 0; j < 3; j++)         //将?TP/?ξ与 ?P'/?P 
+			{
+				for (k = 0; k < 6; k++)
+					Set_Value(&oJt, 6 + k, j, Jct[j * 6 + k]);
+				Set_Value(&oE, 0, j, E[j]);
+			}
+			Matrix_Multiply(oJt, (_T)-1.f);				//J'已经到位
+			Matrix_Transpose_1(oJt, &oJ);
+			Matrix_Multiply(oJ, oE, &oJEt);             //JE
+			Matrix_Multiply(oJ, oJt, &oH);				//H=JJt
+			Matrix_Add(oSigma_H, oH, &oSigma_H);		//
+			Matrix_Add(oSigma_JEt, oJEt, &oSigma_JEt);
+
+			//搞T23，假如还是调整T13，窃以为这一步很重要，否则解决不了累积误差。
+			//加了这个调整以后，能形成相机路径闭环
+			memcpy(P_Temp, P2[i], 3 * sizeof(_T));
+			P_Temp[3] = 1;
+			Matrix_Multiply(T23, 4, 4, P_Temp, 1, P_Temp);
+			Vector_Minus(P3[i], P_Temp, 3, E);
+			fSum_e += E[0] * E[0] + E[1] * E[1] + E[2] * E[2];
+
+			Get_Deriv_TP_Ksi(T13, P1[i], Jct);    //∂TP/∂ξ
+			Reset_Sparse_Matrix(&oJt);
+			Reset_Sparse_Matrix(&oE);
+			//∂T13P1/∂ 放在后6列
+			for (j = 0; j < 3; j++)         //将?TP/?ξ与 ?P'/?P 
+			{
+				for (k = 0; k < 6; k++)
+					Set_Value(&oJt, 6 + k, j, Jct[j * 6 + k]);
+				Set_Value(&oE, 0, j, E[j]);
+			}
+			Matrix_Multiply(oJt, (_T)-1.f);				//J'已经到位
+			Matrix_Transpose_1(oJt, &oJ);
+			Matrix_Multiply(oJ, oE, &oJEt);             //JE
+			Matrix_Multiply(oJ, oJt, &oH);				//H=JJt
+			Matrix_Add(oSigma_H, oH, &oSigma_H);		//
+			Matrix_Add(oSigma_JEt, oJEt, &oSigma_JEt);
+		}
+		Sparse_2_Dense(oSigma_JEt, Sigma_JEt);
+		Solve_Linear_Gause(oSigma_H, Sigma_JEt, X, &iResult);
+		if (!iResult)
+		{
+			Add_I_Matrix(&oSigma_H);
+			Solve_Linear_Gause(oSigma_H, Sigma_JEt, X, &iResult);
+		}
+		Matrix_Multiply(X, 1, 12, (_T)-1, X);
+		if ((fSum_e_Pre <= fSum_e && iIter > 0) || !iResult)
+			break;
+
+		//先更新一下Pose_Estimate
+		se3_2_SE3(X, Delta_Pose[0]);
+		se3_2_SE3(X + 6, Delta_Pose[1]);
+
+		memcpy(Pose_Pre[0], T12, 4 * 4 * sizeof(_T));
+		memcpy(Pose_Pre[1], T13, 4 * 4 * sizeof(_T));
+
+		Matrix_Multiply(Delta_Pose[0], 4, 4, T12, 4, T12);
+		Matrix_Multiply(Delta_Pose[1], 4, 4, T13, 4, T13);
+
+		printf("Iter:%d Cost:%f\n", iIter, fSum_e);
+		fSum_e_Pre = fSum_e;
+	}
+
+	Get_Delta_Pose(Pose_Pre[0], Pose_Pre[1], T23);
+	Disp_Error(P1, P2, 100, Pose_Pre[0]);
+	Disp_Error(P1, P3, 100, Pose_Pre[1]);
+	Disp_Error(P2, P3, 100, T23);
+
+	Free_Sparse_Matrix(&oSigma_JEt);
+	Free_Sparse_Matrix(&oH);
+	Free_Sparse_Matrix(&oSigma_H);
+	Free_Sparse_Matrix(&oJt);
+	Free_Sparse_Matrix(&oJ);
+	Free_Sparse_Matrix(&oE);
+	Free_Sparse_Matrix(&oJEt);
+	Disp_Mem(&oMatrix_Mem,0);
+	return;
+}
 void Test_Main()
 {
 	//BA_Test_1();
 	//BA_Test_2();
-	Transform_Example_2D();	//二维下的旋转，位移变换
+	//Transform_Example_2D();	//二维下的旋转，位移变换
 
+	Sparse_Matrix_Test();	//稀疏矩阵实验，等于ICP_Test_4
 	//ICP_Test_1();	//两图ICP BA方法
 	//ICP_Test_2();	//两图ICP SVD方法
 	//ICP_Test_3();	//两图ICP 实验，自己造数据
@@ -2265,8 +2461,8 @@ void Test_Main()
 	//Sift_Test_2();
 	//Sift_Test_3();
 	//Sift_Test_4();
-	//
-	//SVD_Test_1();	//作为SVD分解实验还是不错的
+
+	//SVD_Test_1();		//作为SVD分解实验还是不错的
 	//E_Test_2();		//这个例子非常简洁
 	//Ransac_Test();	//Ransac实验
 

@@ -23,6 +23,16 @@ using namespace std;
 #define ALIGN_SIZE_128(iSize) ((( (int)(iSize)+127)>>7)<<7) 
 #define ALIGN_SIZE_1024(iSize) ((( (int)(iSize)+1023)>>10)<<10) 
 
+#define bGet_Bit(pBuffer, iBit_Pos) (pBuffer)[(iBit_Pos) >> 3] & (1 << ((iBit_Pos) & 0x7))
+//int bGet_Bit(unsigned char* pBuffer, int iBit_Pos)
+//{	return pBuffer[iBit_Pos >> 3] & (1 << (iBit_Pos & 0x7));}
+#define Set_Bit(pBuffer, iBit_Pos) \
+{\
+	(pBuffer)[(iBit_Pos) >> 3] |= (1 << ((iBit_Pos) & 0x7)); \
+}
+//void Set_Bit(unsigned char* pBuffer, int iBit_Pos)
+//{	pBuffer[iBit_Pos >> 3] |= (1 << (iBit_Pos & 0x7)); }
+
 unsigned long long iGet_File_Length(char* pcFile);
 unsigned long long iGet_Tick_Count();
 int iGet_File_Count(const char* pcPath);	//获取一个目录所有文件
@@ -68,7 +78,6 @@ void Temp_Load_Match_Point(_T(**ppPoint_1)[2], _T(**ppPoint_2)[2], int* piCount)
 template<typename _T> _T oGet_Nth_Elem(_T Seq[], int iCount, int iStart, int iEnd, int iNth);
 template<typename _T> void Quick_Sort(_T Seq[], int iStart, int iEnd);
 template<typename _T>int bSave_PLY(const char* pcFile, _T Point[][3], int iPoint_Count,unsigned char Color[][3]=NULL, int bText=1);
-
 
 //Temp code 
 template<typename _T>void Temp_Load_File(const char* pcFile, _T(**ppPoint_3D_1)[3], _T(**ppPoint_3D_2)[3], int* piCount);
