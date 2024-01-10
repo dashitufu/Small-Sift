@@ -1890,12 +1890,12 @@ void ICP_Test_4()
 	{
 		fSum_e = 0;
 		Get_Delta_Pose(T12, T13, T23);
-		if (iIter == 1)
+		/*if (iIter == 1)
 		{
 			Disp(T12, 4, 4, "T12");
 			Disp(T13, 4, 4, "T13");
 			Disp(T23, 4, 4, "T23");
-		}
+		}*/
 		memset(Sigma_H, 0, 12 * 12 * sizeof(_T));
 		memset(Sigma_JEt, 0, 12 * sizeof(_T));
 
@@ -1977,14 +1977,14 @@ void ICP_Test_4()
 			//Vector_Add(Sigma_JEt, JEt, 12, Sigma_JEt);   //∑JE'
 		}
 
-		Get_Inv_Matrix_Row_Op(Sigma_H, H_Inv, 12, &iResult);
+		Get_Inv_Matrix_Row_Op_2(Sigma_H, H_Inv, 12, &iResult);
 		if (!iResult)
 		{//此处对∑H的调整是关键，否则很有可能不满秩，注意，此处调整量应该是
 			// H + λI，只不过H 没有呈现比较大的数值，故此λ=1已经够用
 			_T I[12 * 12];
 			Gen_I_Matrix(I, 12, 12);
 			Matrix_Add(Sigma_H, I, 12, Sigma_H);
-			Get_Inv_Matrix_Row_Op(Sigma_H, H_Inv, 12, &iResult);
+			Get_Inv_Matrix_Row_Op_2(Sigma_H, H_Inv, 12, &iResult);
 		}
 
 		//Δx= -(∑H)(-1) * ∑JE'	 (E'为3x1)
@@ -2156,20 +2156,20 @@ void ICP_Test_5()
 			Vector_Add(Sigma_JEt, JEt, w, Sigma_JEt);   //∑JE'
 		}
 
-		Get_Inv_Matrix_Row_Op(Sigma_H, H_Inv, w, &iResult);
+		iResult = 0;
 		if (!iResult)
 		{//此处对∑H的调整是关键，否则很有可能不满秩，注意，此处调整量应该是
 			// H + λI，只不过H 没有呈现比较大的数值，故此λ=1已经够用
 			_T I[w * w];
 			Gen_I_Matrix(I, w, w);
 			Matrix_Add(Sigma_H, I, w, Sigma_H);
-			Get_Inv_Matrix_Row_Op(Sigma_H, H_Inv, w, &iResult);
+			Get_Inv_Matrix_Row_Op_2(Sigma_H, H_Inv, w, &iResult);
 		}
-
 		//Δx= -(∑H)(-1) * ∑JE'	 (E'为3x1)
 		Matrix_Multiply(H_Inv, w, w, Sigma_JEt, 1, X);
 		Matrix_Multiply(X, 1, w, (_T)-1, X);
-
+		//if (iIter == 1)
+			//Disp(X, 1, w, "X");
 		if ((fSum_e_Pre <= fSum_e && iIter > 0) || !iResult)
 			break;
 
@@ -2188,7 +2188,6 @@ void ICP_Test_5()
 			Vector_Add(P1[i], &X[12], 3, P1[i]);
 			Vector_Add(P2[i], &X[15], 3, P2[i]);
 		}
-
 		printf("Iter:%d Cost:%f\n", iIter, fSum_e);
 		fSum_e_Pre = fSum_e;
 	}
@@ -2197,12 +2196,12 @@ void ICP_Test_5()
 	memcpy(T23, Pose_Pre[1], 4 * 4 * sizeof(_T));
 	Matrix_Multiply(T23, 4, 4, T12, 4, T13);
 
-	printf("成功闭环！\n");
-	Disp_Error(P1, P2, 100, T12);
+	printf("成功闭环！%f\n",fSum_e_Pre);
+	/*Disp_Error(P1, P2, 100, T12);
 	Disp_Error(P1, P3, 100, T13);
 	Disp_Error(P2, P3, 100, T23);
 	Disp(P1[0], 1, 3, "P1");
-	Disp(P2[0], 1, 3, "P2");
+	Disp(P2[0], 1, 3, "P2");*/
 	return;
 }
 void Transform_Example_2D()
@@ -2396,6 +2395,7 @@ void Sparse_Matrix_Test()
 			Matrix_Add(oSigma_H, oH, &oSigma_H);		//
 			Matrix_Add(oSigma_JEt, oJEt, &oSigma_JEt);
 		}
+
 		Sparse_2_Dense(oSigma_JEt, Sigma_JEt);
 		Solve_Linear_Gause(oSigma_H, Sigma_JEt, X, &iResult);
 		if (!iResult)
@@ -2436,13 +2436,220 @@ void Sparse_Matrix_Test()
 	Disp_Mem(&oMatrix_Mem,0);
 	return;
 }
+
+void Sphere_Test_2()
+{//4基站定位实验，高斯牛顿法寻找4个球的交点最优解
+	typedef float _T;
+	_T Sphere_Center[4][3] = { { 200,300,400 },
+								{ 300,400,410 } ,
+								{ 350,300,420 } ,
+								{ 200,400,430 } };
+
+	_T d[4] = { 100,110,120,130 };	//可视为基站到物体距离
+	int i;
+	Image oImage;
+	Init_Image(&oImage, 1000, 1000, Image::IMAGE_TYPE_BMP, 8);
+	Set_Color(oImage);
+	for (i = 0; i < 4; i++)
+		Draw_Arc(oImage, (int)d[i], (int)Sphere_Center[i][0], (int)Sphere_Center[i][1]);
+
+	_T P[3] = { 0,0,0 }, Pre_P[3];	//最后的解
+	int iIter, iResult;
+
+	_T Jt[1 * 3], J[3 * 1], JJt[3 * 3], Je[3 * 1], H_Inv[3 * 3], Delta_X[3],
+		fSum_e, e, fSum_e_Pre = 1e10;
+	_T Sigma_H[3 * 3], Sigma_Je[3 * 1];
+	for (iIter = 0;; iIter++)
+	{
+		fSum_e = 0;
+		//置零
+		memset(Sigma_H, 0, 3 * 3 * sizeof(_T));
+		memset(Sigma_Je, 0, 3 * sizeof(_T));
+
+		//到4张皮的距离和最小感觉最好，因为这才是题意
+		for (i = 0; i < 4; i++)
+		{	//e = [(x-a)^2 + (x-b)^2 + (z-c)^2]^1/2
+			_T fDist_Sqr = (P[0] - Sphere_Center[i][0]) * (P[0] - Sphere_Center[i][0]) +
+				(P[1] - Sphere_Center[i][1]) * (P[1] - Sphere_Center[i][1]) +
+				(P[2] - Sphere_Center[i][2]) * (P[2] - Sphere_Center[i][2]);
+			e = d[i] - (_T)sqrt(fDist_Sqr);
+			fSum_e += abs(e);	// e* e;	//这里就必须用e的平方了，或者用绝对值，因为有正有负。要琢磨一下误差的度量对结果的影响
+			//?e/?x = - [(x-a)^2 + (x-b)^2 + (z-a)^2] *(x-a)
+			Jt[0] = -(_T)pow(fDist_Sqr, -0.5f) * (P[0] - Sphere_Center[i][0]);
+			Jt[1] = -(_T)pow(fDist_Sqr, -0.5f) * (P[1] - Sphere_Center[i][1]);
+			Jt[2] = -(_T)pow(fDist_Sqr, -0.5f) * (P[2] - Sphere_Center[i][2]);
+
+			memcpy(J, Jt, 3 * sizeof(_T));
+			Matrix_Multiply(J, 3, 1, Jt, 3, JJt);
+			Matrix_Multiply(J, 3, 1, e, Je);
+			//	//累加
+			Matrix_Add(Sigma_H, JJt, 3, Sigma_H);
+			Vector_Add(Sigma_Je, Je, 3, Sigma_Je);
+		}
+
+		////试一下,到圆心距离和最小
+		//for (i = 0; i < 4; i++)
+		//{	//e = [(x-a)^2 + (x-b)^2 + (z-c)^2]^1/2
+		//	float fDist_Sqr = (P[0] - Sphere_Center[i][0]) * (P[0] - Sphere_Center[i][0]) +
+		//		(P[1] - Sphere_Center[i][1]) * (P[1] - Sphere_Center[i][1]) +
+		//		(P[2] - Sphere_Center[i][2]) * (P[2] - Sphere_Center[i][2]);
+		//	if (fDist_Sqr == 0)
+		//		continue;
+		//	e = sqrt(fDist_Sqr);
+		//	fSum_e += e;	//此处到底用e还是e的平方？用e表示到点的距离之和，用e*e表示距离的平方和，微妙差别
+
+		//	//?e/?x = [(x-a)^2 + (x-b)^2 + (z-c)^2] *(x-a) 
+		//	Jt[0] = pow(fDist_Sqr, -0.5) * (P[0] - Sphere_Center[i][0]);
+		//	Jt[1] = pow(fDist_Sqr, -0.5) * (P[1] - Sphere_Center[i][1]);
+		//	Jt[2] = pow(fDist_Sqr, -0.5) * (P[2] - Sphere_Center[i][2]);
+
+		//	memcpy(J, Jt, 3 * sizeof(_T));
+		//	Matrix_Multiply(J, 3, 1, Jt, 3, JJt);
+		//	Matrix_Multiply(J, 3, 1, e, Je);
+		//	//	//累加
+		//	Matrix_Add(Sigma_H, JJt, 3, Sigma_H);
+		//	Vector_Add(Sigma_Je, Je, 3, Sigma_Je);
+		//}
+
+		//后面全一样，毫无差别毫无营养，搞利索以后改成解方程，
+		//会比求个逆可能快一点
+		Sigma_H[0] += 1, Sigma_H[4] += 1, Sigma_H[8] += 1;
+		Get_Inv_Matrix_Row_Op(Sigma_H, H_Inv, 3, &iResult);
+		Matrix_Multiply(H_Inv, 3, 3, Sigma_Je, 1, Delta_X);
+		Matrix_Multiply(Delta_X, 3, 1, (_T)-1.f, Delta_X);
+
+		if ((fSum_e_Pre <= fSum_e && iIter > 0) || !iResult)
+			break;
+		printf("Iter:%d Error:%f\n", iIter, fSum_e);
+
+		Pre_P[0] = (P[0] += Delta_X[0]);
+		Pre_P[1] = (P[1] += Delta_X[1]);
+		Pre_P[2] = (P[2] += Delta_X[2]);
+		fSum_e_Pre = fSum_e;
+	}
+
+	//Disp(Pre_P, 1, 3, "Point");
+	Draw_Point(oImage, (int)Pre_P[0], (int)Pre_P[1], 2);
+	bSave_Image("c:\\tmp\\1.bmp", oImage);
+	Free_Image(&oImage);
+}
+
+void Sphere_Test_1()
+{//4基站定位实验，高斯牛顿法寻找4个圆的交点最优解
+	typedef float _T;
+	_T Sphere_Center[4][3] = { { 200,300,400 },
+								{ 300,400,410 } ,
+								{ 350,300,420 } ,
+								{ 200,400,430 } };
+
+	_T R[4] = { 100,110,120,130 };
+	Image oImage;
+	int i;
+	Init_Image(&oImage, 1000, 1000, Image::IMAGE_TYPE_BMP, 8);
+	Set_Color(oImage);
+	for (i = 0; i < 4; i++)
+		Draw_Arc(oImage, (int)R[i], (int)Sphere_Center[i][0], (int)Sphere_Center[i][1]);
+
+	_T P[3] = { 0,0,0 }, Pre_P[3];	//最后的解
+	int iIter, iResult;
+
+	_T Jt[1 * 2], J[2 * 1], JJt[2 * 2], Je[2 * 1], H_Inv[2 * 2], Delta_X[2],
+		fSum_e, e, fSum_e_Pre = 1e10;
+	_T Sigma_H[2 * 2], Sigma_Je[2 * 1];
+	for (iIter = 0;; iIter++)
+	{
+		fSum_e = 0;
+		memset(Sigma_H, 0, 2 * 2 * sizeof(_T));
+		memset(Sigma_Je, 0, 2 * sizeof(_T));
+
+		//这个条件不好
+		//for (i = 0; i < 2; i++)
+		//{
+		//	e = R[i] * R[i] - (P[0] - Sphere_Center[i][0]) * (P[0] - Sphere_Center[i][0]) -
+		//		(P[1] - Sphere_Center[i][1]) * (P[1] - Sphere_Center[i][1]);
+		//	fSum_e += e * e;
+		//	//?e/?x= (-2x, -2y)	,第一步顺着这个梯度走，能走到目的地
+		//	Jt[0] = -2 * (P[0]-Sphere_Center[i][0]), Jt[1] = -2 * (P[1]-Sphere_Center[i][1]);
+		//	//Disp(Jt, 1, 2, "Jt");
+		//	memcpy(J, Jt, 2 * sizeof(_T));
+		//	//第二步，要求Δx
+		//	Matrix_Multiply(J, 2, 1, Jt, 2, JJt);
+		//	//Disp(JJt, 2, 2, "JJt");
+		//	Matrix_Multiply(J, 2, 1, e, Je);
+
+		//	//累加
+		//	Matrix_Add(Sigma_H, JJt, 2, Sigma_H);
+		//	Vector_Add(Sigma_Je, Je, 2, Sigma_Je);
+		//}
+
+		////以下为到4个圆边距离和最近
+		//for (i = 0; i < 4; i++)
+		//{//e(x) = Ri - [(x-a)^2 + (x-b)^2]^1/2
+		//	float fDist_Sqr = (P[0] - Sphere_Center[i][0]) * (P[0] - Sphere_Center[i][0]) +
+		//		(P[1] - Sphere_Center[i][1]) * (P[1] - Sphere_Center[i][1]);
+		//	e= R[i] - sqrt(fDist_Sqr);
+		//	fSum_e += e * e;
+		//	//?e/?x = - [(x-a)^2 + (x-b)^2] *(x-a)
+		//	Jt[0] = -pow(fDist_Sqr,-0.5) * (P[0] - Sphere_Center[i][0]);
+		//	Jt[1] = -pow(fDist_Sqr,-0.5) * (P[1] - Sphere_Center[i][1]);
+
+		//	memcpy(J, Jt, 2 * sizeof(_T));
+		//	Matrix_Multiply(J, 2, 1, Jt, 2, JJt);
+		//	Matrix_Multiply(J, 2, 1, e, Je);
+		//	//	//累加
+		//	Matrix_Add(Sigma_H, JJt, 2, Sigma_H);
+		//	Vector_Add(Sigma_Je, Je, 2, Sigma_Je);
+		//}
+
+		//试一下,到圆心距离和最小
+		for (i = 0; i < 4; i++)
+		{
+			_T fDist_Sqr = (P[0] - Sphere_Center[i][0]) * (P[0] - Sphere_Center[i][0]) +
+				(P[1] - Sphere_Center[i][1]) * (P[1] - Sphere_Center[i][1]);
+			if (fDist_Sqr == 0)
+				continue;
+			e = (_T)sqrt(fDist_Sqr);
+			fSum_e += e;
+			//?e/?x = [(x-a)^2 + (x-b)^2] *(x-a)
+			Jt[0] = (_T)pow(fDist_Sqr, -0.5f) * (P[0] - Sphere_Center[i][0]);
+			Jt[1] = (_T)pow(fDist_Sqr, -0.5f) * (P[1] - Sphere_Center[i][1]);
+
+			memcpy(J, Jt, 2 * sizeof(_T));
+			Matrix_Multiply(J, 2, 1, Jt, 2, JJt);
+			Matrix_Multiply(J, 2, 1, e, Je);
+			//	//累加
+			Matrix_Add(Sigma_H, JJt, 2, Sigma_H);
+			Vector_Add(Sigma_Je, Je, 2, Sigma_Je);
+		}
+
+		Sigma_H[0] += 1, Sigma_H[3] += 1;
+		Get_Inv_Matrix_Row_Op(Sigma_H, H_Inv, 2, &iResult);
+		Matrix_Multiply(H_Inv, 2, 2, Sigma_Je, 1, Delta_X);
+		Matrix_Multiply(Delta_X, 2, 1, (_T)-1.f, Delta_X);
+
+		if ((fSum_e_Pre <= fSum_e && iIter > 0) || !iResult)
+			break;
+		printf("Iter:%d Error:%f\n", iIter, fSum_e);
+		//Draw_Point(oImage, P[0], P[1],2);
+
+		Pre_P[0] = (P[0] += Delta_X[0]);
+		Pre_P[1] = (P[1] += Delta_X[1]);
+		fSum_e_Pre = fSum_e;
+	}
+	Draw_Point(oImage, (int)Pre_P[0], (int)Pre_P[1], 2);
+	Disp(Pre_P, 1, 3, "Point");
+	bSave_Image("c:\\tmp\\1.bmp", oImage);
+	Free_Image(&oImage);
+	return;
+}
+
 void Test_Main()
 {
 	//BA_Test_1();
 	//BA_Test_2();
 	//Transform_Example_2D();	//二维下的旋转，位移变换
 
-	Sparse_Matrix_Test();	//稀疏矩阵实验，等于ICP_Test_4
+	//Sparse_Matrix_Test();	//稀疏矩阵实验，等于ICP_Test_4
 	//ICP_Test_1();	//两图ICP BA方法
 	//ICP_Test_2();	//两图ICP SVD方法
 	//ICP_Test_3();	//两图ICP 实验，自己造数据
@@ -2467,4 +2674,7 @@ void Test_Main()
 	//Ransac_Test();	//Ransac实验
 
 	//Camera_Param_Test();	//相机参数实验
+
+	//Sphere_Test_1();	//4基站定位实验，二维方法
+	//Sphere_Test_2();	//4基站定位实验，三维方法
 }

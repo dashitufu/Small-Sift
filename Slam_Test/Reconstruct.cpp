@@ -1779,7 +1779,7 @@ template<typename _T>void ICP_BA_2_Image_1(_T P1[][3], _T P2[][3], int iCount, _
 			Matrix_Add(Sigma_H, JJt, 6, Sigma_H);           //
 		}
 
-		Get_Inv_Matrix_Row_Op(Sigma_H, H_Inv, 6, &iResult);		//求H(-1)
+		Get_Inv_Matrix_Row_Op_2(Sigma_H, H_Inv, 6, &iResult);		//求H(-1)
 		Matrix_Multiply(H_Inv, 6, 6, Sigma_JE, 1, Delta_Ksi);	//H(-1)*JE
 		Matrix_Multiply(Delta_Ksi, 1, 6, (_T)-1, Delta_Ksi);	//
 
