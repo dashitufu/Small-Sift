@@ -1,15 +1,23 @@
 ﻿//搞个临时文件，想搞明白Essential Matrix
 #include "stdio.h"
 #include "Image.h"
+#include "Matrix.h"
 #include "Reconstruct.h"
 
 void SB_Sample()
 {
+	Normalize((double*)NULL, 0, (double*)NULL);
+	Normalize((float*)NULL, 0, (float*)NULL);
+
 	Temp_Load_File(NULL, (double(**)[3])NULL, (double(**)[3])NULL, NULL);
 	Temp_Load_File(NULL, (float(**)[3])NULL, (float(**)[3])NULL, NULL);
 
 	Temp_Load_File_1(NULL, (double(**)[3])NULL, (double(**)[3])NULL, NULL);
 	Temp_Load_File_1(NULL, (float(**)[3])NULL, (float(**)[3])NULL, NULL);
+
+	Temp_Load_File_2(NULL, NULL, NULL, (Point_2D<double>**)NULL,(float(**)[3])NULL,(float(**)[9])NULL);
+	Temp_Load_File_2(NULL, NULL, NULL, (Point_2D<float>**)NULL, (float(**)[3])NULL, (float(**)[9])NULL);
+
 }
 static void E_Test_1()
 {//找一组数据验算E矩阵。虽然代码有点散，但咬死了推导过程
@@ -1595,8 +1603,442 @@ template<typename _T>void Temp_Load_File(const char* pcFile, _T(**ppPoint_3D_1)[
 	return;
 }
 
+template<typename _T>void Temp_Load_File_2(int* piCameta_Count, int* piPoint_Count, int* piObservation_Count,
+	Point_2D<_T>** ppPoint_2D, float(**ppPoint_3D)[3], float(**ppCamera)[3 * 3])
+{//这次装入problem-16-22106-pre.txt。搞个好点的数据结构指出匹配关系
 
+	int i, iCamera_Count, iPoint_Count, iObservation_Count;
+	float(*pPoint_3D)[3], (*pCamera)[3 * 3];
+	Point_2D<_T>* pPoint_2D;
+	FILE* pFile = fopen("Sample\\problem-16-22106-pre.txt", "rb");
+	i = fscanf(pFile, "%d %d %d\n", &iCamera_Count, &iPoint_Count, &iObservation_Count);
+	pPoint_2D = (Point_2D<_T>*)malloc(iObservation_Count * 2 * sizeof(Point_2D<_T>));
+	pPoint_3D = (float(*)[3])malloc(iPoint_Count * 3 * sizeof(float));
+	pCamera = (float(*)[3 * 3])malloc(iCamera_Count * 16 * sizeof(float));
 
+	for (i = 0; i < iObservation_Count; i++)
+	{
+		float xy[2];
+		fscanf(pFile, "%d %d %f %f", &pPoint_2D[i].m_iCamera_Index, &pPoint_2D[i].m_iPoint_Index, &xy[0], &xy[1]);
+		pPoint_2D[i].m_Pos[0] = xy[0], pPoint_2D[i].m_Pos[1] = xy[1];
+		//fscanf(pFile, "%d %d %f %f", &pPoint_2D[i].m_iCamera_Index, &pPoint_2D[i].m_iPoint_Index, &pPoint_2D[i].m_Pos[0], &pPoint_2D[i].m_Pos[1]);
+	}
+		
+	for (i = 0; i < iCamera_Count; i++)
+		for (int j = 0; j < 9; j++)
+			fscanf(pFile, "%f ", &pCamera[i][j]);
+	for (i = 0; i < iPoint_Count; i++)
+		fscanf(pFile, "%f %f %f ", &pPoint_3D[i][0], &pPoint_3D[i][1], &pPoint_3D[i][2]);
+	fclose(pFile);
+	*piCameta_Count = iCamera_Count;
+	*piPoint_Count = iPoint_Count;
+	*piObservation_Count = iObservation_Count;
+	*ppPoint_2D = pPoint_2D;
+	*ppPoint_3D = pPoint_3D;
+	*ppCamera = pCamera;
+	return;
+}
+template<typename _T>void Normalize(_T Point_3D[][3], Point_2D<_T> Point_2D[], int iPoint_Count, _T Camera[][9], int iCamera_Count)
+{
+	_T fScale, Mid[3], * pPoint_1D = (_T*)pMalloc(&oMatrix_Mem, iPoint_Count * sizeof(_T));
+	_T Temp[3];
+	int i, j;
+
+	for (i = 0; i < 3; i++)
+	{
+		for (j = 0; j < iPoint_Count; j++)
+			pPoint_1D[j] = Point_3D[j][i];
+		Mid[i] = oGet_Nth_Elem(pPoint_1D, iPoint_Count, iPoint_Count >> 1);
+	}
+	//Temp Code
+	//Mid[0] = 1.65443f;
+	//Disp(Mid, 1, 3, "Mid");
+
+	for (j = 0; j < iPoint_Count; j++)
+	{
+		Vector_Minus(Point_3D[j], Mid, 3, Temp);
+		pPoint_1D[j] = Abs(Temp[0]) + Abs(Temp[1]) + Abs(Temp[2]);
+	}
+
+	//搞了个Bounding box, 边长为 3个点到中心距离的中位数之和，也许足够大
+	//然后将点装在这个Box, 然后再投影到边长为100的Box
+	fScale = oGet_Nth_Elem(pPoint_1D, iPoint_Count, iPoint_Count >> 1);
+	//Temp code
+	fScale = 22.608061669690585f;
+
+	fScale = 100.0f / fScale;
+	//Point_3D = scale * (Point_3D - Mid)
+	for (i = 0; i < iPoint_Count; i++)
+	{
+		Vector_Minus(Point_3D[i], Mid, 3, Temp);
+		Matrix_Multiply(Temp, 1, 3, fScale, Point_3D[i]);
+	}
+
+	//[0 - 2] : angle - axis rotation
+	//[3, 4, 5] 位移 
+	//[6] focal 焦距
+	//[7 - 8] second and forth order radial distortion
+	_T* pCur_Camera;
+	_T Rotation_Vector[4], R[3 * 3];
+
+	for (i = 0; i < iCamera_Count; i++)
+	{
+		pCur_Camera = Camera[i];
+		Matrix_Multiply(pCur_Camera, 1, 3, -1.f, Rotation_Vector);
+		Rotation_Vector_3_2_4(Rotation_Vector, Rotation_Vector);
+		Rotation_Vector_2_Matrix(Rotation_Vector, R);
+		Matrix_Multiply(R, 3, 3, &pCur_Camera[3], 1, Temp);
+		Matrix_Multiply(Temp, 1, 3, -1.f, Temp);
+
+		//Temp就是center 将center也规格化
+		Vector_Minus(Temp, Mid, 3, Temp);
+		Matrix_Multiply(Temp, 1, 3, fScale, Temp);
+
+		//还要调整一次
+		Rotation_Vector[3] = -Rotation_Vector[3];
+		Rotation_Vector_2_Matrix(Rotation_Vector, R);
+		Matrix_Multiply(R, 3, 3, Temp, 1, Temp);
+		Matrix_Multiply(Temp, 1, 3, -1.f, &pCur_Camera[3]);
+	}
+
+	//Temp code
+	Camera[10][3] = 0.073109f;
+	return;
+}
+void BA_Test_Schur_Ref()
+{//Schur_Test的一个参考，只有数据对照意义
+	typedef float _T;
+	int iCamera_Count, iPoint_Count, iObservation_Count, i, iIter, iResult;
+	float(*pPoint_3D)[3],
+
+		(*pCamera_Data)[3 * 3];    //只是个内参
+	Point_2D<_T>* pPoint_2D, oCur_Point;
+	//[0 - 2] : angle - axis rotation
+	//[3, 4, 5] 位移 
+	//[6] focal 焦距
+	//[7 - 8] 畸变模型中的k1,k2
+	_T Camera[16][4 * 4], Rotation_Vector[4], R[16][3 * 3];
+
+	Temp_Load_File_2(&iCamera_Count, &iPoint_Count, &iObservation_Count, &pPoint_2D, &pPoint_3D, &pCamera_Data);
+	Normalize(pPoint_3D, pPoint_2D, iPoint_Count, pCamera_Data, iCamera_Count);
+	for (i = 0; i < iCamera_Count; i++)
+	{
+		Rotation_Vector_3_2_4(pCamera_Data[i], Rotation_Vector);
+		Rotation_Vector_2_Matrix(Rotation_Vector, R[i]);
+		Gen_Homo_Matrix(R[i], &pCamera_Data[i][3], Camera[i]);
+	}
+
+	_T* Jt, * J, * JJt, * JE, * Sigma_JE, * Sigma_H, * H_Inv, * Delta_Ksi;
+	_T E[2], Delta_Pose[4 * 4], fSum_e, fSum_e_Pre = (_T)1e20;
+	const int iAdjust_Count = 10;
+	int iJt_w = 6 * iCamera_Count + iAdjust_Count * 3;
+	unsigned char* pPoint_Adjust_Flag;  //1:已经调整，0：未
+	//在此开内存
+	Jt = (_T*)pMalloc(&oMatrix_Mem, 2 * iJt_w * sizeof(_T));
+	J = (_T*)pMalloc(&oMatrix_Mem, iJt_w * 2 * sizeof(_T));
+	JE = (_T*)pMalloc(&oMatrix_Mem, iJt_w * sizeof(_T));
+	Delta_Ksi = (_T*)pMalloc(&oMatrix_Mem, iJt_w * sizeof(_T));
+	Sigma_JE = (_T*)pMalloc(&oMatrix_Mem, iJt_w * sizeof(_T));
+	Sigma_H = (_T*)pMalloc(&oMatrix_Mem, iJt_w * iJt_w * sizeof(_T));
+	H_Inv = (_T*)pMalloc(&oMatrix_Mem, iJt_w * iJt_w * sizeof(_T));
+	JJt = (_T*)pMalloc(&oMatrix_Mem, iJt_w * iJt_w * sizeof(_T));
+	pPoint_Adjust_Flag = (unsigned char*)pMalloc(&oMatrix_Mem, (iPoint_Count + 7) >> 3);
+
+	//以下只估计相机组，小试牛刀，已经O了    
+	for (iIter = 0;; iIter++)
+	{
+		fSum_e = 0;
+		memset(Sigma_H, 0, iJt_w * iJt_w * sizeof(_T));
+		memset(Sigma_JE, 0, iJt_w * sizeof(_T));
+		memset(pPoint_Adjust_Flag, 0, (iPoint_Count + 7) >> 3);
+
+		for (i = 0; i < iObservation_Count; i++)
+		{
+			oCur_Point = pPoint_2D[i];
+			_T* pCur_Point_3D = pPoint_3D[oCur_Point.m_iPoint_Index];
+			_T Point_3D_1[4], Point_4D[4] = { pCur_Point_3D[0], pCur_Point_3D[1], pCur_Point_3D[2], 1 };
+			_T* pCur_Camera = Camera[oCur_Point.m_iCamera_Index];
+			_T Temp[4];
+			_T focal = pCamera_Data[oCur_Point.m_iCamera_Index][6];
+			//此处存在z<0的情况，所以从 I 矩阵出发得不到最优解
+			if (Point_4D[2] == 0.0)
+				continue;
+			if (i >= iAdjust_Count)
+				continue;
+			Matrix_Multiply(pCur_Camera, 4, 4, Point_4D, 1, Point_3D_1);   //得TP
+
+			Temp[0] = -Point_3D_1[0] / Point_3D_1[2], Temp[1] = -Point_3D_1[1] / Point_3D_1[2];     //投影到归一化平面上
+			Temp[0] *= focal, Temp[1] *= focal;           //投影到成像平面上
+
+			E[0] = Temp[0] - oCur_Point.m_Pos[0];	//对应点i的数值差
+			E[1] = Temp[1] - oCur_Point.m_Pos[1];
+			fSum_e += E[0] * E[0] + E[1] * E[1];    //得到误差
+
+			//构造雅可比
+			union {
+				_T Jt_TP_Ksi[3 * 6];
+				_T Jt_E_Ksi[2 * 6];
+			};
+			_T Jt_UV_P[2 * 3], Jt_UV_Porg[2 * 3];
+			Get_Drive_UV_P(focal, focal, Point_3D_1, Jt_UV_P);
+			Get_Deriv_TP_Ksi(pCur_Camera, Point_4D, Jt_TP_Ksi);
+			Matrix_Multiply(Jt_UV_P, 2, 3, Jt_TP_Ksi, 6, Jt_E_Ksi);
+			Matrix_Multiply(Jt_E_Ksi, 2, 6, (_T)-1.f, Jt_E_Ksi);
+			memset(Jt, 0, 2 * iJt_w * sizeof(_T));
+			Copy_Matrix_Partial(Jt_E_Ksi, 2, 6, Jt, iJt_w, oCur_Point.m_iCamera_Index * 6, 0);
+
+			//还要求原来的Porg微弱扰动对uv的影响,
+			//uv = KTP => ∂uv/∂p = ∂uv/∂p' * ∂p'/∂p
+			if (i < iAdjust_Count)
+			{
+				Matrix_Multiply(Jt_UV_P, 2, 3, R[oCur_Point.m_iCamera_Index], 3, Jt_UV_Porg);
+				//为什么此处乘以-1反而错误？
+				Matrix_Multiply(Jt_UV_Porg, 2, 3, (_T)-1.f, Jt_UV_Porg);
+				Copy_Matrix_Partial(Jt_UV_Porg, 2, 3, Jt, iJt_w, iCamera_Count * 6 + oCur_Point.m_iPoint_Index * 3, 0);
+			}
+
+			Matrix_Transpose(Jt, 2, iJt_w, J);
+			Matrix_Multiply(J, iJt_w, 2, Jt, iJt_w, JJt);           //JJ'
+			Matrix_Add(Sigma_H, JJt, iJt_w, Sigma_H);
+			Matrix_Multiply(J, iJt_w, 2, E, 1, JE);             //JE
+			//Disp(JE, 1, iJt_w);
+			Vector_Add(Sigma_JE, JE, iJt_w, Sigma_JE);
+			//Disp_Fillness(Sigma_JE, 1, iJt_w);
+		}
+
+		Add_I_Matrix(Sigma_H, iJt_w);
+
+		////解方程方法
+		//Solve_Linear_Gause(Sigma_H, iJt_w, Sigma_JE, Delta_Ksi, &iResult);
+
+		//Crop Camera Data，此处做个schur参考
+		_T* B, * C_Inv, * v, * w, * pTemp;
+		union {
+			_T* E;
+			_T* Et;
+		};
+		_T* E_Cinv, * v_E_Cinv_w, * B_E_Cinv_Et;
+		v = (_T*)pMalloc(&oMatrix_Mem, iCamera_Count * 6 * sizeof(_T));
+		w = (_T*)pMalloc(&oMatrix_Mem, iAdjust_Count * 3 * sizeof(_T));
+		B = (_T*)pMalloc(&oMatrix_Mem, iCamera_Count * 6 * iCamera_Count * 6 * sizeof(_T));
+		E = (_T*)pMalloc(&oMatrix_Mem, iCamera_Count * 6 * iAdjust_Count * 3 * sizeof(_T));
+		C_Inv = (_T*)pMalloc(&oMatrix_Mem, iAdjust_Count * 3 * iAdjust_Count * 3 * sizeof(_T));
+		E_Cinv = (_T*)pMalloc(&oMatrix_Mem, iCamera_Count * 6 * iAdjust_Count * 3 * sizeof(_T));
+		v_E_Cinv_w = (_T*)pMalloc(&oMatrix_Mem, iCamera_Count * 6 * sizeof(_T));
+		B_E_Cinv_Et = (_T*)pMalloc(&oMatrix_Mem, iCamera_Count * 6 * iCamera_Count * 6 * sizeof(_T));
+
+		memcpy(v, Sigma_JE, iCamera_Count * 6 * sizeof(_T));
+		memcpy(w, Sigma_JE + iCamera_Count * 6, iAdjust_Count * 3 * sizeof(_T));
+		Crop_Matrix(Sigma_H, iJt_w, iJt_w, 0, 0, iCamera_Count * 6, iCamera_Count * 6, B);
+		Crop_Matrix(Sigma_H, iJt_w, iJt_w, iCamera_Count * 6, 0, iAdjust_Count * 3, iCamera_Count * 6, E);
+		Crop_Matrix(Sigma_H, iJt_w, iJt_w, iCamera_Count * 6, iCamera_Count * 6, iAdjust_Count * 3, iAdjust_Count * 3, C_Inv);
+		Get_Inv_Matrix_Row_Op_2(C_Inv, C_Inv, iAdjust_Count * 3, &iResult);
+
+		//算出EC(-t)
+		pTemp = H_Inv;
+		Matrix_Multiply(E, iCamera_Count * 6, iAdjust_Count * 3, C_Inv, iAdjust_Count * 3, E_Cinv);
+		Matrix_Multiply(E_Cinv, iCamera_Count * 6, iAdjust_Count * 3, w, 1, pTemp); //EC(-1)w
+		Vector_Minus(v, pTemp, iCamera_Count * 6, v_E_Cinv_w);    //v-EC(-1)w
+
+		//再算B-EC(-1)*E'
+		Matrix_Transpose(E, iCamera_Count * 6, iAdjust_Count * 3, Et);
+		Matrix_Multiply(E_Cinv, iCamera_Count * 6, iAdjust_Count * 3, Et, iCamera_Count * 6, pTemp);    //EC(-1)E'
+		Vector_Minus(B, pTemp, iCamera_Count * 6 * iCamera_Count * 6, B_E_Cinv_Et);
+		printf("%d\n", bIs_Symmetric_Matrix(B_E_Cinv_Et, iCamera_Count * 6));
+		Solve_Linear_Gause(B_E_Cinv_Et, iCamera_Count * 6, v_E_Cinv_w, Delta_Ksi, &iResult);
+		//Disp(Delta_Ksi, 1, iCamera_Count * 6, "Delta_Ksi");
+
+		Matrix_Multiply(Et, iAdjust_Count * 3, iCamera_Count * 6, Delta_Ksi, 1, pTemp); //Et * Delta Xc
+		Vector_Minus(w, pTemp, iAdjust_Count * 3, pTemp);
+		Matrix_Multiply(C_Inv, iAdjust_Count * 3, iAdjust_Count * 3, pTemp, 1, Delta_Ksi + iCamera_Count * 6);
+		//Disp(Delta_Ksi + iCamera_Count * 6, 1, iAdjust_Count * 3, "Delta_Ksi");
+
+		Matrix_Multiply(Delta_Ksi, 1, iJt_w, (_T)-1, Delta_Ksi);
+		if (fSum_e_Pre <= fSum_e || !iResult)
+			break;
+
+		//每6个一组delta ksi
+		for (i = 0; i < iCamera_Count; i++)
+		{
+			se3_2_SE3(&Delta_Ksi[6 * i], Delta_Pose);
+			Matrix_Multiply(Delta_Pose, 4, 4, Camera[i], 4, Camera[i]);
+		}
+
+		//然后轮到调整点的位置
+		for (i = 0; i < iAdjust_Count; i++)
+		{//
+			int iBit = bGet_Bit(pPoint_Adjust_Flag, pPoint_2D[i].m_iPoint_Index);
+			if (!iBit)
+			{
+				pPoint_3D[i][0] += Delta_Ksi[iCamera_Count * 6 + pPoint_2D[i].m_iPoint_Index * 3 + 0];
+				pPoint_3D[i][1] += Delta_Ksi[iCamera_Count * 6 + pPoint_2D[i].m_iPoint_Index * 3 + 1];
+				pPoint_3D[i][2] += Delta_Ksi[iCamera_Count * 6 + pPoint_2D[i].m_iPoint_Index * 3 + 2];
+				Set_Bit(pPoint_Adjust_Flag, pPoint_2D[i].m_iPoint_Index);
+			}
+		}
+		fSum_e_Pre = fSum_e;
+		//Disp(Camera[0], 4, 4, "Camera");
+		printf("iIter:%d %f\n", iIter, fSum_e);
+	}
+	return;
+}
+void BA_Test_3_3()
+{//不完整后端调整，连点与矩阵一起调。但是应对不了大规模线性方程求解。通用线性方程求解已经走到头
+	typedef float _T;
+	int iCamera_Count, iPoint_Count, iObservation_Count, i, iIter, iResult;
+	float(*pPoint_3D)[3],
+		(*pCamera_Data)[3 * 3];    //只是个内参
+	Point_2D<_T>* pPoint_2D, oCur_Point;
+	//[0 - 2] : angle - axis rotation
+	//[3, 4, 5] 位移 
+	//[6] focal 焦距
+	//[7 - 8] 畸变模型中的k1,k2
+	_T Camera[16][4 * 4], Rotation_Vector[4], R[16][3 * 3];
+	Temp_Load_File_2(&iCamera_Count, &iPoint_Count, &iObservation_Count, &pPoint_2D, &pPoint_3D, &pCamera_Data);
+	const int iAdjust_Count = 3000;   //iObservation_Count;
+	Normalize(pPoint_3D, pPoint_2D, iPoint_Count, pCamera_Data, iCamera_Count);
+
+	for (i = 0; i < iCamera_Count; i++)
+	{
+		Rotation_Vector_3_2_4(pCamera_Data[i], Rotation_Vector);
+		Rotation_Vector_2_Matrix(Rotation_Vector, R[i]);
+		Gen_Homo_Matrix(R[i], &pCamera_Data[i][3], Camera[i]);
+	}
+
+	//分析点与相机之间的对应关系
+	int Point_Count_Each_Camera[16] = {};
+	All_Camera_Data<_T> oAll_Camera_Data;
+	for (i = 0; i < iAdjust_Count; i++)
+		Point_Count_Each_Camera[pPoint_2D[i].m_iCamera_Index]++;
+
+	int w_Jt = 6 * iCamera_Count + iAdjust_Count * 3;   //Sigma_H矩阵的阶
+	Sparse_Matrix<_T> oSigma_H, oSigma_JE, oH_Inv, oDelta_X;
+	_T* Sigma_JE, fSum_e, Delta_Pose[4 * 4], fSum_e_Pre = (_T)1e20, E[2], Jt[2 * 9], J[9 * 2], JJt[9 * 9], * Delta_X;
+	unsigned char* pPoint_Adjust_Flag;
+
+	Init_Sparse_Matrix(&oSigma_H, iCamera_Count * 6 * 6 + iAdjust_Count * (6 * 3 * 2 + 3 * 3), w_Jt, w_Jt);
+	Init_Sparse_Matrix(&oH_Inv, oSigma_H.m_iMax_Item_Count * 10, w_Jt, w_Jt);
+	Init_Sparse_Matrix(&oSigma_JE, oSigma_H.m_iRow_Count, 1, oSigma_H.m_iRow_Count);
+	Init_Sparse_Matrix(&oDelta_X, oSigma_H.m_iRow_Count, 1, oSigma_H.m_iRow_Count);
+
+	Sigma_JE = (_T*)pMalloc(&oMatrix_Mem, w_Jt * sizeof(_T));
+	Delta_X = (_T*)pMalloc(&oMatrix_Mem, w_Jt * sizeof(_T));
+	pPoint_Adjust_Flag = (unsigned char*)pMalloc(&oMatrix_Mem, (iPoint_Count + 7) >> 3);
+
+	for (iIter = 0;; iIter++)
+	{
+		fSum_e = 0;
+		Reset_Sparse_Matrix(&oSigma_H);
+		Reset_Sparse_Matrix(&oH_Inv);
+		Reset_Sparse_Matrix(&oSigma_JE);
+		Init_All_Camera_Data(&oAll_Camera_Data, Point_Count_Each_Camera, iCamera_Count, iAdjust_Count);
+		memset(Sigma_JE, 0, w_Jt * sizeof(_T));
+		memset(pPoint_Adjust_Flag, 0, (iPoint_Count + 7) >> 3);
+
+		for (i = 0; i < iObservation_Count; i++)
+		{
+			oCur_Point = pPoint_2D[i];
+			_T* pCur_Point_3D = pPoint_3D[oCur_Point.m_iPoint_Index];
+			_T Point_3D_1[4], Point_4D[4] = { pCur_Point_3D[0], pCur_Point_3D[1], pCur_Point_3D[2], 1 };
+			_T* pCur_Camera = Camera[oCur_Point.m_iCamera_Index];
+			_T Temp[4];
+			_T focal = pCamera_Data[oCur_Point.m_iCamera_Index][6];
+			//此处存在z<0的情况，所以从 I 矩阵出发得不到最优解
+			if (Point_4D[2] == 0.0)
+				continue;
+			if (i >= iAdjust_Count)
+				continue;
+			Matrix_Multiply(pCur_Camera, 4, 4, Point_4D, 1, Point_3D_1);   //得TP
+
+			Temp[0] = -Point_3D_1[0] / Point_3D_1[2], Temp[1] = -Point_3D_1[1] / Point_3D_1[2];     //投影到归一化平面上
+			Temp[0] *= focal, Temp[1] *= focal;           //投影到成像平面上
+
+			E[0] = Temp[0] - oCur_Point.m_Pos[0];	//对应点i的数值差
+			E[1] = Temp[1] - oCur_Point.m_Pos[1];
+			fSum_e += E[0] * E[0] + E[1] * E[1];    //得到误差
+
+			//构造雅可比
+			union {
+				_T Jt_TP_Ksi[3 * 6];
+				_T Jt_E_Ksi[2 * 6];
+			};
+			memset(Jt, 0, 2 * 9 * sizeof(_T));
+			_T Jt_UV_P[2 * 3], Jt_UV_Porg[2 * 3];
+			Get_Drive_UV_P(focal, focal, Point_3D_1, Jt_UV_P);
+			Get_Deriv_TP_Ksi(pCur_Camera, Point_4D, Jt_TP_Ksi);
+			Matrix_Multiply(Jt_UV_P, 2, 3, Jt_TP_Ksi, 6, Jt_E_Ksi);
+			Copy_Matrix_Partial(Jt_E_Ksi, 2, 6, Jt, 9, 0, 0);
+			//还要求原来的Porg微弱扰动对uv的影响,
+			//uv = KTP => ∂uv/∂p = ∂uv/∂p' * ∂p'/∂p
+			if (i < iAdjust_Count)
+			{
+				Matrix_Multiply(Jt_UV_P, 2, 3, R[oCur_Point.m_iCamera_Index], 3, Jt_UV_Porg);
+				//为什么此处乘以-1反而误差更大？局部性？
+				Copy_Matrix_Partial(Jt_UV_Porg, 2, 3, Jt, 9, 6, 0);
+			}
+
+			//Disp(Jt, 2, 9, "Jt");
+			Matrix_Multiply(Jt, 2, 9, (_T)-1.f, Jt);
+			Matrix_Transpose(Jt, 2, 9, J);
+			Transpose_Multiply(J, 9, 2, JJt);
+
+			//将JJt 分陪到相关的矩阵分块中
+			Distribute_Data(oAll_Camera_Data, JJt, oCur_Point.m_iCamera_Index, oCur_Point.m_iPoint_Index);
+
+			_T JE[9];
+			Matrix_Multiply(J, 9, 2, E, 1, JE);             //JE
+			Vector_Add(&Sigma_JE[oCur_Point.m_iCamera_Index * 6], JE, 6, &Sigma_JE[oCur_Point.m_iCamera_Index * 6]);
+			Vector_Add(&Sigma_JE[iCamera_Count * 6 + oCur_Point.m_iPoint_Index * 3], &JE[6], 3, &Sigma_JE[iCamera_Count * 6 + oCur_Point.m_iPoint_Index * 3]);
+		}
+
+		////将Camera_Data抄到稀疏矩阵
+		Copy_Data_2_Sparse(oAll_Camera_Data, &oSigma_H);
+		Dense_2_Sparse(Sigma_JE, oSigma_H.m_iRow_Count, 1, &oSigma_JE);
+
+		//方法1，解方程
+		Add_I_Matrix(&oSigma_H);
+		Solve_Linear_Gause(oSigma_H, Sigma_JE, Delta_X, &iResult);
+
+		////方法2，求逆
+		//Get_Inv_Matrix_Row_Op(oSigma_H, &oH_Inv, &iResult);
+		//if (!iResult)
+		//{
+		//    Add_I_Matrix(&oSigma_H);
+		//    Get_Inv_Matrix_Row_Op(oSigma_H, &oH_Inv, &iResult);
+		//}
+		//Matrix_Multiply(oH_Inv, oSigma_JE, &oDelta_X);
+		//Sparse_2_Dense(oDelta_X, Delta_X);
+
+		Matrix_Multiply(Delta_X, 1, w_Jt, (_T)-1, Delta_X);
+		if (fSum_e_Pre <= fSum_e || !iResult)
+			break;
+
+		//每6个一组delta ksi
+		for (i = 0; i < iCamera_Count; i++)
+		{
+			se3_2_SE3(&Delta_X[6 * i], Delta_Pose);
+			Matrix_Multiply(Delta_Pose, 4, 4, Camera[i], 4, Camera[i]);
+		}
+
+		//然后轮到调整点的位置
+		for (i = 0; i < iAdjust_Count; i++)
+		{//
+			int iBit = bGet_Bit(pPoint_Adjust_Flag, pPoint_2D[i].m_iPoint_Index);
+			if (!iBit)
+			{
+				pPoint_3D[i][0] += Delta_X[iCamera_Count * 6 + pPoint_2D[i].m_iPoint_Index * 3 + 0];
+				pPoint_3D[i][1] += Delta_X[iCamera_Count * 6 + pPoint_2D[i].m_iPoint_Index * 3 + 1];
+				pPoint_3D[i][2] += Delta_X[iCamera_Count * 6 + pPoint_2D[i].m_iPoint_Index * 3 + 2];
+				Set_Bit(pPoint_Adjust_Flag, pPoint_2D[i].m_iPoint_Index);
+			}
+		}
+		fSum_e_Pre = fSum_e;
+		printf("iIter:%d %f\n", iIter, fSum_e);
+		Free(&oAll_Camera_Data);
+	}
+	printf("done\n");
+	return;
+}
 void BA_Test_2()
 {//尝试自建点云替代样本，检验位姿估计的有效性
 	typedef float _T;
@@ -2296,10 +2738,11 @@ void Sparse_Matrix_Test()
 	_T fSum_e, fSum_e_Pre = 1e10,
 		E[3];
 
-	_T Sigma_JEt[12], X[12];
+	_T/* Sigma_JEt[12],*/ X[12];
 	_T P_Temp[4]; //P1'
 	Sparse_Matrix<_T> oSigma_JEt, oSigma_H;
-	Sparse_Matrix<_T> oJ, oJt, oE, oJEt, oH, oH_Inv;
+	Sparse_Matrix<_T> oJ, oJt, oE, oJEt, oH, oH_Inv, oDelta_X;
+
 	int j, k, iIter;
 	Gen_I_Matrix(T12, 4, 4);
 	Gen_I_Matrix(T13, 4, 4);
@@ -2311,6 +2754,8 @@ void Sparse_Matrix_Test()
 	Init_Sparse_Matrix(&oJEt, 12 * 1, 1, 12);
 	Init_Sparse_Matrix(&oSigma_JEt, 12, 1, 12);
 	Init_Sparse_Matrix(&oH, 12 * 12, 12, 12);
+	Init_Sparse_Matrix(&oH_Inv, 12 * 12, 12, 12);
+	Init_Sparse_Matrix(&oDelta_X, 1 * 12, 1, 12);
 	Gen_I_Matrix(T12, 4, 4);
 	Gen_I_Matrix(T13, 4, 4);
 
@@ -2320,6 +2765,8 @@ void Sparse_Matrix_Test()
 		Get_Delta_Pose(T12, T13, T23);
 		Reset_Sparse_Matrix(&oSigma_H);
 		Reset_Sparse_Matrix(&oSigma_JEt);
+		Reset_Sparse_Matrix(&oH_Inv);
+		Reset_Sparse_Matrix(&oDelta_X);
 
 		for (i = 0; i < 100; i++)
 		{
@@ -2395,14 +2842,28 @@ void Sparse_Matrix_Test()
 			Matrix_Add(oSigma_H, oH, &oSigma_H);		//
 			Matrix_Add(oSigma_JEt, oJEt, &oSigma_JEt);
 		}
-
-		Sparse_2_Dense(oSigma_JEt, Sigma_JEt);
-		Solve_Linear_Gause(oSigma_H, Sigma_JEt, X, &iResult);
+		
+		////方法1，解方程
+		//Sparse_2_Dense(oSigma_JEt, Sigma_JEt);		
+		//Solve_Linear_Gause(oSigma_H, Sigma_JEt, X, &iResult);
+		//if (!iResult)
+		//{
+		//	Add_I_Matrix(&oSigma_H);
+		//	Solve_Linear_Gause(oSigma_H, Sigma_JEt, X, &iResult);
+		//}
+		
+		//方法2，Sigma_H求逆
+		//Disp(oSigma_H, "Sigma_H");
+		Get_Inv_Matrix_Row_Op(oSigma_H, &oH_Inv, &iResult);
+		//Disp(oH_Inv, "Inv");
 		if (!iResult)
 		{
 			Add_I_Matrix(&oSigma_H);
-			Solve_Linear_Gause(oSigma_H, Sigma_JEt, X, &iResult);
+			Get_Inv_Matrix_Row_Op(oSigma_H, &oH_Inv, &iResult);
 		}
+		Matrix_Multiply(oH_Inv, oSigma_JEt, &oDelta_X);
+		Sparse_2_Dense(oDelta_X, X);
+		
 		Matrix_Multiply(X, 1, 12, (_T)-1, X);
 		if ((fSum_e_Pre <= fSum_e && iIter > 0) || !iResult)
 			break;
@@ -2428,11 +2889,13 @@ void Sparse_Matrix_Test()
 
 	Free_Sparse_Matrix(&oSigma_JEt);
 	Free_Sparse_Matrix(&oH);
+	Free_Sparse_Matrix(&oH_Inv);
 	Free_Sparse_Matrix(&oSigma_H);
 	Free_Sparse_Matrix(&oJt);
 	Free_Sparse_Matrix(&oJ);
 	Free_Sparse_Matrix(&oE);
 	Free_Sparse_Matrix(&oJEt);
+	Free_Sparse_Matrix(&oDelta_X);
 	Disp_Mem(&oMatrix_Mem,0);
 	return;
 }
@@ -2440,10 +2903,15 @@ void Sparse_Matrix_Test()
 void Sphere_Test_2()
 {//4基站定位实验，高斯牛顿法寻找4个球的交点最优解
 	typedef float _T;
-	_T Sphere_Center[4][3] = { { 200,300,400 },
+	/*_T Sphere_Center[4][3] = { { 200,300,400 },
 								{ 300,400,410 } ,
 								{ 350,300,420 } ,
-								{ 200,400,430 } };
+								{ 200,400,430 } };*/
+								//4个无交集的球
+	_T Sphere_Center[4][3] = { { 200,300,400 },
+								{ 500,300,410 } ,
+								{ 550,600,420 } ,
+								{ 200,600,430 } };
 
 	_T d[4] = { 100,110,120,130 };	//可视为基站到物体距离
 	int i;
@@ -2528,8 +2996,8 @@ void Sphere_Test_2()
 		fSum_e_Pre = fSum_e;
 	}
 
-	//Disp(Pre_P, 1, 3, "Point");
-	Draw_Point(oImage, (int)Pre_P[0], (int)Pre_P[1], 2);
+	Disp(Pre_P, 1, 3, "Point");
+	Draw_Point(oImage, (int)Pre_P[0], (int)Pre_P[1]);
 	bSave_Image("c:\\tmp\\1.bmp", oImage);
 	Free_Image(&oImage);
 }
@@ -2642,11 +3110,189 @@ void Sphere_Test_1()
 	Free_Image(&oImage);
 	return;
 }
+void Sphere_Test_3()
+{//尝试用线性法解
+	typedef float _T;
+	////4个有交集的球
+	//_T Sphere_Center[4][3] = { { 200,300,400 },
+	//							{ 300,400,410 } ,
+	//							{ 350,300,420 } ,
+	//							{ 200,400,430 } };
+
+	//4个无交集的球
+	_T Sphere_Center[4][3] = { { 200,300,400 },
+								{ 500,300,410 } ,
+								{ 550,600,420 } ,
+								{ 200,600,430 } };
+
+	_T d[4] = { 100,110,120,130 };	//可视为基站到物体距离
+	int i, iResult;
+	Image oImage;
+	Init_Image(&oImage, 1000, 1000, Image::IMAGE_TYPE_BMP, 8);
+	Set_Color(oImage);
+	for (i = 0; i < 4; i++)
+		Draw_Arc(oImage, (int)d[i], (int)Sphere_Center[i][0], (int)Sphere_Center[i][1]);
+	//bSave_Image("c:\\tmp\\1.bmp", oImage);
+
+	_T A[3 * 3], B[3], X[3];
+	for (i = 0; i < 3; i++)
+	{
+		//(2a1 - 2ai)x + (2b1 - 2bi)y + (2c1 - 2ci)z
+		A[i * 3 + 0] = 2 * (Sphere_Center[0][0] - Sphere_Center[1 + i][0]);
+		A[i * 3 + 1] = 2 * (Sphere_Center[0][1] - Sphere_Center[1 + i][1]);
+		A[i * 3 + 2] = 2 * (Sphere_Center[0][2] - Sphere_Center[1 + i][2]);
+		//r2^2 - r1^2 + a1^2 - a2^2 + b1^2 - b2^2 + c1^2 - c2^2
+		B[i] = d[i] * d[i] - d[0] * d[0] +
+			Sphere_Center[0][0] * Sphere_Center[0][0] - Sphere_Center[1 + i][0] * Sphere_Center[1 + i][0] +
+			Sphere_Center[0][1] * Sphere_Center[0][1] - Sphere_Center[1 + i][1] * Sphere_Center[1 + i][1] +
+			Sphere_Center[0][2] * Sphere_Center[0][2] - Sphere_Center[1 + i][2] * Sphere_Center[1 + i][2];
+	}
+
+	//printf("%d\n", iGet_Rank(A, 3, 3));
+	//Solve_Linear_Gause(A, 3, B, X, &iResult);
+	Solve_Linear_Contradictory(A, 3, 3, B, X, &iResult);
+	Disp(X, 1, 3, "X");
+	Draw_Point(oImage, (int)X[0], (int)X[1]);
+	bSave_Image("c:\\tmp\\1.bmp", oImage);
+		
+	return;
+}
+void Schur_Test()
+{//做一个Schur消元实验，这个实验依然有缺陷，迭代的结果太粗糙，怀疑没有用到鲁棒和函数
+	typedef float _T;
+	//先把数据装入，还是用第九讲数据
+	int iCamera_Count, iPoint_Count, iObservation_Count, i, iIter, iResult;
+	float(*pPoint_3D)[3],
+		(*pCamera_Data)[3 * 3];    //只是个内参
+	Point_2D<_T>* pPoint_2D, oCur_Point;
+	_T Camera[16][4 * 4], Rotation_Vector[4], R[16][3 * 3];
+	Temp_Load_File_2(&iCamera_Count, &iPoint_Count, &iObservation_Count, &pPoint_2D, &pPoint_3D, &pCamera_Data);
+	const int iAdjust_Count = iObservation_Count;
+	Normalize(pPoint_3D, pPoint_2D, iPoint_Count, pCamera_Data, iCamera_Count);
+	for (i = 0; i < iCamera_Count; i++)
+	{
+		Rotation_Vector_3_2_4(pCamera_Data[i], Rotation_Vector);
+		Rotation_Vector_2_Matrix(Rotation_Vector, R[i]);
+		Gen_Homo_Matrix(R[i], &pCamera_Data[i][3], Camera[i]);
+	}
+	//分析点与相机之间的对应关系
+	int Point_Count_Each_Camera[16] = {}, w_Jt = 6 * iCamera_Count + iAdjust_Count * 3;   //Sigma_H矩阵的阶
+	_T* Sigma_JE, fSum_e, Delta_Pose[4 * 4], fSum_e_Pre = (_T)1e20,
+		E[2], Jt[2 * 9], J[9 * 2], JJt[9 * 9], Temp[4], * Delta_X;
+	unsigned char* pPoint_Adjust_Flag;
+	All_Camera_Data<_T> oAll_Camera_Data;
+	for (i = 0; i < iAdjust_Count; i++)
+		Point_Count_Each_Camera[pPoint_2D[i].m_iCamera_Index]++;
+
+	Sigma_JE = (_T*)pMalloc(&oMatrix_Mem, w_Jt * sizeof(_T));
+	pPoint_Adjust_Flag = (unsigned char*)pMalloc(&oMatrix_Mem, (iPoint_Count + 7) >> 3);
+	Delta_X = (_T*)pMalloc(&oMatrix_Mem, w_Jt * sizeof(_T));
+	//Disp_Mem(&oMatrix_Mem, 0);
+	for (iIter = 0;; iIter++)
+	{
+		fSum_e = 0;
+		Init_All_Camera_Data(&oAll_Camera_Data, Point_Count_Each_Camera, iCamera_Count, Min(iPoint_Count, iAdjust_Count));
+		memset(Sigma_JE, 0, w_Jt * sizeof(_T));
+		memset(pPoint_Adjust_Flag, 0, (iPoint_Count + 7) >> 3);
+		for (i = 0; i < iObservation_Count; i++)
+		{
+			oCur_Point = pPoint_2D[i];
+			_T* pCur_Point_3D = pPoint_3D[oCur_Point.m_iPoint_Index];
+			_T Point_3D_1[4], Point_4D[4] = { pCur_Point_3D[0], pCur_Point_3D[1], pCur_Point_3D[2], 1 };
+			_T* pCur_Camera = Camera[oCur_Point.m_iCamera_Index];
+			_T focal = pCamera_Data[oCur_Point.m_iCamera_Index][6];
+			//此处存在z<0的情况，所以从 I 矩阵出发得不到最优解
+			if (Point_4D[2] == 0.0)
+				continue;
+			if (i >= iAdjust_Count)
+				continue;
+			Matrix_Multiply(pCur_Camera, 4, 4, Point_4D, 1, Point_3D_1);   //得TP
+
+			Temp[0] = -Point_3D_1[0] / Point_3D_1[2], Temp[1] = -Point_3D_1[1] / Point_3D_1[2];     //投影到归一化平面上
+			Temp[0] *= focal, Temp[1] *= focal;           //投影到成像平面上的uv
+
+			E[0] = Temp[0] - oCur_Point.m_Pos[0];	//对应点i的数值差
+			E[1] = Temp[1] - oCur_Point.m_Pos[1];
+			fSum_e += E[0] * E[0] + E[1] * E[1];    //得到误差
+			//printf("Point:%d err:%f\n", oCur_Point.m_iPoint_Index, E[0] * E[0] + E[1] * E[1]);
+
+			//构造雅可比
+			union {
+				_T Jt_TP_Ksi[3 * 6];
+				_T Jt_E_Ksi[2 * 6];
+			};
+			memset(Jt, 0, 2 * 9 * sizeof(_T));
+			_T Jt_UV_P[2 * 3], Jt_UV_Porg[2 * 3];
+			Get_Drive_UV_P(focal, focal, Point_3D_1, Jt_UV_P);
+			Get_Deriv_TP_Ksi(pCur_Camera, Point_4D, Jt_TP_Ksi);
+			Matrix_Multiply(Jt_UV_P, 2, 3, Jt_TP_Ksi, 6, Jt_E_Ksi);
+			Copy_Matrix_Partial(Jt_E_Ksi, 2, 6, Jt, 9, 0, 0);
+
+			//还要求原来的Porg微弱扰动对uv的影响,
+			//uv = KTP => ∂uv/∂p = ∂uv/∂p' * ∂p'/∂p
+			if (i < iAdjust_Count)
+			{
+				Matrix_Multiply(Jt_UV_P, 2, 3, R[oCur_Point.m_iCamera_Index], 3, Jt_UV_Porg);
+				//为什么此处乘以-1反而误差更大？局部性？
+				Copy_Matrix_Partial(Jt_UV_Porg, 2, 3, Jt, 9, 6, 0);
+			}
+
+			//Disp(Jt, 2, 9, "Jt");
+			Matrix_Multiply(Jt, 2, 9, (_T)-1.f, Jt);
+			Matrix_Transpose(Jt, 2, 9, J);
+			Transpose_Multiply(J, 9, 2, JJt);
+
+			//将JJt 分陪到相关的矩阵分块中
+			Distribute_Data(oAll_Camera_Data, JJt, oCur_Point.m_iCamera_Index, oCur_Point.m_iPoint_Index);
+			_T JE[9];
+			Matrix_Multiply(J, 9, 2, E, 1, JE);             //JE
+			Vector_Add(&Sigma_JE[oCur_Point.m_iCamera_Index * 6], JE, 6, &Sigma_JE[oCur_Point.m_iCamera_Index * 6]);
+			Vector_Add(&Sigma_JE[iCamera_Count * 6 + oCur_Point.m_iPoint_Index * 3], &JE[6], 3, &Sigma_JE[iCamera_Count * 6 + oCur_Point.m_iPoint_Index * 3]);
+		}
+		//Disp(Sigma_JE, 1, w_Jt, "Sigma_JE");
+		if (fSum_e_Pre <= fSum_e)
+			break;
+
+		//出来以后数据全准备好了，可以schur消元了
+		Solve_Linear_Schur(oAll_Camera_Data, Sigma_JE, Delta_X, &iResult);
+
+		Free(&oAll_Camera_Data);
+		if (!iResult)
+			break;
+		//Disp_Mem(&oMatrix_Mem, 0);
+		Matrix_Multiply(Delta_X, 1, w_Jt, (_T)-1, Delta_X);
+
+		//每6个一组delta ksi
+		for (i = 0; i < iCamera_Count; i++)
+		{
+			se3_2_SE3(&Delta_X[6 * i], Delta_Pose);
+			Matrix_Multiply(Delta_Pose, 4, 4, Camera[i], 4, Camera[i]);
+		}
+
+		//然后轮到调整点的位置
+		for (i = 0; i < Min(iAdjust_Count, iPoint_Count); i++)
+		{//
+			int iBit = bGet_Bit(pPoint_Adjust_Flag, pPoint_2D[i].m_iPoint_Index);
+			if (!iBit)
+			{
+				pPoint_3D[i][0] += Delta_X[iCamera_Count * 6 + pPoint_2D[i].m_iPoint_Index * 3 + 0];
+				pPoint_3D[i][1] += Delta_X[iCamera_Count * 6 + pPoint_2D[i].m_iPoint_Index * 3 + 1];
+				pPoint_3D[i][2] += Delta_X[iCamera_Count * 6 + pPoint_2D[i].m_iPoint_Index * 3 + 2];
+				Set_Bit(pPoint_Adjust_Flag, pPoint_2D[i].m_iPoint_Index);
+			}
+		}
+		fSum_e_Pre = fSum_e;
+		printf("iIter:%d %f\n", iIter, fSum_e);
+	}
+	return;
+}
 
 void Test_Main()
 {
+	Schur_Test();				//Schur消元法解大样本例
 	//BA_Test_1();
-	//BA_Test_2();
+	//BA_Test_2();				//Ba方法求解PnP问题
+	//BA_Test_3_3();				//3000点BA后端
 	//Transform_Example_2D();	//二维下的旋转，位移变换
 
 	//Sparse_Matrix_Test();	//稀疏矩阵实验，等于ICP_Test_4
@@ -2677,4 +3323,5 @@ void Test_Main()
 
 	//Sphere_Test_1();	//4基站定位实验，二维方法
 	//Sphere_Test_2();	//4基站定位实验，三维方法
+	//Sphere_Test_3();	//4基站定位实验，三维方法解线性方程法
 }

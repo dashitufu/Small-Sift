@@ -30,6 +30,13 @@ using namespace std;
 {\
 	(pBuffer)[(iBit_Pos) >> 3] |= (1 << ((iBit_Pos) & 0x7)); \
 }
+
+template<typename _T> struct Point_2D {
+	unsigned int m_iCamera_Index;
+	unsigned int m_iPoint_Index;
+	_T m_Pos[2];
+};
+
 //void Set_Bit(unsigned char* pBuffer, int iBit_Pos)
 //{	pBuffer[iBit_Pos >> 3] |= (1 << (iBit_Pos & 0x7)); }
 
@@ -75,10 +82,14 @@ void Temp_Load_Match_Point(_T(**ppPoint_1)[2], _T(**ppPoint_2)[2], int* piCount)
 	*piCount = iCount;
 }
 //解决两组基本数据类型的第n大与及快速排序，待优化
-template<typename _T> _T oGet_Nth_Elem(_T Seq[], int iCount, int iStart, int iEnd, int iNth);
+template<typename _T> _T oGet_Nth_Elem(_T Seq[], int iCount, int iNth);
 template<typename _T> void Quick_Sort(_T Seq[], int iStart, int iEnd);
 template<typename _T>int bSave_PLY(const char* pcFile, _T Point[][3], int iPoint_Count,unsigned char Color[][3]=NULL, int bText=1);
 
 //Temp code 
 template<typename _T>void Temp_Load_File(const char* pcFile, _T(**ppPoint_3D_1)[3], _T(**ppPoint_3D_2)[3], int* piCount);
 template<typename _T>void Temp_Load_File_1(const char* pcFile, _T(**ppPoint_3D_1)[3], _T(**ppPoint_3D_2)[3], int* piCount);
+template<typename _T>void Temp_Load_File_2(int* piCameta_Count, int* piPoint_Count, int* piObservation_Count,
+	Point_2D<_T>** ppPoint_2D, float(**ppPoint_3D)[3], float(**ppCamera)[3 * 3]);
+//以下函数也没啥用，第九讲用
+template<typename _T>void Normalize(_T Point_3D[][3], Point_2D<_T> Point_2D[], int iPoint_Count, _T Camera[][9], int iCamera_Count);

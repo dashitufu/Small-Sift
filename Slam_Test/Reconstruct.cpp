@@ -1078,6 +1078,27 @@ template<typename _T>void Decompose_E(_T E[3 * 3], _T R1[3 * 3], _T R2[3 * 3], _
 
 void SB_Reconstruct()
 {//这就是个傻逼方法，用来欺骗template
+	Solve_Linear_Schur(All_Camera_Data<double>{}, (double*)NULL, (double*)NULL);
+	Solve_Linear_Schur(All_Camera_Data<float>{}, (float*)NULL, (float*)NULL);
+
+	Free((All_Camera_Data<double>*)NULL);
+	Free((All_Camera_Data<float>*)NULL);
+
+	Copy_Data_2_Sparse(All_Camera_Data<double>{}, (Sparse_Matrix<double>*)NULL);
+	Copy_Data_2_Sparse(All_Camera_Data<float>{}, (Sparse_Matrix<float>*)NULL);
+
+	Init_All_Camera_Data((All_Camera_Data<double>*)NULL, NULL, 0, 0);
+	Init_All_Camera_Data((All_Camera_Data<float>*)NULL, NULL, 0, 0);
+
+	Distribute_Data(All_Camera_Data<double>{}, (double*)NULL, 0, 0);
+	Distribute_Data(All_Camera_Data<float>{}, (float*)NULL, 0, 0);
+
+	Get_Drive_UV_P((double*)NULL, (double*)NULL, (double*)NULL);
+	Get_Drive_UV_P((float*)NULL, (float*)NULL, (float*)NULL);
+
+	Get_Drive_UV_P((double)0.f, (double)0.f, (double*)NULL,(double*)NULL);
+	Get_Drive_UV_P((float)0.f, (float)0.f, (float*)NULL, (float*)NULL);
+
 	Get_Delta_Pose((double*)NULL, (double*)NULL, (double*)NULL);
 	Get_Delta_Pose((float*)NULL, (float*)NULL, (float*)NULL);
 
@@ -1484,7 +1505,7 @@ template<typename _T> void Calculate_Triangulation_Angles(_T R[3 * 3], _T t[3], 
 
 	//Quick_Sort(pAngle, 0, iCount - 1);
 	//Disp(pAngle, iCount, 1, "Angle");
-	_T fMid = oGet_Nth_Elem(pAngle, iCount, 0, iCount - 1, iCount / 2);
+	_T fMid = oGet_Nth_Elem(pAngle, iCount,iCount / 2);
 	if (iConfig == Two_View_Geometry::PLANAR_OR_PANORAMIC)
 	{
 		printf("Not implemented\n");
@@ -1720,6 +1741,22 @@ template<typename _T>void Bundle_Adjust_3D2D_1(_T Point_3D_Source_1[][3], _T Poi
 //		memcpy(Pose, Pose_Pre, 4 * 4 * sizeof(_T));
 //}
 
+template<typename _T>void Get_Drive_UV_P(_T K[3 * 3], _T P[3], _T J[2 * 3])
+{//空间某一点的扰动对uv的变化。 uv二维，P为3维，最终的梯度维2x3矩阵
+	_T fZ_Sqr = P[2] * P[2];
+	J[0] = K[0 * 3 + 0] / P[2], J[2] = -K[0 * 3 + 0] * P[0] / fZ_Sqr;
+	J[1*3+0] = K[1 * 3 + 1] / P[2], J[1*3+2] = -K[1 * 3 + 1] * P[1] / fZ_Sqr;
+	J[1] = J[1 * 3 + 0] = 0;
+}
+
+template<typename _T>void Get_Drive_UV_P(_T fx, _T fy, _T P[3], _T J[2 * 3])
+{//空间某一点的扰动对uv的变化。 uv二维，P为3维，最终的梯度维2x3矩阵
+	_T fZ_Sqr = P[2] * P[2];
+	J[0] = fx / P[2], J[2] = -fx * P[0] / fZ_Sqr;
+	J[1 * 3 + 1] = fy / P[2], J[1 * 3 + 2] = -fy*P[1] / fZ_Sqr;
+	J[1] = J[1 * 3 + 0] = 0;
+}
+
 template<typename _T>void Get_Deriv_TP_Ksi(_T T[4 * 4], _T P[3], _T Deriv[4 * 6])
 {//有必要把扰动模型也做出来。其实就是∂TP/∂ξ。给定一点P及其变换T。给T一点扰动，看变化率。
 //此时，ξ就是6维向量变量，但是隐含了。TP为4维齐次坐标。所以，目标为4x6矩阵
@@ -1740,7 +1777,8 @@ template<typename _T>void Get_Deriv_TP_Ksi(_T T[4 * 4], _T P[3], _T Deriv[4 * 6]
 	Deriv[1 * 6 + 3] = -P1_M[3]; Deriv[1 * 6 + 4] = -P1_M[4]; Deriv[1 * 6 + 5] = -P1_M[5];
 	Deriv[2 * 6 + 3] = -P1_M[6]; Deriv[2 * 6 + 4] = -P1_M[7]; Deriv[2 * 6 + 5] = -P1_M[8];
 
-	memset(&Deriv[3 * 6], 0, 6 * sizeof(_T));
+	//以下只具有理论意义，一般用不上，所以注掉
+	//memset(&Deriv[3 * 6], 0, 6 * sizeof(_T));
 	return;
 }
 template<typename _T>void ICP_BA_2_Image_1(_T P1[][3], _T P2[][3], int iCount, _T Pose[],int *piResult)
@@ -2100,5 +2138,452 @@ template<typename _T>void Get_Delta_Pose(_T Pose_1[4 * 4], _T Pose_2[4 * 4], _T 
 	//if (fGet_Distance(R, R1, 9) > 0.0001f)
 	//    printf("err");
 
+	return;
+}
+template<typename _T>void Init_All_Camera_Data(All_Camera_Data<_T>* poData, int Point_Count_Each_Camera[], int iCamera_Count, int iPoint_Count)
+{
+	poData->m_iCamera_Count = iCamera_Count;
+	poData->m_iPoint_Count = iPoint_Count;
+	unsigned char* pBuffer, * pStart;
+	int i, iObservation_Count = 0, iSize;
+	for (i = 0; i < iCamera_Count; i++)
+		iObservation_Count += Point_Count_Each_Camera[i];
+	iSize = iCamera_Count * sizeof(All_Camera_Data<_T>::One_Camera_Data) +
+		iPoint_Count * 9 * sizeof(_T) +
+		iObservation_Count * sizeof(All_Camera_Data<_T>::One_Camera_Data::Point_Data);
+	pBuffer = pStart = poData->m_pBuffer = (unsigned char*)pMalloc(&oMatrix_Mem, iSize);
+	memset(pBuffer, 0, iSize);
+	pBuffer += iCamera_Count * sizeof(All_Camera_Data<_T>::One_Camera_Data);
+	poData->m_pData_3x3 = (_T(*)[9])pBuffer;
+	pBuffer += iPoint_Count * 9 * sizeof(_T);
+	typename All_Camera_Data<_T>::One_Camera_Data* poCamera;
+	for (i = 0; i < iCamera_Count; i++)
+	{
+		poCamera = &poData->m_pCamera_Data[i];
+		poCamera->m_iPoint_Count = Point_Count_Each_Camera[i];
+		poCamera->m_pPoint_Data = (typename All_Camera_Data<_T>::One_Camera_Data::Point_Data*)pBuffer;
+		pBuffer += Point_Count_Each_Camera[i] * sizeof(All_Camera_Data<_T>::One_Camera_Data::Point_Data);
+	}
+	poData->m_iObservation_Count = iObservation_Count;
+	return;
+}
+template<typename _T>void Distribute_Data(All_Camera_Data<_T> oData, _T JJt[9 * 9], int iCamera_ID, int iPoint_ID)
+{//将JJt 6x6部分累加，其余部分设值
+	typename All_Camera_Data<_T>::One_Camera_Data* poCamera_Data = &oData.m_pCamera_Data[iCamera_ID];
+	_T* pData_6x6 = poCamera_Data->m_Data_6x6;
+	_T* pCur, * pCur_End = JJt + 6 * 9;
+	int iCur;
+	if (poCamera_Data->m_iCur >= poCamera_Data->m_iPoint_Count)
+	{
+		printf("exceed the point count of camera in Distribute_Data\n");
+		return;
+	}
+	for (pCur = JJt, iCur = 0; pCur < pCur_End; pCur += 9)
+		for (int x = 0; x < 6; x++, iCur++)
+			pData_6x6[iCur] += pCur[x];
+
+	//第二部分
+	typename All_Camera_Data<_T>::One_Camera_Data::Point_Data* poPoint_Data = &poCamera_Data->m_pPoint_Data[poCamera_Data->m_iCur++];
+	poPoint_Data->m_iPoint_Index = iPoint_ID;
+	_T* pData_6x3 = poPoint_Data->m_Data_6x3;
+	for (pCur = JJt + 6, iCur = 0; pCur < pCur_End; pCur += 9)
+		for (int x = 0; x < 3; x++, iCur++)
+			pData_6x3[iCur] = pCur[x];
+
+	_T* pData_3x3 = oData.m_pData_3x3[iPoint_ID];
+	pCur_End = JJt + 9 * 9;
+	for (pCur = JJt + 6 * 9 + 6, iCur = 0; pCur < pCur_End; pCur += 9)
+		for (int x = 0; x < 3; x++, iCur++)
+			pData_3x3[iCur] += pCur[x];
+	return;
+}
+template<typename _T>void Copy_Data_2_Sparse(All_Camera_Data<_T> oData, Sparse_Matrix<_T>* poA)
+{//将All_Camera_Data抄到稀疏矩阵中
+	int i, j, k, * pPoint_Index_2_Pos = (int*)pMalloc(&oMatrix_Mem, oData.m_iPoint_Count * sizeof(int));    //已知一个点索引，求其位置索引
+	if (!pPoint_Index_2_Pos)
+	{
+		printf("Fail to allocate mem in Copy_Data_2_Sparse\n");
+		return;
+	}
+	Sparse_Matrix<_T> oA = *poA;
+	for (i = 0; i < oData.m_iCamera_Count; i++)
+	{
+		memset(pPoint_Index_2_Pos, -1, oData.m_iPoint_Count * sizeof(int));
+		typename All_Camera_Data<_T>::One_Camera_Data* poCamera_Data = &oData.m_pCamera_Data[i];
+		typename All_Camera_Data<_T>::One_Camera_Data::Point_Data* poPoint_Data;
+		if (!poCamera_Data->m_iCur)
+			continue;
+		//做一个Revers Lookup 表,对Point进行排序，不用Quick Sort
+		for (j = 0; j < poCamera_Data->m_iCur; j++)
+		{
+			poPoint_Data = &poCamera_Data->m_pPoint_Data[j];
+			pPoint_Index_2_Pos[poPoint_Data->m_iPoint_Index] = j;
+		}
+		//往前挤
+		for (j = k = 0; j < oData.m_iPoint_Count; j++)
+		{
+			if (pPoint_Index_2_Pos[j] >= 0)
+				pPoint_Index_2_Pos[k++] = pPoint_Index_2_Pos[j];
+		}
+
+		int iCur_Camera_y = i * 6, iCur_Camera_x = iCur_Camera_y;
+		for (j = 0; j < 6; j++, iCur_Camera_y++)
+		{//逐行搞
+			_T* pData = &poCamera_Data->m_Data_6x6[j * 6];
+			int iPre_Item = oA.m_iCur_Item;
+
+			//相机中的一行
+			for (int i = 0; i < 6; i++)
+				if (pData[i] != 0)
+					oA.m_pBuffer[oA.m_iCur_Item++] = { (unsigned int)iCur_Camera_x + i,(unsigned int)iCur_Camera_y,pData[i],oA.m_iCur_Item + 1 };
+
+			for (k = 0; k < poCamera_Data->m_iCur; k++)
+			{
+				poPoint_Data = &poCamera_Data->m_pPoint_Data[pPoint_Index_2_Pos[k]];
+				int iPoint_Start_x = oData.m_iCamera_Count * 6 + poPoint_Data->m_iPoint_Index * 3;
+				pData = &poCamera_Data->m_pPoint_Data[pPoint_Index_2_Pos[k]].m_Data_6x3[j * 3];
+				if (oA.m_iCur_Item + 3 >= oA.m_iMax_Item_Count)
+				{
+					printf("Insufficient space in Coyy_Data_2_Sparse\n");
+					return;
+				}
+				for (int i = 0; i < 3; i++)
+					if (pData[i] != 0)
+						oA.m_pBuffer[oA.m_iCur_Item++] = { (unsigned int)iPoint_Start_x + i,(unsigned int)iCur_Camera_y,pData[i],oA.m_iCur_Item + 1 };
+			}
+			if (oA.m_iCur_Item > iPre_Item) //防止全0情况
+			{
+				oA.m_pRow[iCur_Camera_y] = iPre_Item;
+				oA.m_pBuffer[oA.m_iCur_Item - 1].m_iRow_Next = 0;
+			}
+		}
+	}
+	Build_Link_Col(oA);
+	//Disp_Fillness(oA);
+	//然后按照对称性把点数据从列方向抄到行方向
+	int iCamera_End_x = oData.m_iCamera_Count * 6;
+	for (i = 0; i < oData.m_iPoint_Count; i++)
+	{//最外围以点推进
+		int iPoint_Start_x = iCamera_End_x + i * 3;
+		int iPoint_Start_y = iPoint_Start_x;
+		for (j = 0; j < 3; j++)
+		{
+			int iPre_Item = oA.m_iCur_Item;
+			if (oA.m_pCol[iPoint_Start_x + j])
+			{//有东西
+				typename Sparse_Matrix<_T>::Item* poItem = &oA.m_pBuffer[oA.m_pCol[iPoint_Start_x + j]];
+				while (1)
+				{
+					if (poItem->y >= (unsigned int)iPoint_Start_y)
+						break;
+					if (poItem->m_fValue != 0)
+						oA.m_pBuffer[oA.m_iCur_Item++] = { poItem->y,poItem->x,poItem->m_fValue,oA.m_iCur_Item + 1 };
+					if (poItem->m_iCol_Next)
+						poItem = &oA.m_pBuffer[poItem->m_iCol_Next];
+					else
+						break;
+				}
+			}
+			_T* pData = &oData.m_pData_3x3[i][j * 3];
+			for (int i = 0; i < 3; i++)
+				if (pData[i] != 0)
+					oA.m_pBuffer[oA.m_iCur_Item++] = { (unsigned int)iPoint_Start_x + i,(unsigned int)iPoint_Start_y + j,pData[i],oA.m_iCur_Item + 1 };
+			
+			if (iPre_Item != oA.m_iCur_Item)
+			{
+				oA.m_pRow[iPoint_Start_y + j] = iPre_Item;
+				oA.m_pBuffer[oA.m_iCur_Item - 1].m_iRow_Next = 0;
+			}
+		}
+	}
+	Build_Link_Col(oA);
+	//Disp_Fillness(oA);
+	Free(&oMatrix_Mem, pPoint_Index_2_Pos);
+	*poA = oA;
+	return;
+}
+template<typename _T>void Free(All_Camera_Data<_T>* poData)
+{
+	if (poData && poData->m_pBuffer)
+		Free(&oMatrix_Mem, poData->m_pBuffer);
+	return;
+}
+template<typename _T>void Add_I_Matrix(All_Camera_Data<_T> oData, _T fRamda = 1.f)
+{//列文-马夸方法需要对角线上加上fRamda
+	int i;
+	union {
+		_T* pData_6x6;
+		_T* pData_3x3;
+	};
+	//先搞Camera_Data
+	for (i = 0; i < oData.m_iCamera_Count; i++)
+	{
+		pData_6x6 = oData.m_pCamera_Data[i].m_Data_6x6;
+		pData_6x6[0] += fRamda, pData_6x6[1 * 6 + 1] += fRamda;
+		pData_6x6[2 * 6 + 2] += fRamda, pData_6x6[3 * 6 + 3] += fRamda;
+		pData_6x6[4 * 6 + 4] += fRamda, pData_6x6[5 * 6 + 5] += fRamda;
+	}
+	//再搞3x3 Data 
+	for (i = 0; i < oData.m_iPoint_Count; i++)
+	{
+		pData_3x3 = oData.m_pData_3x3[i];
+		pData_3x3[0] += fRamda, pData_3x3[4] += fRamda, pData_3x3[8] += fRamda;
+	}
+}
+template<typename _T>void Schur_Get_C_Inv(All_Camera_Data<_T> oData)
+{//对3x3块分别求逆，直接填回到3x3位置上了事，后面这些数据全不要了
+	int i, iResult;
+	for (i = 0; i < oData.m_iPoint_Count; i++)  //此处不用列主元法快很多，所以要对比精度
+		Get_Inv_Matrix_Row_Op_2(oData.m_pData_3x3[i], oData.m_pData_3x3[i], 3, &iResult);
+}
+template<typename _T>void Schur_Gen_B_E_Cinv(All_Camera_Data<_T> oData, Sparse_Matrix<_T>* poB, Sparse_Matrix<_T>* poC_Inv, Sparse_Matrix<_T>* poE)
+{
+	int i, j, k, w_B = oData.m_iCamera_Count * 6,
+		w_C = oData.m_iPoint_Count * 3;
+	Sparse_Matrix<_T> oB, oC_Inv, oE;
+	Init_Sparse_Matrix(&oB, oData.m_iCamera_Count * 6 * 6 + 2, w_B, w_B);
+	Init_Sparse_Matrix(&oC_Inv, oData.m_iPoint_Count * 3 * 3 + 2, w_C, w_C);
+	Init_Sparse_Matrix(&oE, oData.m_iObservation_Count * 6 * 3 + 2, w_C, w_B);
+
+	int* pPoint_Index_2_Pos = (int*)pMalloc(&oMatrix_Mem, oData.m_iPoint_Count * sizeof(int));    //已知一个点索引，求其位置索引
+
+	//生成oB, oE
+	for (i = 0; i < oData.m_iCamera_Count; i++)
+	{
+		typename All_Camera_Data<_T>::One_Camera_Data* poCamera_Data = &oData.m_pCamera_Data[i];
+		typename All_Camera_Data<_T>::One_Camera_Data::Point_Data* poPoint_Data;
+		//if (!poCamera_Data->m_iCur)
+		  //  continue;
+		if (poCamera_Data->m_iCur)
+		{
+			memset(pPoint_Index_2_Pos, -1, oData.m_iPoint_Count * sizeof(int));
+			//做一个Revers Lookup 表,对Point进行排序，不用Quick Sort
+			for (j = 0; j < poCamera_Data->m_iCur; j++)
+			{
+				poPoint_Data = &poCamera_Data->m_pPoint_Data[j];
+				pPoint_Index_2_Pos[poPoint_Data->m_iPoint_Index] = j;
+			}
+			//往前挤
+			for (j = k = 0; j < oData.m_iPoint_Count; j++)
+			{
+				if (pPoint_Index_2_Pos[j] >= 0)
+					pPoint_Index_2_Pos[k++] = pPoint_Index_2_Pos[j];
+			}
+		}
+		int iCur_Camera_y = i * 6, iCur_Camera_x = iCur_Camera_y;
+		for (j = 0; j < 6; j++, iCur_Camera_y++)
+		{//逐行搞
+			_T* pData = &poCamera_Data->m_Data_6x6[j * 6];
+			int iPre_Item = oB.m_iCur_Item;
+
+			if (oB.m_iCur_Item + 3 >= oB.m_iMax_Item_Count)
+			{
+				printf("Insufficient space in Coyy_Data_2_Sparse\n");
+				return;
+			}
+			//相机中的一行
+			for (int i = 0; i < 6; i++)
+				if (pData[i] != 0)
+					oB.m_pBuffer[oB.m_iCur_Item++] = { (unsigned int)iCur_Camera_x + i,(unsigned int)iCur_Camera_y,pData[i],oB.m_iCur_Item + 1 };
+			if (oB.m_iCur_Item > iPre_Item) //防止全0情况
+			{
+				oB.m_pRow[iCur_Camera_y] = iPre_Item;
+				oB.m_pBuffer[oB.m_iCur_Item - 1].m_iRow_Next = 0;
+			}
+
+			if (poCamera_Data->m_iCur)
+			{
+				iPre_Item = oE.m_iCur_Item;
+				for (k = 0; k < poCamera_Data->m_iCur; k++)
+				{
+					poPoint_Data = &poCamera_Data->m_pPoint_Data[pPoint_Index_2_Pos[k]];
+					int iPoint_Start_x = poPoint_Data->m_iPoint_Index * 3;
+					pData = &poCamera_Data->m_pPoint_Data[pPoint_Index_2_Pos[k]].m_Data_6x3[j * 3];
+					if (oE.m_iCur_Item + 3 >= oE.m_iMax_Item_Count)
+					{
+						printf("Insufficient space in Coyy_Data_2_Sparse\n");
+						return;
+					}
+					/*if (oE.m_iCur_Item + 3 >= 47526)
+						printf("here");*/
+					for (int i = 0; i < 3; i++)
+						if (pData[i] != 0)
+							oE.m_pBuffer[oE.m_iCur_Item++] = { (unsigned int)iPoint_Start_x + i,(unsigned int)iCur_Camera_y,pData[i],oE.m_iCur_Item + 1 };
+				}
+				if (oE.m_iCur_Item > iPre_Item) //防止全0情况
+				{
+					oE.m_pRow[iCur_Camera_y] = iPre_Item;
+					oE.m_pBuffer[oE.m_iCur_Item - 1].m_iRow_Next = 0;
+				}
+			}
+		}
+	}
+	Build_Link_Col(oB);
+	Build_Link_Col(oE);
+
+	//Disp_Fillness(oB);
+	//生成oC_Inv
+	for (i = 0; i < oData.m_iPoint_Count; i++)
+	{//逐个空间点搞
+		_T* pData = oData.m_pData_3x3[i];
+		int y = i * 3;
+		int x = y;
+		for (j = 0; j < 3; j++, pData += 3, y++)
+		{//逐行
+			oC_Inv.m_pRow[i * 3 + j] = oC_Inv.m_iCur_Item;
+			int iPre_Item = oC_Inv.m_iCur_Item;
+			for (k = 0; k < 3; k++)
+			{//逐个行元素元素
+				if (pData[k] != 0)
+					oC_Inv.m_pBuffer[oC_Inv.m_iCur_Item++] = { (unsigned int)x + k,(unsigned int)y,pData[k],oC_Inv.m_iCur_Item + 1 };
+			}
+			if (iPre_Item != oC_Inv.m_iCur_Item)
+			{
+				oC_Inv.m_pRow[y] = iPre_Item;
+				oC_Inv.m_pBuffer[oC_Inv.m_iCur_Item - 1].m_iRow_Next = 0;
+			}
+		}
+	}
+	Build_Link_Col(oC_Inv);
+
+	//Disp_Fillness(oC_Inv);
+	if (pPoint_Index_2_Pos)
+		Free(&oMatrix_Mem, pPoint_Index_2_Pos);
+	Compact_Sparse_Matrix(&oB);
+	Compact_Sparse_Matrix(&oC_Inv);
+	Compact_Sparse_Matrix(&oE);
+	*poB = oB;
+	*poC_Inv = oC_Inv;
+	*poE = oE;
+	return;
+}
+template<typename _T>void Schur_Get_E_Cinv(All_Camera_Data<_T> oData, Sparse_Matrix<_T>* poE_Cinv)
+{//尝试直接在此E * C(-1)
+	int i, j, w = oData.m_iPoint_Count * 3, h = oData.m_iCamera_Count * 6;
+	typename All_Camera_Data<_T>::One_Camera_Data oCamera;
+	typename  All_Camera_Data<_T>::One_Camera_Data::Point_Data oPoint;
+	Sparse_Matrix<_T> oE_Cinv = *poE_Cinv;
+
+	_T A[6 * 3], * E_Cinv;
+	if (oE_Cinv.m_iMax_Item_Count)
+		Reset_Sparse_Matrix(&oE_Cinv);
+	else
+		Init_Sparse_Matrix(&oE_Cinv, w * h, w, h);
+	E_Cinv = (_T*)pMalloc(&oMatrix_Mem, w * h * sizeof(_T));
+	memset(E_Cinv, 0, w * h * sizeof(_T));
+	for (i = 0; i < oData.m_iCamera_Count; i++)
+	{
+		oCamera = oData.m_pCamera_Data[i];
+		for (j = 0; j < oCamera.m_iPoint_Count; j++)
+		{
+			oPoint = oCamera.m_pPoint_Data[j];
+			Matrix_Multiply(oPoint.m_Data_6x3, 6, 3, oData.m_pData_3x3[oPoint.m_iPoint_Index], 3, A);
+			//Disp_Fillness(E_Cinv, h, w);
+			Copy_Matrix_Partial(A, 6, 3, E_Cinv, w, oPoint.m_iPoint_Index * 3, i * 6);
+		}
+	}
+	//Disp_Fillness(E_Cinv, h, w);
+	Dense_2_Sparse(E_Cinv, h, w, &oE_Cinv);
+	Free(&oMatrix_Mem, E_Cinv);
+	*poE_Cinv = oE_Cinv;
+	return;
+}
+template<typename _T>void Schur_Get_Xc(All_Camera_Data<_T> oData, Sparse_Matrix<_T>oEt_Delta_Xc, _T Xp[])
+{//计算Matrix_Multiply(oC_Inv, oEt_Delta_Xc, &oXp);    //C(-1)*(w-Et* Delta Xc)
+	_T* Et_Delta_Xc = (_T*)pMalloc(&oMatrix_Mem, oEt_Delta_Xc.m_iRow_Count * sizeof(_T));
+	Sparse_2_Dense(oEt_Delta_Xc, Et_Delta_Xc);
+	int i;
+	_T* pData_3x3;
+	for (i = 0; i < oData.m_iPoint_Count; i++)
+	{
+		pData_3x3 = oData.m_pData_3x3[i];
+		Matrix_Multiply(pData_3x3, 3, 3, &Et_Delta_Xc[i * 3], 1, &Xp[i * 3]);
+	}
+	Free(&oMatrix_Mem, Et_Delta_Xc);
+	return;
+}
+template<typename _T>void Solve_Linear_Schur(All_Camera_Data<_T> oData, _T Sigma_JE[], _T X[], int* pbSuccess)
+{//用All_Camera_Data表示Slam数据，解出来以后放在X里
+	//此处可能要多一步，用列文-马夸的方式，Add_I_Matrix
+	Add_I_Matrix(oData);
+	//unsigned long long tStart = iGet_Tick_Count();
+	Schur_Get_C_Inv(oData);
+	//Disp_Mem(&oMatrix_Mem, 0);
+	//printf("%lld\n", iGet_Tick_Count() - tStart);
+	//矩阵A高度稀疏，可分为4部分 A =    B   E
+	//                                  E'  C
+	//分离出4个稀疏矩阵
+	int iResult, w_Xc = oData.m_iCamera_Count * 6,
+		w_Xp = oData.m_iPoint_Count * 3;
+	Sparse_Matrix<_T> oB, oC_Inv, oE, oEt;
+	Schur_Gen_B_E_Cinv(oData, &oB, &oC_Inv, &oE);
+
+	//下面就是经典Schur的一顿计算
+	//算出EC(-1)
+	Sparse_Matrix<_T> oE_Cinv, ov_E_Cinv_w, ov, ow, oXc, oXp;
+	Schur_Get_E_Cinv(oData, &oE_Cinv);
+	//Disp(oE_Cinv, "oE_Cinv");
+	//Matrix_Multiply(oE, oC_Inv, &oE_Cinv);
+	//Disp(oE_Cinv, "oE_Cinv");
+
+	Init_Sparse_Matrix(&ov, w_Xc + 1, 1, w_Xc);
+	Dense_2_Sparse(Sigma_JE, w_Xc, 1, &ov);
+
+	Init_Sparse_Matrix(&ow, w_Xp + 1, 1, w_Xp);
+	Dense_2_Sparse(Sigma_JE + w_Xc, w_Xp, 1, &ow);
+
+	//EC(-1)w
+	Matrix_Multiply(oE_Cinv, ow, &ov_E_Cinv_w); //EC(-1)w
+	Matrix_Multiply(ov_E_Cinv_w, (_T)- 1.f);
+	Matrix_Add(ov, ov_E_Cinv_w, &ov_E_Cinv_w);  //v-EC(-1)w
+	//Disp(ov_E_Cinv_w);
+	//Free_Sparse_Matrix(&ow);
+
+	//再算B-EC(-1)*E'
+	Sparse_Matrix<_T> oB_E_Cinv_Et, oEt_Delta_Xc;
+	_T* v_E_Cinv_w;
+	Init_Sparse_Matrix(&oEt, oE.m_iCur_Item, oE.m_iRow_Count, oE.m_iCol_Count);
+	Matrix_Transpose_1(oE, &oEt);
+	//Disp_Fillness(oEt);
+	//此处也要优化
+	Matrix_Multiply(oE_Cinv, oEt, &oB_E_Cinv_Et);    //E*C(-1)*E'
+	Free_Sparse_Matrix(&oE_Cinv);
+	Matrix_Multiply(oB_E_Cinv_Et, (_T)-1.f);
+	Matrix_Add(oB, oB_E_Cinv_Et, &oB_E_Cinv_Et);//B-EC(-1)*E'
+	Free_Sparse_Matrix(&oE);
+	v_E_Cinv_w = (_T*)pMalloc(&oMatrix_Mem, ov_E_Cinv_w.m_iRow_Count * sizeof(_T));
+	Sparse_2_Dense(ov_E_Cinv_w, v_E_Cinv_w);
+	//Disp(v_E_Cinv_w, 1, oData.m_iCamera_Count * 6);
+	//Disp(oB_E_Cinv_Et);
+	Solve_Linear_Gause_1(oB_E_Cinv_Et, v_E_Cinv_w, X, &iResult);
+	//此处的稀疏性放映了两个相机之间的关系。如果两相机交点处不为0，则表示有共同观察
+	//Disp_Fillness(oB_E_Cinv_Et);
+	Free_Sparse_Matrix(&oB_E_Cinv_Et);
+	Free_Sparse_Matrix(&ov_E_Cinv_w);
+	Free(&oMatrix_Mem, v_E_Cinv_w);
+	Free_Sparse_Matrix(&oB);
+	//Disp(X,1, ov_E_Cinv_w.m_iRow_Count);
+
+	//最后求Delta_Xp
+	Init_Sparse_Matrix(&oXc, ov.m_iRow_Count, 1, w_Xc);
+	Dense_2_Sparse(X, w_Xc, 1, &oXc);
+	Matrix_Multiply(oEt, oXc, &oEt_Delta_Xc, 0);
+	Free_Sparse_Matrix(&oEt);
+	Free_Sparse_Matrix(&oXc);
+	Matrix_Minus(ow, oEt_Delta_Xc, &oEt_Delta_Xc);    //w-Et* Delta Xc
+	Free_Sparse_Matrix(&ow);
+
+	Init_Sparse_Matrix(&oXp, w_Xp, 1, w_Xp);
+	//这个计算也要优化
+	//Matrix_Multiply(oC_Inv, oEt_Delta_Xc, &oXp);    //C(-1)*(w-Et* Delta Xc)
+	//Sparse_2_Dense(oXp, X + w_Xc);
+	//优化成以下就快很多
+	Schur_Get_Xc(oData, oEt_Delta_Xc, X + w_Xc);
+
+	Free_Sparse_Matrix(&oXp);
+	Free_Sparse_Matrix(&oC_Inv);
+	Free_Sparse_Matrix(&oEt_Delta_Xc);
+	Free_Sparse_Matrix(&ov);
+	//Disp_Mem(&oMatrix_Mem, 0);
 	return;
 }

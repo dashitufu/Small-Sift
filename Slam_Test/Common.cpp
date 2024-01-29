@@ -205,24 +205,20 @@ template<typename _T>int iAdjust_Left(_T* pStart, _T* pEnd)
 	}
 	return (int)(pCur_Right - pStart);
 }
+
 template<typename _T> _T oGet_Nth_Elem(_T Seq[],int iCount, int iStart, int iEnd, int iNth)
 {//取第n大元素，用Quick_Sort的Partition做
 	int iPos;
 	if (iStart < iEnd)
 	{
 		iPos = iQuick_Sort_Partition(Seq, iStart, iEnd);
-		if (iPos > iNth)
-		{//那么第n大元素在左分区内
+		if (iPos > iNth)//那么第n大元素在左分区内
 			return oGet_Nth_Elem(Seq,iCount, iStart, iPos - 1, iNth);
-		}
-		else if (iPos < iNth)
-		{//第n大元素在右分区内
+		else if (iPos < iNth)//第n大元素在右分区内
 			return oGet_Nth_Elem(Seq,iCount, iPos + 1, iEnd, iNth);
-		}
 		else //找到了，正好在iPos中
 			return Seq[iPos];
-	}
-	else
+	}else
 	{//此时又分奇偶两种情况
 		if(iCount&1)
 			return Seq[iStart];	//奇数好办，返回便是
@@ -230,13 +226,16 @@ template<typename _T> _T oGet_Nth_Elem(_T Seq[],int iCount, int iStart, int iEnd
 		{
 			_T fMax = Seq[iStart - 1];
 			for (int i = iStart - 2; i >= 0; i--)
-			{
 				if (Seq[i] > fMax)
 					fMax = Seq[i];
-			}
 			return (_T)((Seq[iStart] + fMax) / 2.f);
 		}
-	}		
+	}	
+}
+
+template<typename _T> _T oGet_Nth_Elem(_T Seq[], int iCount, int iNth)
+{
+	return oGet_Nth_Elem(Seq, iCount, 0, iCount - 1, iNth);
 }
 template<typename _T> void Quick_Sort(_T Seq[], int iStart, int iEnd)
 {
@@ -264,9 +263,9 @@ void SB_Common()
 	bSave_PLY(NULL, (double(*)[3])NULL, 0);
 	bSave_PLY(NULL, (float(*)[3])NULL, 0);
 
-	oGet_Nth_Elem((double*)NULL, 0, 0, 0, 0);
-	oGet_Nth_Elem((float*)NULL, 0, 0, 0, 0);
-	oGet_Nth_Elem((int*)NULL, 0, 0, 0, 0);
+	oGet_Nth_Elem((double*)NULL, 0, 0);
+	oGet_Nth_Elem((float*)NULL, 0, 0);
+	oGet_Nth_Elem((int*)NULL, 0, 0);
 
 	Quick_Sort((double*)NULL, 0, 0);
 	Quick_Sort((float*)NULL, 0, 0);

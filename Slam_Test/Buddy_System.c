@@ -1306,7 +1306,7 @@ void Shrink(Mem_Mgr* poMem_Mgr,void *p, unsigned int iSize)
 	}
 	if (iSize >= poItem->m_iSub_Block_Count * poMem_Mgr->m_iBytes_Per_Bottom_Sub_Block)
 	{
-		printf("iSize大于等于原分配空间大小，不做改变\n");
+		//printf("iSize大于等于原分配空间大小，不做改变\n");
 		return;
 	}
 

@@ -14,103 +14,206 @@ extern "C"
 {
 #include "Buddy_System.h"
 }
+template<typename _T> struct Measurement {
+    int m_Pose_Index[2];    //观察中的两个位姿
+    _T Delta_ksi[7];        //存个ksi，前三项相当于位移，后4项为4元数
+};
+template<typename _T> int bTemp_Load_Data(const char *pcFile,_T (**ppT)[7], int* piPoint_Count,
+    Measurement<_T> **ppMeasurement,int *piMeasure_Count)
+{//装入2500个点
+    _T(*pPose_7) [7];
+    Measurement<_T>* pMeasurement;
+    int i,iResult,iPoint_Count=2500;
+    FILE* pFile = fopen(pcFile, "rb");
+    if (!pFile)
+        return 0;
 
-//template<typename _T>void Temp_Load_Data(_T (**ppPoint_2D)[2], _T (**ppPoint_3D)[3], int* piCount)
-//{
-//    int iCount = (int)(iGet_File_Length((char*)"c:\\tmp\\1.bin") / (5 * sizeof(float)));
-//    FILE* pFile = fopen("c:\\tmp\\1.bin", "rb");
-//    _T(*pPoint_2D)[2], (*pPoint_3D)[3];
-//    if (!pFile)
-//    {
-//        printf("Fail to open file\n");
-//        return;
-//    }
-//    pPoint_2D = (_T(*)[2])malloc(iCount * 2 * sizeof(_T));
-//    pPoint_3D = (_T(*)[3])malloc(iCount * 3 * sizeof(_T));
-//    for (int i = 0; i < iCount; i++)
-//    {
-//        float Data[5];
-//        fread(Data, 1, 5 * sizeof(float), pFile);
-//        pPoint_2D[i][0] = Data[0];
-//        pPoint_2D[i][1] = Data[1];
-//        pPoint_3D[i][0] = Data[2];
-//        pPoint_3D[i][1] = Data[3];
-//        pPoint_3D[i][2] = Data[4];
-//    }
-//    fclose(pFile);
-//    *ppPoint_2D = pPoint_2D;
-//    *ppPoint_3D = pPoint_3D;
-//    *piCount = iCount;
-//    return;
-//}
+    pPose_7 = (_T(*)[7])pMalloc(&oMatrix_Mem, 4000 * 7 * sizeof(_T));
+    //for (i = 0; i < iPoint_Count; i++)
+    for (i = 0; ; i++)
+    {
+        float Pose[7];
+        int iCur;
+        if ( (iResult=fscanf(pFile, "VERTEX_SE3:QUAT %d %f %f %f %f %f %f %f ", &iCur, &Pose[0], &Pose[1], &Pose[2], &Pose[4], &Pose[5], &Pose[6], &Pose[3])) <8)
+            break;
+        for (int j = 0; j < 7; j++)
+            pPose_7[i][j] = Pose[j];
+    }
+    iPoint_Count = i;
+    Shrink(&oMatrix_Mem,pPose_7, iPoint_Count * 7 * sizeof(_T));
 
-typedef struct Point_2D {
-    unsigned int m_iCamera_Index;
-    unsigned int m_iPoint_Index;
-    float m_Pos[2];
-}Point_2D;
+    //再装入观察数据
+    pMeasurement = (Measurement<_T>*)pMalloc(&oMatrix_Mem, 11000 * sizeof(Measurement<_T>));
+    for (i = 0;; i++)
+    {
+        int j,iCur;
+        Measurement<_T>* poM = &pMeasurement[i];
+        float Pose[7];
+        if ( (iResult=fscanf(pFile, "EDGE_SE3:QUAT %d %d %f %f %f %f %f %f %f ", &poM->m_Pose_Index[0], &poM->m_Pose_Index[1],
+            &Pose[0], &Pose[1], &Pose[2],
+            &Pose[4], &Pose[5], &Pose[6], &Pose[3]))<9 )
+        break;
+        for (j = 0; j < 7; j++)
+            poM->Delta_ksi[j] = Pose[j];
+        //Disp(&poM->Delta_ksi[3], 4, 1);
+        for (j = 0; j < 21; j++)
+            fscanf(pFile, "%d ", &iCur);
 
-void Temp_Load_File_2(int* piCameta_Count, int* piPoint_Count, int* piObservation_Count,
-    Point_2D** ppPoint_2D, float(**ppPoint_3D)[3], float(**ppCamera)[3*3])
-{//这次装入problem-16-22106-pre.txt。搞个好点的数据结构指出匹配关系
-
-    int i, iCamera_Count, iPoint_Count, iObservation_Count;
-    float(*pPoint_3D)[3], (*pCamera)[3*3];
-    Point_2D* pPoint_2D;
-    FILE* pFile = fopen("Sample\\problem-16-22106-pre.txt", "rb");
-    i=fscanf(pFile, "%d %d %d\n", &iCamera_Count, &iPoint_Count, &iObservation_Count);
-    pPoint_2D = (Point_2D*)malloc(iObservation_Count * 2 * sizeof(Point_2D));
-    pPoint_3D = (float(*)[3])malloc(iPoint_Count * 3 * sizeof(float));
-    pCamera = (float(*)[3*3])malloc(iCamera_Count * 16 * sizeof(float));
-
-    for (i = 0; i < iObservation_Count; i++)
-        fscanf(pFile, "%d %d %f %f", &pPoint_2D[i].m_iCamera_Index, &pPoint_2D[i].m_iPoint_Index, &pPoint_2D[i].m_Pos[0], &pPoint_2D[i].m_Pos[1]);
-    for (i = 0; i < iCamera_Count; i++)
-        for (int j = 0; j < 9; j++)
-            fscanf(pFile, "%f ", &pCamera[i][j]);
-    for (i = 0; i < iPoint_Count; i++)
-        fscanf(pFile, "%f %f %f ", &pPoint_3D[i][0], &pPoint_3D[i][1], &pPoint_3D[i][2]);
+    }
+    Shrink(&oMatrix_Mem, pMeasurement,i * sizeof(Measurement<_T>));
     fclose(pFile);
-    *piCameta_Count = iCamera_Count;
+
     *piPoint_Count = iPoint_Count;
-    *piObservation_Count = iObservation_Count;
-    *ppPoint_2D = pPoint_2D;
-    *ppPoint_3D = pPoint_3D;
-    *ppCamera = pCamera;
+    *ppT = pPose_7;
+    *ppMeasurement = pMeasurement;
+    *piMeasure_Count = i;
+
+
+    return 1;
+}
+template<typename _T>void TQ_2_Rt(_T TQ[7], _T Rt[4 * 4])
+{//将一个se3上的数据转换为Rt. se3数据前三项为位移，后4项为4元数
+    //TQ中的T表示Translation Q表示为Quaternion
+    //此函数跟sophus已经完全一致。需要留意的是四元数中实部与虚部各自的位置
+    _T R[3 * 3];
+    Quaternion_2_Rotation_Matrix(&TQ[3], R);
+    Gen_Homo_Matrix(R, TQ, Rt);
     return;
 }
 
-void BA_Test_3()
+void Test_1()
+{//重做各种se3 <-> SE3的变换
+    typedef float _T;
+    ////第一步， e的由来，级数计算
+    //printf("%.10f\n", fGet_e());
+
+    ////试一下两种方法求exp(A)
+    //{
+    //    float theta[4] = { 0,0,1,PI / 6.f };
+    //    float theta_3[3];
+    //    float theta_hat[3 * 3],exp_theta[3*3];
+
+    //    Rotation_Vector_4_2_3(theta, theta_3);
+    //    Hat(theta_3, theta_hat);
+    //    Disp(theta_hat, 3, 3, "theta_hat");
+    //    Exp_Ref(theta_hat,3, exp_theta);
+    //    Disp(exp_theta, 3, 3, "exp_theta");
+
+    //    Rotation_Vector_2_Matrix(theta, exp_theta);
+    //    Disp(exp_theta, 3, 3, "R");
+    //}
+
+    {//试试第十讲的数据
+        _T ksi_1[] = { -0.125664f, (_T)-1.53894e-17, 99.9999f, (_T)-4.3325e-17,0.706662f, (_T)4.32706e-17, 0.707551f},
+            ksi_2[] = { -0.250786f, -0.0328449f, 99.981f, -0.0465295f,0.705413f, 0.0432253f, 0.705946f },
+            Delta_ksi_12[] = {-0.0187953f, 0.0328449f, -0.125146f,  0.997981f,0.0634648f, -0.000250128f, 0.00237634f};
+        _T T1[4 * 4], T2[4 * 4], Delta_T12[4 * 4];
+        int iResult;
+
+        TQ_2_Rt(Delta_ksi_12, Delta_T12);
+        Disp(Delta_T12, 4, 4, "Delta_T12");
+        
+        TQ_2_Rt(ksi_1, T1);
+        TQ_2_Rt(ksi_2, T2);
+        //Disp(T1, 4, 4, "T1");
+
+        //假设 T1 * ΔT12 = T2 => ΔT12 = T1(-1)*T2
+        Get_Inv_Matrix_Row_Op_2(T1, Delta_T12, 4, &iResult);    //-T1(-1)
+        Matrix_Multiply(Delta_T12, 4, 4, T2, 4, Delta_T12);     //ΔT12=T1(-1)*T2
+        //Disp(Delta_T12, 4, 4, "Delta_T12");
+        //Disp(&Delta_ksi_12[3], 1, 4, "Q");
+        //至此，终于对上了
+
+        //把Homo_Matrix又变换到se3上
+        _T R[3 * 3], t[3],Rotation_Vector[4];
+        Get_R_t(Delta_T12, R, t);
+        //Disp(Q, 1, 4, "Q");
+
+        //如何表征eij?
+        Quaternion_2_Rotation_Vector(&Delta_ksi_12[3], Rotation_Vector);
+        //Disp(Rotation_Vector, 1, 4,"Rotation_Vector");
+    }
+
+    {//第三个实验，算个error
+        _T Error[6],ksi_1[] = { -0.125664f,(_T)-1.53894e-17, 99.9999f, (_T)-4.3325e-17,0.706662f, (_T)4.32706e-17, 0.707551f },
+            ksi_2[] = { -0.250786f, -0.0328449f, 99.981f, -0.0465295f,0.705413f, 0.0432253f, 0.705946f },
+            Delta_ksi_12[] = { -0.0187953f, 0.0328449f, -0.125146f,  0.997981f,0.0634648f, -0.000250128f, 0.00237634f };
+        _T T1[4 * 4], T2[4 * 4], Delta_T12[4 * 4], 
+            T1_Inv[4 * 4], Delta_T12_Inv[4 * 4],Temp[4*4];
+        int iResult;
+        TQ_2_Rt(ksi_1, T1);
+        TQ_2_Rt(ksi_2, T2);
+        TQ_2_Rt(Delta_ksi_12, Delta_T12);
+        //Disp(T1, 4, 4, "T1");
+        //Disp(T2, 4, 4, "T2");
+        //Disp(Delta_T12, 4, 4, "Delta_T12");
+
+        Get_Inv_Matrix_Row_Op_2(T1, T1_Inv, 4, &iResult);
+        Get_Inv_Matrix_Row_Op_2(Delta_T12, Delta_T12_Inv, 4, &iResult);
+        Matrix_Multiply(Delta_T12_Inv, 4, 4, T1_Inv, 4, Temp);
+        Matrix_Multiply(Temp, 4, 4, T2, 4, Temp);
+        //Disp(Delta_T12_Inv, 4, 4, "Delta_T12_Inv");
+        //Disp(T1_Inv, 4, 4, "T1_Inv");
+        SE3_2_se3(Temp, Error);
+        //Disp(Error, 6,1,"Error");
+        //Disp(Temp, 4, 4, "T12(-1)*T1(-1)*T2");
+    }    
+    return;
+}
+static void Test_2()
 {
-    int iCamera_Count, iPoint_Count, iObservation_Count;
-    float(*pPoint_3D)[3], 
-        (*pCamera)[3*3];    //只是个内参
-    Point_2D* pPoint_2D;
-    Temp_Load_File_2(&iCamera_Count, &iPoint_Count, &iObservation_Count, &pPoint_2D, &pPoint_3D,&pCamera);
+    typedef float _T;
+    _T(*pKsi)[7];
+    Measurement<_T>* pMeasurement;
+    int i,j,iIter,iResult,iPoint_Count, iMeasurement_Count;
+    union {
+        _T Ti[4 * 4];
+        _T Ti_Inv[4 * 4];
+    };
+    _T Tj[4 * 4], M_4x4[4 * 4], M_Inv_4x4[4 * 4], E_6[6],
+        E_4x4[4 * 4], //E可以是一个矩阵
+        fSum_e, fSum_e_Pre = (_T)1e10;
+    _T Sigma_H[12*12],Jt[6*6];
+    
+    iResult=bTemp_Load_Data("D:\\Samp\\YBKJ\\Slam_Test\\Slam_Test\\Sample\\sphere.g2o", &pKsi, &iPoint_Count,&pMeasurement,&iMeasurement_Count);
+    if (!iResult)return;
+    
+    for (iIter = 0;; iIter++)
+    {
+        fSum_e = 0;
+        for (i = 0; i < iMeasurement_Count; i++)
+        {//没一个测量都带来一个调整权重
+            Measurement<_T> oM = pMeasurement[i];
+            _T *ksi_i = pKsi[oM.m_Pose_Index[0]],
+                *ksi_j = pKsi[oM.m_Pose_Index[1]];
+            TQ_2_Rt(ksi_i, Ti);
+            TQ_2_Rt(ksi_j, Tj);
+            TQ_2_Rt(oM.Delta_ksi, M_4x4);
+            Get_Inv_Matrix_Row_Op_2(M_4x4, M_Inv_4x4, 4, &iResult);
+            if (!iResult)
+                break;
+            Get_Inv_Matrix_Row_Op_2(Ti, Ti_Inv, 4, &iResult);
+            if (!iResult)
+                break;
+            Matrix_Multiply(Ti_Inv, 4, 4, Tj,4, E_4x4);
+            Matrix_Multiply(M_Inv_4x4, 4, 4, E_4x4, 4, E_4x4);
+            Matrix_Multiply(M_Inv_4x4, 4, 4, Ti_Inv, 4, E_4x4);
+            Matrix_Multiply(E_4x4, 4, 4, Tj, 4, E_4x4);
+            for (j = 0; j < 6; j++)
+                fSum_e += E_6[j] * E_6[j];
+            
+            //接着求雅可比
+
+        }
+
+        printf("%f\n", fSum_e);
+    }
 }
 
-void Inverse_Test()
-{//Sparse的矩阵求逆
-    typedef double _T;
-    _T A[] = { 2,3,1,1,-1,2,1,2,-1 }, A_Inv[9];
-    int iResult;
-    Sparse_Matrix<_T> oA, oA_Inv;
-    Get_Inv_Matrix_Row_Op_2(A, A_Inv, 3, &iResult);
-    Init_Sparse_Matrix(&oA, 3 * 3, 3, 3);
-    Dense_2_Sparse(A, 3, 3, &oA);
-    Disp(A_Inv, 3, 3, "A_Inv");
-    Matrix_Multiply(A, 3, 3, A_Inv, 3, A_Inv);
-    Disp(A_Inv, 3, 3, "I");
-
-    Get_Inv_Matrix_Row_Op(oA, &oA_Inv,&iResult);
-    Disp(oA_Inv, "A_Inv");
-    return;
-}
 int main()
 {
     Init_Env();
-    Inverse_Test();
-	//Test_Main();
+	Test_Main();
     Free_Env();
 #ifdef WIN32
     _CrtDumpMemoryLeaks();

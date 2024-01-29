@@ -99,6 +99,8 @@ unsigned long long iGet_Random_No_cv(unsigned long long* piState);
 	} \
 }
 template<typename _T>void Disp(Sparse_Matrix<_T> oMatrix, const char Caption[] = NULL);
+template<typename _T>void Disp_Fillness(Sparse_Matrix<_T> oMatrix);
+
 template<typename _T>void Disp(_T* M, int iHeight, int iWidth,const char* pcCaption=NULL)
 {
 	int i, j;
@@ -119,6 +121,8 @@ template<typename _T>void Disp(_T* M, int iHeight, int iWidth,const char* pcCapt
 	}
 	return;
 }
+template<typename _T>void Disp_Fillness(_T A[], int m, int n);
+
 template<typename _T>void Matrix_Transpose(_T* A, int ma, int na, _T* At)
 {//矩阵转置
 	int y, x;
@@ -133,8 +137,7 @@ template<typename _T>void Matrix_Transpose(_T* A, int ma, int na, _T* At)
 	Free(&oMatrix_Mem, At_1);
 	return;
 }
-template<typename _T>
-void Matrix_Multiply_3x3(_T A[3*3], _T B[3*3], _T C[3*3])
+template<typename _T>void Matrix_Multiply_3x3(_T A[3*3], _T B[3*3], _T C[3*3])
 {//计算C=AxB
 	Light_Ptr oPtr = oMatrix_Mem;
 	_T* C_1;
@@ -153,6 +156,7 @@ void Matrix_Multiply_3x3(_T A[3*3], _T B[3*3], _T C[3*3])
 	memcpy(C, C_1, 9 * sizeof(_T));
 	return;
 }
+template<typename _T>void Add_I_Matrix(_T A[], int iOrder, _T ramda=1);
 
 void Init_Env();
 void Free_Env();
@@ -201,7 +205,8 @@ template<typename _T>void Gen_I_Matrix(_T M[], int h, int w);	//生成对角阵
 void Gen_Iterate_Matrix(float A[], int n, float B[], float B_1[], float C[]);	//生成迭代中的B
 int bIs_Contrative_Mapping(float B[], int n);					//判断一个矩阵是否为压缩矩阵，这是一个线性方程组是否能用迭代法求解的必要条件
 int bIs_Diagonal_Dominant(float A[], int iOrder);			//判断一个方阵是否为对角线占优而且是行占优矩阵
-int bIs_Unit_Vector(float* V, int na);	//测试向量是否为单位向量
+template<typename _T>int bIs_Symmetric_Matrix(_T A[], int iOrder, const _T eps = (_T)1e-4);
+template<typename _T>int bIs_Unit_Vector(_T* V, int na, _T eps = ZERO_APPROCIATE);//测试向量是否为单位向量
 void Diagonalize(float A[], int iOrder, float Diag[], float P[], int* pbSuccess);	//对称矩阵对角化
 
 void Solve_Cubic(double A[3][3], Complex_d Root[3], int* piRoot_Count);
@@ -236,6 +241,35 @@ void Solve_Poly(float Coeff[], int iCoeff_Count, Complex_f Root[], int* piRoot_C
 	}\
 }
 
+template<typename _T> void Build_Link_Col_1(Sparse_Matrix<_T> oC)
+{
+	/*从最下一行向上建立Col Link*/
+	int iItem_Index;
+	typename Sparse_Matrix<_T>::Item* poItem;
+	memset(oC.m_pCol, 0, oC.m_iCol_Count * sizeof(int));
+	for (int i = oC.m_iRow_Count - 1; i >= 0; i--)
+	{
+		if (oC.m_pRow[i])
+		{
+			iItem_Index = oC.m_pRow[i];
+			poItem = &oC.m_pBuffer[iItem_Index];
+			while (1)
+			{
+				if (oC.m_pCol[poItem->x])/*此column下一行有东西*/
+					poItem->m_iCol_Next = oC.m_pCol[poItem->x];
+				oC.m_pCol[poItem->x] = iItem_Index;
+				if (poItem->m_iRow_Next)
+				{
+					iItem_Index = poItem->m_iRow_Next;
+					poItem = &oC.m_pBuffer[poItem->m_iRow_Next];
+				}
+				else
+					break;
+			}
+		}
+	}
+}
+
 #define Build_Link_Col(oC) \
 { \
 	/*从最下一行向上建立Col Link*/ \
@@ -263,22 +297,25 @@ void Solve_Poly(float Coeff[], int iCoeff_Count, Complex_f Root[], int* piRoot_C
 		} \
 	} \
 }
+
 template<typename _T> _T fGet_Value(Sparse_Matrix<_T>* poMatrix, int x, int y);
 template<typename _T>void Init_Sparse_Matrix(Sparse_Matrix<_T>* poMatrix, int iItem_Count, int w, int h);
-template<typename _T>void Init_Sparse_Matrix(Sparse_Matrix<_T>* poMatrix, int iItem_Count, int iMax_Order);
+//template<typename _T>void Init_Sparse_Matrix(Sparse_Matrix<_T>* poMatrix, int iItem_Count, int iMax_Order);
 template<typename _T>void Compact_Sparse_Matrix(Sparse_Matrix<_T>* poMatrix);
 template<typename _T>void Free_Sparse_Matrix(Sparse_Matrix<_T>* poMatrix);
 template<typename _T>void Reset_Sparse_Matrix(Sparse_Matrix<_T>* poA);
 template<typename _T>void Set_Value(Sparse_Matrix<_T>* poMatrix, int x, int y, _T fValue);
-template<typename _T>void Matrix_Multiply(Sparse_Matrix<_T> A, Sparse_Matrix<_T> B, Sparse_Matrix<_T>* poC);
+template<typename _T>void Matrix_Multiply(Sparse_Matrix<_T> A, Sparse_Matrix<_T> B, Sparse_Matrix<_T>* poC, int bCompact=1);
 template<typename _T>void Matrix_Multiply(Sparse_Matrix<_T> A, _T a);
 template<typename _T>void Resize_Matrix(Sparse_Matrix<_T>* poA, int iNew_Item_Count);
 template<typename _T>void Matrix_Transpose_1(Sparse_Matrix<_T> A, Sparse_Matrix<_T>* poAt);
-template<typename _T>void Matrix_Add(Sparse_Matrix<_T> oA, Sparse_Matrix<_T> oB, Sparse_Matrix<_T>* poC);
+template<typename _T>void Matrix_Minus(Sparse_Matrix<_T> oA, Sparse_Matrix<_T> oB, Sparse_Matrix<_T>* poC, int bCompact=1);
+template<typename _T>void Matrix_Add(Sparse_Matrix<_T> oA, Sparse_Matrix<_T> oB, Sparse_Matrix<_T>* poC, int bCompact=1);
 template<typename _T>void Sparse_2_Dense(Sparse_Matrix<_T> oA, _T B[]);
-template<typename _T>void Dense_2_Sparse(_T A[], int m, int n, Sparse_Matrix<_T>* poA);
+template<typename _T>void Dense_2_Sparse(_T A[], int m, int n, Sparse_Matrix<_T>* poA, int bCompact=1);
 template<typename _T>void Add_I_Matrix(Sparse_Matrix<_T>* poA, int* pbSuccess = NULL);
 template<typename _T>void Solve_Linear_Gause(Sparse_Matrix<_T> oA, _T B[], _T X[], int* pbSuccess = NULL);
+template<typename _T>void Solve_Linear_Gause_1(Sparse_Matrix<_T>oA1, _T B[], _T X[], int* pbSuccess = NULL);
 template<typename _T>void Re_Arrange_Sparse_Matrix(Sparse_Matrix<_T>* poA);
 template<typename _T>void Get_Inv_Matrix_Row_Op(Sparse_Matrix<_T> oA, Sparse_Matrix<_T>* poA_Inv, int* pbSuccess=NULL);
 //**************************稀疏矩阵*******************************
@@ -290,6 +327,7 @@ template<typename _T> void Matrix_Multiply(_T* A, int ma, int na, _T a, _T* C);
 template<typename _T> void Matrix_Multiply(_T* A, int ma, int na, _T* B, int nb, _T* C);
 template<typename _T> void Transpose_Multiply(_T A[], int m, int n, _T B[], int bAAt=1);
 template<typename _T>void Matrix_Add(_T A[], _T B[], int iOrder, _T C[]);
+template<typename _T>void Crop_Matrix(_T Source[], int m, int n, int x, int y, int w, int h, _T Dest[], int iDest_Stride=0);
 
 void Matrix_x_Vector(double A[3][3], double X[3], double Y[3]);
 void QR_Decompose(double A1[3][3], double Q[3][3], double R[3][3]);
@@ -324,7 +362,7 @@ template<typename _T>void Gen_Translation_Matrix(_T Offset[3], _T T[]);	//平移
 void Gen_Scale_Matrix(float Scale[3], float T[]);			//比例变换
 
 //四元数,旋转矩阵，旋转向量互换函数
-void Quaternion_2_Rotation_Matrix(float Q[4], float R[]);	//四元数转旋转矩阵
+template<typename _T>void Quaternion_2_Rotation_Matrix(_T Q[4], _T R[]);	//四元数转旋转矩阵
 void Quaternion_2_Rotation_Vector(float Q[4], float V[4]);	//四元数转旋转向量
 void Quaternion_Add(float Q_1[], float Q_2[], float Q_3[]);	//四元数加
 void Quaternion_Minus(float Q_1[], float Q_2[], float Q_3[]);	//四元数减，其实这两个函数可以用普通向量加减
@@ -336,11 +374,14 @@ template<typename _T>void Rotation_Matrix_2_Vector(_T R[3*3], _T V[4]);		//旋�
 
 template<typename _T>void Rotation_Vector_2_Matrix(_T V[4], _T R[3 * 3]);		//旋转向量转换旋转矩阵
 template<typename _T>void Rotation_Vector_2_Quaternion(_T V[4], _T Q[4]);	//旋转向量转换四元数
+template<typename _T>void Rotation_Vector_3_2_4(_T V[], _T V1[]);	
+template<typename _T>void Rotation_Vector_4_2_3(_T V[], _T V1[]);
 template<typename _T>void Hat(_T V[], _T M[]);				//构造反对称矩阵
 
 void Vee(float M[], float V[3]);			//反对称矩阵到旋转向量
 template<typename _T>void se3_2_SE3(_T Ksi[6], _T T[]);		//从se3向量到SE3矩阵的转换
-void SE3_2_se3(float Rotation_Vector[4], float t[3], float Ksi[6]);	//一个旋转向量加一个位移向量构造出一个Ksi
+template<typename _T>void SE3_2_se3(_T T[4 * 4], _T ksi[6]);
+template<typename _T>void SE3_2_se3(_T Rotation_Vector[4], _T t[3], _T Ksi[6]);	//一个旋转向量加一个位移向量构造出一个Ksi
 
 void SIM3_2_sim3(float Rotation_Vector[], float t[], float s, float zeta[7]);
 void sim3_2_SIM3(float zeta[7], float Rotation_Vector[4], float t[], float* ps);
@@ -374,3 +415,6 @@ void Init_Polynormial(Polynormial* poPoly, int iElem_Count, int iMax_Term_Count)
 void Add_Poly_Term(Polynormial* poPoly, float fCoeff, int first, ...);
 void Get_Derivation(Polynormial* poSource, int iElem, Polynormial* poDest=NULL);	//多项式对xi求导
 float fGet_Polynormial_Value(Polynormial oPoly, float x[]);	//代入x求多项式值
+
+template<typename _T>void Copy_Matrix_Partial(_T Source[], int m, int n, _T Dest[], int iDest_Stride, int x, int y);
+float fGet_e();

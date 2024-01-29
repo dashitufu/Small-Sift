@@ -96,7 +96,7 @@ void Disp(float* M, int iHeight, int iWidth, const char* pcCaption)
 	for (i = 0; i < iHeight; i++)
 	{
 		for (j = 0; j < iWidth; j++)
-			printf("%.0f, ", (float)M[i * iWidth + j]);
+			printf("%.8f, ", (float)M[i * iWidth + j]);
 		printf("\n");
 	}
 	return;
@@ -330,6 +330,27 @@ template<typename _T>void Vector_Add(_T A[], _T B[], int n, _T C[])
 {
 	for (int i = 0; i < n; i++)
 		C[i] = A[i] + B[i];
+}
+template<typename _T>int bIs_Symmetric_Matrix(_T A[], int iOrder, const _T eps)
+{
+	int y, x,bRet=1;
+	float fA, fB, fMin, fDiff;
+	for (y = 0; y < iOrder; y++)
+	{
+		for (x = 0; x < iOrder; x++)
+		{
+			fA = (float)abs(A[y * iOrder + x]);
+			fB = (float)abs(A[x * iOrder + y]);
+			fMin = Min(fA, fB);
+			fDiff = abs(fA - fB);
+			if (fDiff / fMin > eps)
+			{
+				printf("%f %f\n", A[y * iOrder + x], A[x * iOrder + y]);
+				bRet = 0;
+			}
+		}
+	}
+	return bRet;
 }
 void Matrix_Multiply_Symmetric(float* A, int m, int n, float* AAt)
 {//求 AxA', 结果必然是一个对称矩阵。A(mxn) x A'(n*m) = AAt(m*m)
@@ -1339,7 +1360,7 @@ template<typename _T>void Get_Inv_Matrix_Row_Op_2(_T A[], _T A_Inv[], int iOrder
 		}
 		if (abs(fMax) <= eps)
 		{
-			printf("不满秩");
+			printf("不满秩\n");
 			bSuccess = 0;
 			goto END;
 		}
@@ -2473,14 +2494,13 @@ int bIs_Upper_Tri(float* A, int ma, int na)
 	return 1;
 #undef eps
 }
-
-int bIs_Unit_Vector(float* V, int na)
+template<typename _T>int bIs_Unit_Vector(_T* V, int na, _T eps)
 {
 	int i;
-	float fSum = 0;
+	_T fSum = 0;
 	for (i = 0; i < na; i++)
 		fSum += V[i] * V[i];
-	if (fSum == 0 || abs(fSum - 1) < ZERO_APPROCIATE)
+	if (fSum == 0 || abs(fSum - 1) <eps )
 		return 1;
 	else
 		return 0;
@@ -2904,16 +2924,21 @@ template<typename _T>void Free_Sparse_Matrix(Sparse_Matrix<_T>* poMatrix)
 {
 	/*if (poMatrix->m_pRow)
 		Free(&oMatrix_Mem,poMatrix->m_pRow);*/
-	if (poMatrix->m_pBuffer)
-		Free(&oMatrix_Mem, poMatrix->m_pBuffer + 1);
+	//if (poMatrix->m_pBuffer)
+		//Free(&oMatrix_Mem, poMatrix->m_pBuffer + 1);
+	if (poMatrix->m_pRow)
+		Free(&oMatrix_Mem, poMatrix->m_pRow);
 }
 
 template<typename _T>void Compact_Sparse_Matrix(Sparse_Matrix<_T>* poMatrix)
-{
-	unsigned int* pNew_Addr = poMatrix->m_pRow + poMatrix->m_iRow_Count;
+{//一般用于后面对此矩阵只读的情况，将Item多占的空间归还
+	/*unsigned int* pNew_Addr = poMatrix->m_pRow + poMatrix->m_iRow_Count;
 	memmove(pNew_Addr, poMatrix->m_pCol, poMatrix->m_iCol_Count * sizeof(unsigned int));
 	poMatrix->m_pCol = pNew_Addr;
-	poMatrix->m_pRow = (unsigned int*)realloc(poMatrix->m_pRow, (poMatrix->m_iRow_Count + poMatrix->m_iCol_Count) * sizeof(unsigned int));
+	poMatrix->m_pRow = (unsigned int*)realloc(poMatrix->m_pRow, (poMatrix->m_iRow_Count + poMatrix->m_iCol_Count) * sizeof(unsigned int));*/
+	poMatrix->m_iMax_Item_Count = poMatrix->m_iCur_Item;
+	int iSize = Max(poMatrix->m_iCol_Count,poMatrix->m_iRow_Count) * 2 * sizeof(unsigned int) + (poMatrix->m_iMax_Item_Count+1) * sizeof(typename Sparse_Matrix<_T>::Item);
+	Shrink(&oMatrix_Mem, poMatrix->m_pRow, iSize);
 	return;
 }
 template<typename _T>void Disp_Link_Col(Sparse_Matrix<_T> oMatrix, int x)
@@ -3245,9 +3270,10 @@ template<typename _T>void Hat(_T V[], _T M[])
 }
 template<typename _T>void Rotation_Matrix_2_Vector(_T R[3 * 3], _T V[4])
 {//从旋转矩阵到旋转向量就是解 Rn=n，其中n就是待求的转轴，显然特征值为1， 求解特征方程
+//这个函数有问题
 	//由于特征值=1， 代入(A-rI)x=0, 求得x便是特征向量。而r=1,所以解(A-I)x=0即可
 	//_T I[3][3] = { 1,0,0,0,1,0,0,0,1 };
-	_T R_1[3][3], V_1[3 * 3];// B[3] = { 0 },
+	_T R_1[3][3];// B[3] = { 0 }, V_1[3 * 3]
 	_T B[3] = { 0 };
 	int iResult;
 
@@ -3263,17 +3289,33 @@ template<typename _T>void Rotation_Matrix_2_Vector(_T R[3 * 3], _T V[4])
 
 	memcpy(R_1, R, 9 * sizeof(_T));
 	R_1[0][0] -= 1.f, R_1[1][1] -= 1.f, R_1[2][2] -= 1.f;
-	Solve_Linear_Solution_Construction((_T*)R_1, 3, 3, B, &iResult, V_1);
+	
+	//所以应该用svd分解
+	SVD_Info oSVD;
+	SVD_Alloc<_T>(3, 3, &oSVD);
+	svd_3((_T*)R_1, oSVD, &iResult);
 
-
-	V[0] = (_T)V_1[0];
+	//Vt的最后一行就是解
+	memcpy(V, &((_T*)oSVD.Vt)[6], 3 * sizeof(_T));
+	Free_SVD(&oSVD);
+	//Matrix_Multiply((_T*)R_1, 3, 3, V, 1, V);	//简单验算一下是否Ax=0
+		
+	//搞错了，此处虽然貌似解 Ax=0，准确来说应该是个有约束的问题，|x|=1
+	//Solve_Linear_Solution_Construction((_T*)R_1, 3, 3, B, &iResult, V_1);
+	/*V[0] = (_T)V_1[0];
 	V[1] = (_T)V_1[1];
-	V[2] = (_T)V_1[2];
+	V[2] = (_T)V_1[2];*/
 
 	//再求旋转角度，感觉来个负数才行，具体还得验证
 	_T fTr = fGet_Tr(R, 3);
-	V[3] = -acos((fTr - 1.f) / 2.f);
-
+	const _T eps = (_T)1e-5;	
+	if (abs(fTr - 3.f) < eps)
+		V[3] = 0;
+	else
+		V[3] = -acos((fTr - 1.f) / 2.f);
+	//还有个问题尚未弄利索，旋转向量的正负号问题。这是因为特征向量可正可符，因为
+	//特征向量乘以任意常数依旧是原矩阵的特征向量。故此这个向量的正负号是否影响后续
+	//的求解，尚待深化
 	return;
 }
 template<typename _T>void Rotation_Vector_2_Quaternion(_T V[4], _T Q[4])
@@ -3360,27 +3402,27 @@ void Quaternion_Inv(float Q_1[], float Q_2[])
 		Q_2[i] /= fMod;
 	return;
 }
-void Quaternion_2_Rotation_Matrix(float Q[4], float R[])
+template<typename _T>void Quaternion_2_Rotation_Matrix(_T Q[4], _T R[])
 {//四元数转换为旋转矩阵， R= vv' + s^2*I + 2sv^ + (v^)^2
-	float fValue, M_2[3][3], M_1[3][3] = { {1,0,0},{0,1,0},{0,0,1} };	//临时矩阵	
+	_T fValue, M_2[3][3], M_1[3][3] = { {1,0,0},{0,1,0},{0,0,1} };	//临时矩阵	
 	//先算个vv' 直接放R即可
 	Matrix_Multiply(&Q[1], 3, 1, &Q[1], 3, R);
 
 	//再算 s^2*I
 	fValue = Q[0] * Q[0];
 	Scale_Matrix_1(M_1, fValue);
-	Matrix_Add(R, (float*)M_1, 3, R);
+	Matrix_Add(R, (_T*)M_1, 3, R);
 
 	//再算2sv
-	Hat(&Q[1], (float*)M_1);
+	Hat(&Q[1], (_T*)M_1);
 	fValue = 2.f * Q[0];
-	memcpy(M_2, M_1, 3 * 3 * sizeof(float));
+	memcpy(M_2, M_1, 3 * 3 * sizeof(_T));
 	Scale_Matrix_1(M_2, fValue);
-	Matrix_Add(R, (float*)M_2, 3, R);
+	Matrix_Add(R, (_T*)M_2, 3, R);
 
 	//再算(v^) ^ 2，上面已经搞定了M_1= v^
-	Matrix_Multiply((float*)M_1, 3, 3, (float*)M_1, 3, (float*)M_2);
-	Matrix_Add(R, (float*)M_2, 3, R);
+	Matrix_Multiply((_T*)M_1, 3, 3, (_T*)M_1, 3, (_T*)M_2);
+	Matrix_Add(R, (_T*)M_2, 3, R);
 
 	//Disp((float*)R, 3, 3);
 	return;
@@ -3525,22 +3567,36 @@ template<typename _T>void Get_J_by_Rotation_Vector(_T Rotation_Vector[4], _T J[]
 		((_T*)J)[i] += fValue * ((_T*)Temp_1)[i];
 	//Disp((float*)J, 3, 3);
 }
-void SE3_2_se3(float Rotation_Vector[4], float t[3], float Ksi[6])
+template<typename _T>void SE3_2_se3(_T T[4 * 4], _T ksi[6])
+{//将一个Homo matrix 转换为ksi
+	_T R[3 * 3], t[3],V[4];
+	Get_R_t(T, R, t);
+	Rotation_Matrix_2_Vector(R, V);
+	SE3_2_se3(V, t, ksi);
+	return;
+}
+
+template<typename _T>void SE3_2_se3(_T Rotation_Vector[4], _T t[3], _T Ksi[6])
 {//由一个旋转向量加一个位移转换为se3上的Ksi
 //理论上SE3是一个4x4矩阵，包括旋转与位移。 SE3->se3就是4x4矩阵转换为6维向量
 //然后用旋转向量表示旋转更只管与简洁，故此此处用旋转向量加位移向量
 //总结， SE3中的旋转矩阵，se3中的六维向量，都是先旋转后位移
-	float J[3][3], J_Inv[3][3];
+	_T J[3][3], J_Inv[3][3];
 	int bResult;
-	Get_J_by_Rotation_Vector(Rotation_Vector, (float*)J);
-
+	Get_J_by_Rotation_Vector(Rotation_Vector, (_T*)J);
+	//Disp(Rotation_Vector, 1, 4, "Rotation_Vector");
+	//Disp((_T*)J, 3, 3, "J");
 	//对J求个逆
-	Get_Inv_Matrix_Row_Op((float*)J, (float*)J_Inv, 3, &bResult);
-	Matrix_Multiply((float*)J_Inv, 3, 3, t, 1, Ksi);
+	Get_Inv_Matrix_Row_Op_2((_T*)J, (_T*)J_Inv, 3, &bResult);
+	if (bResult)
+		Matrix_Multiply((_T*)J_Inv, 3, 3, t, 1, Ksi);
+	else //对于0旋转0度，t不变
+		memcpy(Ksi, t, 3 * sizeof(_T));
 
 	//再把Phi也设置一下，其实就是Rotation_Vector 4维转三维
-	Roataion_Vector_2_Angle_Axis(Rotation_Vector, &Ksi[3]);
-	Disp(Ksi, 1, 6);	//Rho求出来了
+	//Roataion_Vector_2_Angle_Axis(Rotation_Vector, &Ksi[3]);
+	Rotation_Vector_4_2_3(Rotation_Vector, &Ksi[3]);
+	//Disp(Ksi, 1, 6);	//Rho求出来了
 
 	return;
 }
@@ -5065,7 +5121,7 @@ void Solve_Poly(float Coeff[], int iCoeff_Count, Complex_f Root[], int* piRoot_C
 
 void Init_Env()
 {//初始化个环境，分配些内存供一切函数临时使用
-	int iSize = 100000000;
+	int iSize = 1000000000;
 	/*unsigned char* pBuffer = (unsigned char*)malloc(iSize);
 	if (!pBuffer)
 	{
@@ -5376,6 +5432,36 @@ template<typename _T> void Matrix_Multiply(_T* A, int ma, int na, _T* B, int nb,
 
 void SB_Matrix()
 {//这就是个傻逼方法，用来欺骗template
+	Quaternion_2_Rotation_Matrix((double*)NULL, (double*)NULL);
+	Quaternion_2_Rotation_Matrix((float*)NULL, (float*)NULL);
+
+	bIs_Unit_Vector((double*)NULL, 0);
+	bIs_Unit_Vector((float*)NULL, 0);
+
+	bIs_Symmetric_Matrix((double*)NULL, 0);
+	bIs_Symmetric_Matrix((float*)NULL, 0);
+
+	Crop_Matrix((double*)NULL, 0, 0, 0, 0, 0, 0, (double*)NULL, 0);
+	Crop_Matrix((float*)NULL, 0, 0, 0, 0, 0, 0, (float*)NULL, 0);
+
+	Add_I_Matrix((double*)NULL, 0);
+	Add_I_Matrix((float*)NULL, 0);
+
+	Disp_Fillness(Sparse_Matrix<double>{});
+	Disp_Fillness(Sparse_Matrix<float>{});
+
+	Disp_Fillness((double*)NULL, 0, 0);
+	Disp_Fillness((float*)NULL, 0, 0);
+
+	Copy_Matrix_Partial((double*)NULL, 0, 0, (double*)NULL, 0, 0, 0);
+	Copy_Matrix_Partial((float*)NULL, 0, 0, (float*)NULL, 0, 0, 0);
+
+	Rotation_Vector_3_2_4((double*)NULL, (double*)NULL);
+	Rotation_Vector_3_2_4((float*)NULL, (float*)NULL);
+
+	Rotation_Vector_4_2_3((double*)NULL, (double*)NULL);
+	Rotation_Vector_4_2_3((float*)NULL, (float*)NULL);
+
 	Re_Arrange_Sparse_Matrix((Sparse_Matrix<double>*)NULL);
 	Re_Arrange_Sparse_Matrix((Sparse_Matrix<float>*)NULL);
 
@@ -5390,6 +5476,9 @@ void SB_Matrix()
 
 	Matrix_Transpose_1(Sparse_Matrix<double>{}, (Sparse_Matrix<double>*)NULL);
 	Matrix_Transpose_1(Sparse_Matrix<float>{}, (Sparse_Matrix<float>*)NULL);
+
+	Matrix_Minus(Sparse_Matrix<double>{}, Sparse_Matrix<double>{}, (Sparse_Matrix<double>*)NULL);
+	Matrix_Minus(Sparse_Matrix<float>{}, Sparse_Matrix<float>{}, (Sparse_Matrix<float>*)NULL);
 
 	Matrix_Add(Sparse_Matrix<double>{}, Sparse_Matrix<double>{}, (Sparse_Matrix<double>*)NULL);
 	Matrix_Add(Sparse_Matrix<float>{}, Sparse_Matrix<float>{}, (Sparse_Matrix<float>*)NULL);
@@ -5411,6 +5500,9 @@ void SB_Matrix()
 
 	Solve_Linear_Gause(Sparse_Matrix<double>{}, (double*)NULL, (double*)NULL);
 	Solve_Linear_Gause(Sparse_Matrix<float>{}, (float*)NULL, (float*)NULL);
+	
+	Solve_Linear_Gause_1(Sparse_Matrix<double>{}, (double*)NULL, (double*)NULL);
+	Solve_Linear_Gause_1(Sparse_Matrix<float>{}, (float*)NULL, (float*)NULL);
 
 	Gen_Rotation_Matrix_2D((double*)NULL, 0);
 	Gen_Rotation_Matrix_2D((float*)NULL, 0);
@@ -5418,8 +5510,11 @@ void SB_Matrix()
 	Gen_Homo_Matrix_2D((double*)NULL, (double*)NULL, (double*)NULL);
 	Gen_Homo_Matrix_2D((float*)NULL, (float*)NULL, (float*)NULL);
 
-	Init_Sparse_Matrix((Sparse_Matrix<double>*)NULL, 0, 0);
-	Init_Sparse_Matrix((Sparse_Matrix<float>*)NULL, 0, 0);
+	//Init_Sparse_Matrix((Sparse_Matrix<double>*)NULL, 0, 0);
+	//Init_Sparse_Matrix((Sparse_Matrix<float>*)NULL, 0, 0);
+
+	Compact_Sparse_Matrix((Sparse_Matrix<double>*)NULL);
+	Compact_Sparse_Matrix((Sparse_Matrix<float>*)NULL);
 
 	Free_Sparse_Matrix((Sparse_Matrix<double>*)NULL);
 	Free_Sparse_Matrix((Sparse_Matrix<float>*)NULL);
@@ -5441,6 +5536,12 @@ void SB_Matrix()
 
 	se3_2_SE3((double*)NULL, (double*)NULL);
 	se3_2_SE3((float*)NULL, (float*)NULL);
+
+	SE3_2_se3((double*)NULL, (double*)NULL);
+	SE3_2_se3((float*)NULL, (float*)NULL);
+
+	SE3_2_se3((double*)NULL, (double*)NULL, (double*)NULL);
+	SE3_2_se3((float*)NULL, (float*)NULL, (float*)NULL);
 
 	Solve_Linear_Gause((double*)NULL, 0, (double*)NULL, (double*)NULL, NULL);
 	Solve_Linear_Gause((float*)NULL, 0, (float*)NULL, (float*)NULL, NULL);
@@ -5910,28 +6011,25 @@ float fGet_Polynormial_Value(Polynormial oPoly, float x[])
 
 template<typename _T> void Exp_Ref(_T A[], int n, _T B[])
 {//计算矩阵指数, A为n阶矩阵, 结果n也是n阶矩阵, 这是最慢算法，从定义直接计算到收敛为止
+	//这个函数还没弄利索，计算是错的
 	//exp(A) = ∑(n=0,n->∞) (A^n)/n!
 	int iSize = n * n * sizeof(_T);
 	int i;
 	_T* pTemp_1 = (_T*)pMalloc(&oMatrix_Mem, iSize),
 		* pTemp_2 = (_T*)pMalloc(&oMatrix_Mem, iSize),
 		* pSum = (_T*)pMalloc(&oMatrix_Mem, iSize);
-	const _T eps = 0.00001f;
-	//memcpy(pTemp_1, A, iSize);
-	for (i = 0; i < n * n; i++)
-		pTemp_1[i] = 1;
-	memcpy(pSum, pTemp_1, iSize);
-
+	const _T eps = (_T)1e-10;
+	//memset(pSum, 0, iSize);
+	Gen_I_Matrix(pSum, n, n);
+	Gen_I_Matrix(pTemp_1, n, n);
 	for (i = 1;; i++)
 	{
-		for (int j = 0; j < n * n; j++)	//A^n 为矩阵A各个元素分别n次方
-			pTemp_1[j] *= A[j];
-
+		Matrix_Multiply(pTemp_1, n, n, A, n, pTemp_1);		
 		_T F = (_T)1.f / (_T)iFactorial(i);
 		if (_Is_inf(F))
 			F = 0;
 		Matrix_Multiply(pTemp_1, n, n, F, pTemp_2);
-		Disp(pTemp_1, 3, 3, "pTemp_1");
+		//Disp(pTemp_1, 3, 3, "pTemp_1");
 		if (fGet_Mod(pTemp_2, n * n) < eps)
 			break;
 		Matrix_Add(pTemp_2, pSum, n, pSum);
@@ -6176,7 +6274,7 @@ template<typename _T>void Set_Value(Sparse_Matrix<_T>* poMatrix, int x, int y, _
 	return;
 }
 
-template<typename _T>void Matrix_Multiply(Sparse_Matrix<_T> A, Sparse_Matrix<_T> B, Sparse_Matrix<_T>* poC)
+template<typename _T>void Matrix_Multiply(Sparse_Matrix<_T> A, Sparse_Matrix<_T> B, Sparse_Matrix<_T>* poC,int bCompact)
 {
 	int y, x, i0_Count = 0, iNew_Item_Count = 0;
 	_T fValue;
@@ -6186,9 +6284,14 @@ template<typename _T>void Matrix_Multiply(Sparse_Matrix<_T> A, Sparse_Matrix<_T>
 	typename Sparse_Matrix<_T>::Item** pNew_Col_Pre = (typename Sparse_Matrix<_T>::Item**)malloc(B.m_iCol_Count * sizeof(typename Sparse_Matrix<_T>::Item*));
 
 	if (A.m_iCol_Count != B.m_iRow_Count || !poC)
+	{
+		printf("Mismatch matrix size in Matrix_Multiply\n");
 		return;
+	}
+		
 	if (!poC->m_iMax_Item_Count)
-		Init_Sparse_Matrix(&oC, A.m_iRow_Count * B.m_iCol_Count, Max(A.m_iRow_Count, B.m_iCol_Count));
+		Init_Sparse_Matrix(&oC, A.m_iRow_Count * B.m_iCol_Count, B.m_iCol_Count, A.m_iRow_Count);
+		//Init_Sparse_Matrix(&oC, A.m_iRow_Count * B.m_iCol_Count, Max(A.m_iRow_Count, B.m_iCol_Count));
 	else
 	{
 		oC = *poC;
@@ -6204,6 +6307,7 @@ template<typename _T>void Matrix_Multiply(Sparse_Matrix<_T> A, Sparse_Matrix<_T>
 			{
 				poRow_Cur = &A.m_pBuffer[A.m_pRow[y]];
 				poCol_Cur = &B.m_pBuffer[B.m_pCol[x]];
+				//int iCount = 0;
 				do
 				{
 					if (poRow_Cur->x == poCol_Cur->y)
@@ -6215,7 +6319,10 @@ template<typename _T>void Matrix_Multiply(Sparse_Matrix<_T> A, Sparse_Matrix<_T>
 						poRow_Cur = poRow_Cur->m_iRow_Next ? &A.m_pBuffer[poRow_Cur->m_iRow_Next] : NULL;
 					else
 						poCol_Cur = poCol_Cur->m_iCol_Next ? &B.m_pBuffer[poCol_Cur->m_iCol_Next] : NULL;
+					//iCount++;
 				} while (poRow_Cur && poCol_Cur);
+				/*if (iCount > 3)
+					printf("%d ",iCount);*/
 			}
 
 			if (fValue != 0)
@@ -6246,6 +6353,8 @@ template<typename _T>void Matrix_Multiply(Sparse_Matrix<_T> A, Sparse_Matrix<_T>
 	oC.m_iCol_Count = B.m_iCol_Count;
 
 	oC.m_iCur_Item = iNew_Item_Count;
+	if (bCompact)
+		Compact_Sparse_Matrix(&oC);
 	*poC = oC;
 	free(pNew_Col_Pre);
 	return;
@@ -6254,7 +6363,7 @@ template<typename _T>void Matrix_Multiply(Sparse_Matrix<_T> A, Sparse_Matrix<_T>
 template<typename _T>void Matrix_Multiply(Sparse_Matrix<_T> A, _T a)
 {//C = aA
 	int i;
-	for (i = 1; i < A.m_iCur_Item; i++)
+	for (i = 1; i <= A.m_iCur_Item; i++)
 		A.m_pBuffer[i].m_fValue *= a;
 	return;
 }
@@ -6289,35 +6398,47 @@ template<typename _T>void Matrix_Transpose_1(Sparse_Matrix<_T> A, Sparse_Matrix<
 		poCur->x = poCur->y;
 		poCur->y = iTemp;
 	}
+	At.m_iCur_Item = A.m_iCur_Item;
 	*poAt = At;
 	return;
 }
-template<typename _T>void Init_Sparse_Matrix(Sparse_Matrix<_T>* poMatrix, int iItem_Count, int iMax_Order)
-{
-	poMatrix->m_iMax_Item_Count = iItem_Count;
-	int iSize = poMatrix->m_iMax_Item_Count * sizeof(typename Sparse_Matrix<_T>::Item);
-	unsigned char* pBuffer = (unsigned char*)pMalloc(&oMatrix_Mem, iSize + iMax_Order * 2 * sizeof(unsigned int));
-	poMatrix->m_pBuffer = (typename Sparse_Matrix<_T>::Item*)pBuffer;
-	if (!pBuffer)
-		return;
-	poMatrix->m_pBuffer--;	//以便从[1]开始
-	poMatrix->m_pRow = (unsigned int*)(pBuffer + iSize);
-	memset(poMatrix->m_pRow, 0, iMax_Order * 2 * sizeof(unsigned int));
-	poMatrix->m_pCol = poMatrix->m_pRow + iMax_Order;
-	poMatrix->m_iRow_Count = poMatrix->m_iCol_Count = 0;
-}
+
+//template<typename _T>void Init_Sparse_Matrix(Sparse_Matrix<_T>* poMatrix, int iItem_Count, int iMax_Order)
+//{
+//	poMatrix->m_iMax_Item_Count = iItem_Count;
+//	int iSize = poMatrix->m_iMax_Item_Count * sizeof(typename Sparse_Matrix<_T>::Item);
+//	unsigned char* pBuffer = (unsigned char*)pMalloc(&oMatrix_Mem, iSize + iMax_Order * 2 * sizeof(unsigned int));
+//	poMatrix->m_pBuffer = (typename Sparse_Matrix<_T>::Item*)pBuffer;
+//	if (!pBuffer)
+//		return;
+//	poMatrix->m_pBuffer--;	//以便从[1]开始
+//	poMatrix->m_pRow = (unsigned int*)(pBuffer + iSize);
+//	memset(poMatrix->m_pRow, 0, iMax_Order * 2 * sizeof(unsigned int));
+//	poMatrix->m_pCol = poMatrix->m_pRow + iMax_Order;
+//	poMatrix->m_iRow_Count = poMatrix->m_iCol_Count = 0;
+//}
+
 template<typename _T>void Init_Sparse_Matrix(Sparse_Matrix<_T>* poMatrix, int iItem_Count, int w, int h)
 {
 	poMatrix->m_iMax_Item_Count = iItem_Count;
 	int iSize = poMatrix->m_iMax_Item_Count * sizeof(Sparse_Matrix<_T>::Item);
 	unsigned char* pBuffer = (unsigned char*)pMalloc(&oMatrix_Mem, iSize + (w + h) * sizeof(unsigned int));
+	if (!pBuffer)
+	{
+		printf("Fail to allocate mem in Init_Sparse_Matrix\n");
+		return;
+	}
+	poMatrix->m_pRow = (unsigned int*)pBuffer;
+	poMatrix->m_pCol = poMatrix->m_pRow + h;
+	memset(poMatrix->m_pRow, 0, (w + h) * sizeof(unsigned int));
+
+	pBuffer += (w + h) * sizeof(unsigned int);
 	poMatrix->m_pBuffer = (typename Sparse_Matrix<_T>::Item*)pBuffer;
 	poMatrix->m_pBuffer--;	//以便从[1]开始
-	poMatrix->m_pRow = (unsigned int*)(pBuffer + iSize);
-	memset(poMatrix->m_pRow, 0, (w + h) * sizeof(unsigned int));
-	poMatrix->m_pCol = poMatrix->m_pRow + h;
+
 	poMatrix->m_iRow_Count = h;
 	poMatrix->m_iCol_Count = w;
+	poMatrix->m_iCur_Item = 1;
 }
 template<typename _T>void Re_Arrange_Sparse_Matrix(Sparse_Matrix<_T>* poA)
 {//重新整理一次Sparse_Matrix,删去0元素
@@ -6328,7 +6449,117 @@ template<typename _T>void Re_Arrange_Sparse_Matrix(Sparse_Matrix<_T>* poA)
 	*poA = oB;
 	return;
 }
-template<typename _T>void Matrix_Add(Sparse_Matrix<_T> oA, Sparse_Matrix<_T> oB, Sparse_Matrix<_T>* poC)
+template<typename _T>void Matrix_Minus(Sparse_Matrix<_T> oA, Sparse_Matrix<_T> oB, Sparse_Matrix<_T>* poC, int bCompact)
+{//此处必须做点假定，太随意很难做完备， C= A+B, 1， C假定已经足够空间。不够就失败退出
+	//2，A必须和B有相同的长宽
+	Sparse_Matrix<_T> oC;
+	typename Sparse_Matrix<_T>::Item oNew_Item;
+
+	if (oA.m_iRow_Count != oB.m_iRow_Count || oA.m_iCol_Count != oB.m_iCol_Count)
+	{
+		printf("Mis matched size in Matrix_Add\n");
+		return;
+	}
+	Init_Sparse_Matrix(&oC, oA.m_iCur_Item + oB.m_iCur_Item, oA.m_iCol_Count, oA.m_iRow_Count);
+	oC.m_iCur_Item = 1;
+	int y;
+	typename Sparse_Matrix<_T>::Item oB_Cur, oA_Cur;
+	for (y = 0; y < oC.m_iRow_Count; y++)
+	{
+		if (oC.m_iCur_Item >= oC.m_iMax_Item_Count && (oA.m_pRow[y] || oB.m_pRow[y]))
+		{
+			printf("Exceed Item count in Matrix_Add\n");
+			return;
+		}
+		if (oA.m_pRow[y] && oB.m_pRow[y])
+		{
+			oA_Cur = oA.m_pBuffer[oA.m_pRow[y]];
+			oB_Cur = oB.m_pBuffer[oB.m_pRow[y]];
+			oC.m_pRow[y] = oC.m_iCur_Item;
+			while (1)
+			{
+				if (oA_Cur.x == oB_Cur.x)
+				{//可以加
+					oNew_Item = { oA_Cur.x,oA_Cur.y,oA_Cur.m_fValue - oB_Cur.m_fValue, oC.m_iCur_Item + 1 };
+					if (oA_Cur.m_iRow_Next)
+						oA_Cur = oA.m_pBuffer[oA_Cur.m_iRow_Next];
+					else
+						oA_Cur.x = 0xFFFFFFFF;
+					if (oB_Cur.m_iRow_Next)
+						oB_Cur = oB.m_pBuffer[oB_Cur.m_iRow_Next];
+					else
+						oB_Cur.x = 0xFFFFFFFF;
+				}
+				else if (oA_Cur.x < oB_Cur.x)
+				{//写入A元素
+					oNew_Item = { oA_Cur.x,oA_Cur.y,oA_Cur.m_fValue, oC.m_iCur_Item + 1 };
+					if (oA_Cur.m_iRow_Next)
+						oA_Cur = oA.m_pBuffer[oA_Cur.m_iRow_Next];
+					else
+						oA_Cur.x = 0xFFFFFFFF;
+				}
+				else if (oB_Cur.x < oA_Cur.x)
+				{
+					oNew_Item = { oB_Cur.x,oB_Cur.y,-oB_Cur.m_fValue, oC.m_iCur_Item + 1 };
+					if (oB_Cur.m_iRow_Next)
+						oB_Cur = oB.m_pBuffer[oB_Cur.m_iRow_Next];
+					else
+						oB_Cur.x = 0xFFFFFFFF;
+				}
+				oC.m_pBuffer[oC.m_iCur_Item++] = oNew_Item;
+				if (oA_Cur.x == 0xFFFFFFFF && oB_Cur.x == 0xFFFFFFFF)
+				{
+					oC.m_pBuffer[oC.m_iCur_Item - 1].m_iRow_Next = 0;
+					break;
+				}
+			}
+		}else if (!oA.m_pRow[y] && oB.m_pRow[y])
+		{//特殊情况，B整行加入到C
+			oB_Cur = oB.m_pBuffer[oB.m_pRow[y]];
+			oC.m_pRow[y] = oC.m_iCur_Item;
+			while (1)
+			{
+				if (oB_Cur.m_iRow_Next)
+				{//还有下一个元素
+					oNew_Item = { oB_Cur.x,oB_Cur.y,-oB_Cur.m_fValue, oC.m_iCur_Item + 1 };
+					oC.m_pBuffer[oC.m_iCur_Item++] = oNew_Item;
+					oB_Cur = oB.m_pBuffer[oB_Cur.m_iRow_Next];
+				}else
+				{
+					oNew_Item = { oB_Cur.x,oB_Cur.y,-oB_Cur.m_fValue, 0 };
+					oC.m_pBuffer[oC.m_iCur_Item++] = oNew_Item;
+					break;
+				}
+			}
+		}else if (!oB.m_pRow[y] && oA.m_pRow[y])
+		{//A整行加入C
+			oA_Cur = oA.m_pBuffer[oA.m_pRow[y]];
+			oC.m_pRow[y] = oC.m_iCur_Item;
+			while (1) {
+				if (oA_Cur.m_iRow_Next)
+				{//还有下一个元素
+					oNew_Item = { oA_Cur.x,oA_Cur.y,oA_Cur.m_fValue, oC.m_iCur_Item + 1 };
+					oC.m_pBuffer[oC.m_iCur_Item++] = oNew_Item;
+					oA_Cur = oA.m_pBuffer[oA_Cur.m_iRow_Next];
+				}
+				else
+				{
+					oNew_Item = { oA_Cur.x,oA_Cur.y,oA_Cur.m_fValue, 0 };
+					oC.m_pBuffer[oC.m_iCur_Item++] = oNew_Item;
+					break;
+				}
+			}
+		}
+	}
+	Build_Link_Col(oC);
+	if (poC->m_iMax_Item_Count)
+		Free_Sparse_Matrix(poC);
+	if (bCompact)
+		Compact_Sparse_Matrix(&oC);
+	*poC = oC;
+	return;
+}
+template<typename _T>void Matrix_Add(Sparse_Matrix<_T> oA, Sparse_Matrix<_T> oB, Sparse_Matrix<_T>* poC,int bCompact)
 {//此处必须做点假定，太随意很难做完备， C= A+B, 1， C假定已经足够空间。不够就失败退出
 	//2，A必须和B有相同的长宽
 	Sparse_Matrix<_T> oC;
@@ -6436,6 +6667,8 @@ template<typename _T>void Matrix_Add(Sparse_Matrix<_T> oA, Sparse_Matrix<_T> oB,
 	Build_Link_Col(oC);
 	if (poC->m_iMax_Item_Count)
 		Free_Sparse_Matrix(poC);
+	if (bCompact)
+		Compact_Sparse_Matrix(&oC);
 	*poC = oC;
 	return;
 }
@@ -6466,8 +6699,412 @@ template<typename _T>void Copy_Sparse_Matrix(Sparse_Matrix<_T> oA, Sparse_Matrix
 			oB.m_pBuffer[oB.m_iCur_Item - 1].m_iRow_Next = 0;
 	}
 	Build_Link_Col(oB);
+
 	*poB = oB;
 }
+
+template<typename _T>void Solve_Linear_Gause_1(Sparse_Matrix<_T>oA2, _T B[], _T X[], int* pbSuccess)
+{
+	Sparse_Matrix<_T> oA;
+	Init_Sparse_Matrix(&oA, oA2.m_iCur_Item * 10, oA2.m_iCol_Count + 1, oA2.m_iRow_Count);
+	Copy_Sparse_Matrix(oA2, &oA);
+
+	int x, y, * pQ = NULL, * pQ_Reverse = NULL, bSuccess = 1;
+	const _T eps = (_T)1e-6;
+	typename Sparse_Matrix<_T>::Item* poItem, oItem, * pMax_Row, * poMax_Row_Item, * poItem_To_Elim, * poPre;
+	pQ = (int*)pMalloc(&oMatrix_Mem, oA.m_iRow_Count * sizeof(int));
+	pQ_Reverse = (int*)pMalloc(&oMatrix_Mem, oA.m_iRow_Count * sizeof(int));
+	for (y = 0; y < oA.m_iRow_Count; y++)
+	{
+		if (B[y] != 0)
+		{
+			oA.m_pBuffer[oA.m_iCur_Item] = { (unsigned int)oA.m_iCol_Count-1,(unsigned int)y,B[y],0 };
+			if (oA.m_pRow[y])
+			{
+				poItem = &oA.m_pBuffer[oA.m_pRow[y]];
+				while (poItem->m_iRow_Next)
+					poItem = &oA.m_pBuffer[poItem->m_iRow_Next];
+				poItem->m_iRow_Next = oA.m_iCur_Item++;
+			}
+			else
+				oA.m_pRow[y] = oA.m_iCur_Item++;//此行没有元素
+		}
+		pQ_Reverse[y] = pQ[y] = y;
+	}
+	//oA.m_iCol_Count++;	//这里有问题
+	Build_Link_Col(oA);
+	//Disp_Fillness(oA);
+	int iMax_Item, iCur_Item, iMax_Q_Row, iTemp;
+	_T fMax, fValue;
+
+	for (x = 0; x < oA.m_iRow_Count; x++)
+	{//避免不了Reverse Lookup
+		if (!oA.m_pCol[x])
+		{
+			printf("不满秩 in Solve_Linear_Gause_1\n");
+			bSuccess = 0;
+			goto END;
+		}
+		iCur_Item = iMax_Item = oA.m_pCol[x];
+		oItem = oA.m_pBuffer[iMax_Item];
+
+		//遍历一列
+		y = x;
+		fMax = 0;
+		while (1)
+		{
+			if (pQ_Reverse[oItem.y] >= y)   //只要当前实际列在Q[y]之后就可以判断
+			{
+				if (Abs(oItem.m_fValue) > Abs(fMax))
+				{
+					iMax_Q_Row = pQ_Reverse[oItem.y];
+					fMax = oItem.m_fValue;
+					iMax_Item = iCur_Item;
+				}
+			}
+			if (oItem.m_iCol_Next)
+			{
+				iCur_Item = oItem.m_iCol_Next;
+				oItem = oA.m_pBuffer[oItem.m_iCol_Next];
+			}
+			else
+				break;
+		}
+		if (abs(fMax) <= eps)
+		{
+			printf("不满秩 in Solve_Linear_Gause_1\n");
+			bSuccess = 0;
+			goto END;
+		}
+		//可以交换Q[y]了
+		iTemp = pQ[y];
+		pQ[y] = pQ[iMax_Q_Row];
+		pQ[iMax_Q_Row] = iTemp;
+		pQ_Reverse[pQ[y]] = y;
+		pQ_Reverse[iTemp] = iMax_Q_Row;
+
+		//将列主元所在行更新
+		poItem = &oA.m_pBuffer[iMax_Item];
+		fValue = poItem->m_fValue;
+		poItem->m_fValue = 1.f;
+
+		//此处为了尽可能减少0元素数量，尝试直接将m_pRow指向这里，跳过前面已经消去的元素
+		oA.m_pRow[poItem->y] = iMax_Item;
+		//此处完全可以去掉，期望性能更优
+
+		//主元行调整值
+		if (poItem->m_iRow_Next)
+			poItem = pMax_Row = &oA.m_pBuffer[poItem->m_iRow_Next];
+		else
+			continue;
+		//poItem = pMax_Row = poItem->m_iRow_Next ? &oA1.m_pBuffer[poItem->m_iRow_Next] : NULL;
+		while (poItem)
+		{
+			poItem->m_fValue /= fMax;
+			poItem = poItem->m_iRow_Next ? &oA.m_pBuffer[poItem->m_iRow_Next] : NULL;
+		}
+		//然后用这一行对其他行进行消元，从头再来
+		poItem = &oA.m_pBuffer[oA.m_pCol[x]];
+		while (1)
+		{
+			if (poItem->y != pQ[y] && poItem->m_fValue != 0)
+			{//该行要消元, 用Max_Row来消                
+				fValue = poItem->m_fValue;
+				poItem->m_fValue = 0.f;
+
+				//此处麻烦，两条队列交错走
+				poPre = poItem;
+				if (poItem->m_iRow_Next)
+				{
+					poItem_To_Elim = &oA.m_pBuffer[poItem->m_iRow_Next];
+
+					//为了进一步减少0元，此处直接将m_pRow的值指向poItem_To_Elim
+					if (pQ_Reverse[poItem_To_Elim->y] > y && poItem_To_Elim->x == x + 1)
+						oA.m_pRow[poItem->y] = poItem->m_iRow_Next;
+					//此处完全可以去掉，期望性能更优
+				}
+				else
+					poItem_To_Elim = NULL;
+
+				poMax_Row_Item = pMax_Row;
+				while (1)
+				{//这个循环做一行消元，
+					if (oA.m_iCur_Item >= oA.m_iMax_Item_Count)
+					{
+						Build_Link_Col(oA);
+						printf("Insufficient space of oA1 in Solve_Linear_Gause_1\n");
+						bSuccess = 0;
+						goto END;
+					}
+					//分各种情况
+					if (!poItem_To_Elim)
+					{//加进去
+						oA.m_pBuffer[oA.m_iCur_Item] = { poMax_Row_Item->x,poPre->y, -fValue * poMax_Row_Item->m_fValue };
+						poPre->m_iRow_Next = oA.m_iCur_Item++;
+						if (!poMax_Row_Item->m_iRow_Next)
+							break;
+						poMax_Row_Item = &oA.m_pBuffer[poMax_Row_Item->m_iRow_Next];
+						poPre = &oA.m_pBuffer[poPre->m_iRow_Next];
+					}
+					else if (poItem_To_Elim->x < poMax_Row_Item->x)
+					{//得插入 待消元行元素向右进一格
+						//oA1.m_pBuffer[oA1.m_iCur_Item]= { poMax_Row_Item->x, poMax_Row_Item->y, -fValue * poMax_Row_Item->m_fValue,poPre->m_iRow_Next };
+						//poPre->m_iRow_Next = oA1.m_iCur_Item;                        
+						poPre = poItem_To_Elim;
+						poItem_To_Elim = poItem_To_Elim->m_iRow_Next ? &oA.m_pBuffer[poItem_To_Elim->m_iRow_Next] : NULL;
+					}
+					else if (poMax_Row_Item->x < poItem_To_Elim->x)
+					{//加1个元素，列主元行元素向右移一格
+						oA.m_pBuffer[oA.m_iCur_Item] = { poMax_Row_Item->x, poPre->y, -fValue * poMax_Row_Item->m_fValue,poPre->m_iRow_Next };
+						poPre->m_iRow_Next = oA.m_iCur_Item++;
+						if (!poMax_Row_Item->m_iRow_Next)
+							break;
+						poPre = &oA.m_pBuffer[oA.m_iCur_Item - 1];
+						poMax_Row_Item = &oA.m_pBuffer[poMax_Row_Item->m_iRow_Next];
+					}
+					else
+					{//相等，设新值，然后两个链表同时向右移动一格
+						poItem_To_Elim->m_fValue -= fValue * poMax_Row_Item->m_fValue;
+						if (!poMax_Row_Item->m_iRow_Next)
+							break;
+						poPre = poItem_To_Elim;
+						poItem_To_Elim = poItem_To_Elim->m_iRow_Next ? &oA.m_pBuffer[poItem_To_Elim->m_iRow_Next] : NULL;
+						poMax_Row_Item = &oA.m_pBuffer[poMax_Row_Item->m_iRow_Next];
+					}
+				}
+			}
+			//Disp(oA1, "A1");
+			if (poItem->m_iCol_Next)
+				poItem = &oA.m_pBuffer[poItem->m_iCol_Next];
+			else
+				break;
+		}
+		Build_Link_Col(oA);    //此处可以再改进，从主元列往右搞，前面不搞
+	}
+	//Disp_Fillness(oA);
+	memset(X, 0, oA.m_iRow_Count * sizeof(_T));
+	poItem = &oA.m_pBuffer[oA.m_pCol[oA.m_iCol_Count - 1]];
+	while (1)
+	{
+		X[pQ_Reverse[poItem->y]] = poItem->m_fValue;
+		if (poItem->m_iCol_Next)
+			poItem = &oA.m_pBuffer[poItem->m_iCol_Next];
+		else
+			break;
+	}
+
+END:
+	if (pbSuccess)
+		*pbSuccess = bSuccess;
+	Free_Sparse_Matrix(&oA);
+	if (pQ)
+		Free(&oMatrix_Mem, pQ);
+	if (pQ_Reverse)
+		Free(&oMatrix_Mem, pQ_Reverse);
+	return;
+}
+
+//template<typename _T>void Solve_Linear_Gause_1(Sparse_Matrix<_T> *poA, _T B[], _T X[], int* pbSuccess)
+//{//为了省内存，若oA不必留底，可以用破坏性方法，直接将B加到oA最后一列了事
+//	//把B加到oA最后一列，构成增广矩阵
+//	int x, y, * pQ = NULL, * pQ_Reverse = NULL, bSuccess = 1;
+//	Sparse_Matrix<_T> oA = *poA;
+//	typename Sparse_Matrix<_T>::Item* poItem, oItem, *pMax_Row,* poMax_Row_Item,* poItem_To_Elim,* poPre;
+//	const _T eps = (_T)1e-6;
+//	pQ = (int*)pMalloc(&oMatrix_Mem, oA.m_iRow_Count * sizeof(int));
+//	pQ_Reverse = (int*)pMalloc(&oMatrix_Mem, oA.m_iRow_Count * sizeof(int));
+//	if (oA.m_iCol_Count != oA.m_iRow_Count)
+//	{
+//		printf("不满秩 in Get_Inv_Matrix_Row_Op\n");
+//		goto END;
+//	}
+//	for (y = 0; y < oA.m_iRow_Count; y++)
+//	{
+//		if (B[y] != 0)
+//		{
+//			oA.m_pBuffer[oA.m_iCur_Item] = { (unsigned int)oA.m_iCol_Count,(unsigned int)y,B[y],0 };
+//			if (oA.m_pRow[y])
+//			{
+//				poItem = &oA.m_pBuffer[oA.m_pRow[y]];
+//				while (poItem->m_iRow_Next)
+//					poItem = &oA.m_pBuffer[poItem->m_iRow_Next];
+//				poItem->m_iRow_Next = oA.m_iCur_Item++;
+//			}else
+//				oA.m_pRow[y] = oA.m_iCur_Item++;//此行没有元素
+//		}
+//		pQ_Reverse[y] = pQ[y] = y;
+//	}
+//	oA.m_iCol_Count++;
+//	Build_Link_Col(oA);
+//	//Disp_Fillness(oA);
+//	int iMax_Item, iCur_Item,iMax_Q_Row, iTemp;
+//	_T fMax, fValue;
+//
+//	for (x = 0; x < oA.m_iRow_Count; x++)
+//	{//避免不了Reverse Lookup
+//		if (!oA.m_pCol[x])
+//		{
+//			printf("不满秩 in Get_Inv_Matrix_Row_Op\n");
+//			bSuccess = 0;
+//			goto END;
+//		}
+//		iCur_Item = iMax_Item = oA.m_pCol[x];
+//		oItem = oA.m_pBuffer[iMax_Item];
+//
+//		//遍历一列
+//		y = x;
+//		fMax = 0;
+//		while (1)
+//		{
+//			if (pQ_Reverse[oItem.y] >= y)   //只要当前实际列在Q[y]之后就可以判断
+//			{
+//				if (Abs(oItem.m_fValue) > Abs(fMax))
+//				{
+//					iMax_Q_Row = pQ_Reverse[oItem.y];
+//					fMax = oItem.m_fValue;
+//					iMax_Item = iCur_Item;
+//				}
+//			}
+//			if (oItem.m_iCol_Next)
+//			{
+//				iCur_Item = oItem.m_iCol_Next;
+//				oItem = oA.m_pBuffer[oItem.m_iCol_Next];
+//			}
+//			else
+//				break;
+//		}
+//		if (abs(fMax) <= eps)
+//		{
+//			printf("不满秩 in Get_Inv_Matrix_Row_Op\n");
+//			bSuccess = 0;
+//			goto END;
+//		}
+//		//可以交换Q[y]了
+//		iTemp = pQ[y];
+//		pQ[y] = pQ[iMax_Q_Row];
+//		pQ[iMax_Q_Row] = iTemp;
+//		pQ_Reverse[pQ[y]] = y;
+//		pQ_Reverse[iTemp] = iMax_Q_Row;
+//
+//		//将列主元所在行更新
+//		poItem = &oA.m_pBuffer[iMax_Item];
+//		fValue = poItem->m_fValue;
+//		poItem->m_fValue = 1.f;
+//
+//		//此处为了尽可能减少0元素数量，尝试直接将m_pRow指向这里，跳过前面已经消去的元素
+//		oA.m_pRow[poItem->y] = iMax_Item;
+//		//此处完全可以去掉，期望性能更优
+//
+//		//主元行调整值
+//		if (poItem->m_iRow_Next)
+//			poItem = pMax_Row = &oA.m_pBuffer[poItem->m_iRow_Next];
+//		else
+//			continue;
+//		//poItem = pMax_Row = poItem->m_iRow_Next ? &oA1.m_pBuffer[poItem->m_iRow_Next] : NULL;
+//		while (poItem)
+//		{
+//			poItem->m_fValue /= fMax;
+//			poItem = poItem->m_iRow_Next ? &oA.m_pBuffer[poItem->m_iRow_Next] : NULL;
+//		}
+//		//然后用这一行对其他行进行消元，从头再来
+//		poItem = &oA.m_pBuffer[oA.m_pCol[x]];
+//		while (1)
+//		{
+//			if (poItem->y != pQ[y] && poItem->m_fValue != 0)
+//			{//该行要消元, 用Max_Row来消                
+//				fValue = poItem->m_fValue;
+//				poItem->m_fValue = 0.f;
+//
+//				//此处麻烦，两条队列交错走
+//				poPre = poItem;
+//				if (poItem->m_iRow_Next)
+//				{
+//					poItem_To_Elim = &oA.m_pBuffer[poItem->m_iRow_Next];
+//
+//					//为了进一步减少0元，此处直接将m_pRow的值指向poItem_To_Elim
+//					if (pQ_Reverse[poItem_To_Elim->y] > y && poItem_To_Elim->x == x + 1)
+//						oA.m_pRow[poItem->y] = poItem->m_iRow_Next;
+//					//此处完全可以去掉，期望性能更优
+//				}else
+//					poItem_To_Elim = NULL;
+//
+//				poMax_Row_Item = pMax_Row;
+//				while (1)
+//				{//这个循环做一行消元，
+//					if (oA.m_iCur_Item >= oA.m_iMax_Item_Count)
+//					{
+//						Build_Link_Col(oA);
+//						printf("Insufficient space of oA1 in Get_Inv_Matrix_Row_Op\n");
+//						bSuccess = 0;
+//						goto END;
+//					}
+//					//分各种情况
+//					if (!poItem_To_Elim)
+//					{//加进去
+//						oA.m_pBuffer[oA.m_iCur_Item] = { poMax_Row_Item->x,poPre->y, -fValue * poMax_Row_Item->m_fValue };
+//						poPre->m_iRow_Next = oA.m_iCur_Item++;
+//						if (!poMax_Row_Item->m_iRow_Next)
+//							break;
+//						poMax_Row_Item = &oA.m_pBuffer[poMax_Row_Item->m_iRow_Next];
+//						poPre = &oA.m_pBuffer[poPre->m_iRow_Next];
+//					}
+//					else if (poItem_To_Elim->x < poMax_Row_Item->x)
+//					{//得插入 待消元行元素向右进一格
+//						//oA1.m_pBuffer[oA1.m_iCur_Item]= { poMax_Row_Item->x, poMax_Row_Item->y, -fValue * poMax_Row_Item->m_fValue,poPre->m_iRow_Next };
+//						//poPre->m_iRow_Next = oA1.m_iCur_Item;                        
+//						poPre = poItem_To_Elim;
+//						poItem_To_Elim = poItem_To_Elim->m_iRow_Next ? &oA.m_pBuffer[poItem_To_Elim->m_iRow_Next] : NULL;
+//					}
+//					else if (poMax_Row_Item->x < poItem_To_Elim->x)
+//					{//加1个元素，列主元行元素向右移一格
+//						oA.m_pBuffer[oA.m_iCur_Item] = { poMax_Row_Item->x, poPre->y, -fValue * poMax_Row_Item->m_fValue,poPre->m_iRow_Next };
+//						poPre->m_iRow_Next = oA.m_iCur_Item++;
+//						if (!poMax_Row_Item->m_iRow_Next)
+//							break;
+//						poPre = &oA.m_pBuffer[oA.m_iCur_Item - 1];
+//						poMax_Row_Item = &oA.m_pBuffer[poMax_Row_Item->m_iRow_Next];
+//					}else
+//					{//相等，设新值，然后两个链表同时向右移动一格
+//						poItem_To_Elim->m_fValue -= fValue * poMax_Row_Item->m_fValue;
+//						if (!poMax_Row_Item->m_iRow_Next)
+//							break;
+//						poPre = poItem_To_Elim;
+//						poItem_To_Elim = poItem_To_Elim->m_iRow_Next ? &oA.m_pBuffer[poItem_To_Elim->m_iRow_Next] : NULL;
+//						poMax_Row_Item = &oA.m_pBuffer[poMax_Row_Item->m_iRow_Next];
+//					}
+//				}
+//			}
+//			//Disp(oA1, "A1");
+//			if (poItem->m_iCol_Next)
+//				poItem = &oA.m_pBuffer[poItem->m_iCol_Next];
+//			else
+//				break;
+//		}
+//		Build_Link_Col(oA);    //此处可以再改进，从主元列往右搞，前面不搞
+//	}
+//	Disp_Fillness(oA);
+//	memset(X, 0, oA.m_iRow_Count * sizeof(_T));
+//	poItem = &oA.m_pBuffer[oA.m_pCol[oA.m_iCol_Count - 1]];
+//	while (1)
+//	{
+//		X[pQ_Reverse[poItem->y]] = poItem->m_fValue;
+//		if (poItem->m_iCol_Next)
+//			poItem = &oA.m_pBuffer[poItem->m_iCol_Next];
+//		else
+//			break;
+//	}
+//END:
+//	*poA = oA;
+//	if (pbSuccess)
+//		*pbSuccess = bSuccess;
+//	Free_Sparse_Matrix(&oA);
+//	if (pQ)
+//		Free(&oMatrix_Mem, pQ);
+//	if (pQ_Reverse)
+//		Free(&oMatrix_Mem, pQ_Reverse);
+//	return;
+//}
+
 template<typename _T>void Solve_Linear_Gause(Sparse_Matrix<_T> oA, _T B[], _T X[], int* pbSuccess)
 {//只有稀疏矩阵A是稀疏矩阵，其余用向量，简化
 	typedef struct Reverse_Item {
@@ -6488,7 +7125,8 @@ template<typename _T>void Solve_Linear_Gause(Sparse_Matrix<_T> oA, _T B[], _T X[
 
 	Sparse_Matrix<_T> oA1;
 	typename Sparse_Matrix<_T>::Item oItem, * poItem;
-	Init_Sparse_Matrix(&oA1, oA.m_iMax_Item_Count + oA.m_iRow_Count, oA.m_iCol_Count + 1, oA.m_iRow_Count);
+	//Init_Sparse_Matrix(&oA1, oA.m_iMax_Item_Count + oA.m_iRow_Count, oA.m_iCol_Count + 1, oA.m_iRow_Count);
+	Init_Sparse_Matrix(&oA1, oA.m_iCur_Item*10, oA.m_iCol_Count + 1, oA.m_iRow_Count);
 	if (/*!pQ_Done ||*/ !pQ || !oA1.m_pBuffer)
 	{
 		printf("Fail to allocate in Solve_Linear_Gause\n");
@@ -6712,7 +7350,7 @@ END:
 		*pbSuccess = bSuccess;
 	return;
 }
-template<typename _T>void Dense_2_Sparse(_T A[], int m, int n, Sparse_Matrix<_T>* poA)
+template<typename _T>void Dense_2_Sparse(_T A[], int m, int n, Sparse_Matrix<_T>* poA,int bCompact)
 {//尽可能快将一般矩阵转换为稀疏矩阵格式，假定oA来之前已经初始化好空间
 	int y, x, bLine_Add, iPos = 0;
 	Sparse_Matrix<_T> oA = *poA;
@@ -6735,6 +7373,9 @@ template<typename _T>void Dense_2_Sparse(_T A[], int m, int n, Sparse_Matrix<_T>
 			oA.m_pBuffer[oA.m_iCur_Item - 1].m_iRow_Next = 0;
 	}
 	Build_Link_Col(oA);
+	if (bCompact)
+		Compact_Sparse_Matrix(&oA);
+	*poA = oA;
 	//Disp(oA);
 }
 template<typename _T>void Sparse_2_Dense(Sparse_Matrix<_T> oA, _T B[])
@@ -6811,6 +7452,13 @@ template<typename _T>void Sparse_2_Dense(Sparse_Matrix<_T> oA, _T B[])
 		
 	return;
 }
+template<typename _T>void Add_I_Matrix(_T A[], int iOrder,_T ramda)
+{//专用于列文-马夸方法，给定的A矩阵加上一个I阵
+	int i;
+	for (i = 0; i < iOrder; i++)
+		A[i * iOrder + i] += ramda;
+	return;
+}
 template<typename _T>void Add_I_Matrix(Sparse_Matrix<_T>* poA, int* pbSuccess)
 {//对于列文马夸中需要调整Sigma_H矩阵使得可逆，即加一个I矩阵
 	int y;
@@ -6877,6 +7525,38 @@ template<typename _T>void Reset_Sparse_Matrix(Sparse_Matrix<_T>* poA)
 	oA.m_iCur_Item = 1;
 	*poA = oA;
 }
+template<typename _T>void Disp_Fillness(Sparse_Matrix<_T> oMatrix)
+{
+	int y, x;
+	typename Sparse_Matrix<_T>::Item* poCur;
+	for (y = 0; y < oMatrix.m_iRow_Count; y++)
+	{
+		if (!oMatrix.m_pRow[y])
+			for (x = 0; x < oMatrix.m_iCol_Count; x++)
+				printf(".");
+		else
+		{
+			poCur = &oMatrix.m_pBuffer[oMatrix.m_pRow[y]];
+			x = 0;
+			do {
+				for (; x < (int)poCur->x; x++)
+					printf(".");
+				if (poCur->m_fValue)
+					printf("*");
+				else
+					printf(".");
+				x++;
+				if (poCur->m_iRow_Next)
+					poCur = &oMatrix.m_pBuffer[poCur->m_iRow_Next];
+				else
+					break;
+			} while (1);
+			for (; x < oMatrix.m_iCol_Count; x++)
+				printf(".");
+		}
+		printf("\n");
+	}
+}
 template<typename _T>void Disp(Sparse_Matrix<_T> oMatrix, const char Caption[])
 {
 	int y, x;
@@ -6887,15 +7567,15 @@ template<typename _T>void Disp(Sparse_Matrix<_T> oMatrix, const char Caption[])
 	{
 		if (!oMatrix.m_pRow[y])
 			for (x = 0; x < oMatrix.m_iCol_Count; x++)
-				printf("%.8f ", 0.f);
+				printf("%.8f, ", 0.f);
 		else
 		{
 			poCur = &oMatrix.m_pBuffer[oMatrix.m_pRow[y]];
 			x = 0;
 			do {
 				for (; x <(int)poCur->x; x++)
-					printf("%.8f ", 0.f);
-				printf("%.8f ", poCur->m_fValue);
+					printf("%.8f, ", 0.f);
+				printf("%.8f, ", poCur->m_fValue);
 				x++;
 				if (poCur->m_iRow_Next)
 					poCur = &oMatrix.m_pBuffer[poCur->m_iRow_Next];
@@ -6903,7 +7583,7 @@ template<typename _T>void Disp(Sparse_Matrix<_T> oMatrix, const char Caption[])
 					break;
 			} while (1);
 			for (; x < oMatrix.m_iCol_Count; x++)
-				printf("%.8f ", 0.f);
+				printf("%.8f, ", 0.f);
 		}
 		printf("\n");
 	}
@@ -6913,7 +7593,7 @@ template<typename _T>void Get_Inv_Matrix_Row_Op(Sparse_Matrix<_T> oA, Sparse_Mat
 	int* pQ, * pQ_Reverse, y, x, bSuccess = 1, iCol_Count_Minuse_1, iCur_Item = 0;
 	Sparse_Matrix<_T> oA1, oA_Inv = *poA_Inv;
 	const _T eps = (_T)1e-6;
-	typename Sparse_Matrix<_T>::Item oItem, * poItem, * poPre, * pMax_Row, * poMax_Row_Item, * poItem_To_Elim;
+	typename Sparse_Matrix<_T>::Item oItem, * poItem, * poPre, * pMax_Row, * poMax_Row_Item, * poItem_To_Elim=NULL;
 	if (oA.m_iCol_Count != oA.m_iRow_Count)
 	{
 		printf("不满秩 in Get_Inv_Matrix_Row_Op\n");
@@ -6922,13 +7602,17 @@ template<typename _T>void Get_Inv_Matrix_Row_Op(Sparse_Matrix<_T> oA, Sparse_Mat
 	pQ = (int*)pMalloc(&oMatrix_Mem, oA.m_iRow_Count * sizeof(int));
 	pQ_Reverse = (int*)pMalloc(&oMatrix_Mem, oA.m_iRow_Count * sizeof(int));
 
-	Init_Sparse_Matrix(&oA1, oA.m_iMax_Item_Count * 2, oA.m_iCol_Count * 2, oA.m_iRow_Count);
+	Init_Sparse_Matrix(&oA1, oA.m_iCur_Item*60, oA.m_iCol_Count * 2, oA.m_iRow_Count);
 	iCol_Count_Minuse_1 = oA1.m_iCol_Count - 1;
 	//构造增广矩阵，右边为单位矩阵
 	for (y = 0; y < oA.m_iRow_Count; y++)
 	{
 		if (!oA.m_pRow[y])
+		{
+			printf("不满秩 in Get_Inv_Matrix_Row_Op\n");
+			bSuccess = 0;
 			goto END;
+		}			
 		oItem = oA.m_pBuffer[oA.m_pRow[y]];
 		while (1)
 		{
@@ -6967,6 +7651,7 @@ template<typename _T>void Get_Inv_Matrix_Row_Op(Sparse_Matrix<_T> oA, Sparse_Mat
 		}
 		iCur_Item = iMax_Item = oA1.m_pCol[x];
 		oItem = oA1.m_pBuffer[iMax_Item];
+
 		//遍历一列
 		y = x;
 		fMax = 0;
@@ -7006,14 +7691,24 @@ template<typename _T>void Get_Inv_Matrix_Row_Op(Sparse_Matrix<_T> oA, Sparse_Mat
 		poItem = &oA1.m_pBuffer[iMax_Item];
 		fValue = poItem->m_fValue;
 		poItem->m_fValue = 1.f;
-		poItem = pMax_Row = poItem->m_iRow_Next ? &oA1.m_pBuffer[poItem->m_iRow_Next] : NULL;
+
+		//此处为了尽可能减少0元素数量，尝试直接将m_pRow指向这里，跳过前面已经消去的元素
+		oA1.m_pRow[poItem->y] = iMax_Item;
+		//此处完全可以去掉，期望性能更优
+
+		//主元行调整值
+		if (poItem->m_iRow_Next)
+			poItem = pMax_Row = &oA1.m_pBuffer[poItem->m_iRow_Next];
+		else
+			continue;
+
+		//poItem = pMax_Row = poItem->m_iRow_Next ? &oA1.m_pBuffer[poItem->m_iRow_Next] : NULL;
 		while (poItem)
 		{
 			poItem->m_fValue /= fMax;
 			poItem = poItem->m_iRow_Next ? &oA1.m_pBuffer[poItem->m_iRow_Next] : NULL;
 		}
-
-		//Disp(oA1, "A1");        
+		//Disp(oA1, "A1");
 		//然后用这一行对其他行进行消元，从头再来
 		poItem = &oA1.m_pBuffer[oA1.m_pCol[x]];
 		while (1)
@@ -7022,12 +7717,30 @@ template<typename _T>void Get_Inv_Matrix_Row_Op(Sparse_Matrix<_T> oA, Sparse_Mat
 			{//该行要消元, 用Max_Row来消                
 				fValue = poItem->m_fValue;
 				poItem->m_fValue = 0.f;
+
 				//此处麻烦，两条队列交错走
 				poPre = poItem;
-				poItem_To_Elim = poItem->m_iRow_Next ? &oA1.m_pBuffer[poItem->m_iRow_Next] : NULL;
+				if (poItem->m_iRow_Next)
+				{
+					poItem_To_Elim = &oA1.m_pBuffer[poItem->m_iRow_Next];
+					
+					//为了进一步减少0元，此处直接将m_pRow的值指向poItem_To_Elim
+					if ( pQ_Reverse[poItem_To_Elim->y] >y && poItem_To_Elim->x == x + 1)
+						oA1.m_pRow[poItem->y] = poItem->m_iRow_Next;
+					//此处完全可以去掉，期望性能更优
+
+				}else
+					poItem_To_Elim = NULL;
+
 				poMax_Row_Item = pMax_Row;
 				while (1)
 				{//这个循环做一行消元，
+					if (oA1.m_iCur_Item >= oA1.m_iMax_Item_Count)
+					{
+						printf("Insufficient space of oA1 in Get_Inv_Matrix_Row_Op\n");
+						bSuccess = 0;
+						goto END;
+					}
 					//分各种情况
 					if (!poItem_To_Elim)
 					{//加进去
@@ -7035,6 +7748,7 @@ template<typename _T>void Get_Inv_Matrix_Row_Op(Sparse_Matrix<_T> oA, Sparse_Mat
 						poPre->m_iRow_Next = oA1.m_iCur_Item++;
 						if (!poMax_Row_Item->m_iRow_Next)
 							break;
+						poMax_Row_Item = &oA1.m_pBuffer[poMax_Row_Item->m_iRow_Next];
 						poPre = &oA1.m_pBuffer[poPre->m_iRow_Next];
 					}else if (poItem_To_Elim->x < poMax_Row_Item->x)
 					{//得插入 待消元行元素向右进一格
@@ -7048,6 +7762,7 @@ template<typename _T>void Get_Inv_Matrix_Row_Op(Sparse_Matrix<_T> oA, Sparse_Mat
 						poPre->m_iRow_Next = oA1.m_iCur_Item++;
 						if (!poMax_Row_Item->m_iRow_Next)
 							break;
+						poPre = &oA1.m_pBuffer[oA1.m_iCur_Item-1];
 						poMax_Row_Item = &oA1.m_pBuffer[poMax_Row_Item->m_iRow_Next];
 					}else
 					{//相等，设新值，然后两个链表同时向右移动一格
@@ -7069,8 +7784,11 @@ template<typename _T>void Get_Inv_Matrix_Row_Op(Sparse_Matrix<_T> oA, Sparse_Mat
 		Build_Link_Col(oA1);    //此处可以再改进，从主元列往右搞，前面不搞
 	}
 
+	//Disp(oA1, "A1");
 	//将oA1右边部分抄到poA_Inv上即可
-	Init_Sparse_Matrix(&oA_Inv, oA.m_iMax_Item_Count, oA.m_iCol_Count, oA.m_iRow_Count);
+	oA_Inv = *poA_Inv;
+	if(!oA_Inv.m_pBuffer)
+		Init_Sparse_Matrix(&oA_Inv, oA1.m_iMax_Item_Count, oA.m_iCol_Count, oA.m_iRow_Count);
 	for (y = 0; y < oA1.m_iRow_Count; y++)
 	{
 		oItem = oA1.m_pBuffer[oA1.m_pRow[pQ[y]]];
@@ -7084,6 +7802,12 @@ template<typename _T>void Get_Inv_Matrix_Row_Op(Sparse_Matrix<_T> oA, Sparse_Mat
 		oA_Inv.m_pRow[y] = oA_Inv.m_iCur_Item;
 		while (1)
 		{
+			if (oA_Inv.m_iCur_Item >= oA_Inv.m_iMax_Item_Count)
+			{
+				printf("Insufficient space of oA_Inv in Get_Inv_Matrix_Row_Op\n");
+				bSuccess = 0;
+				goto END;
+			}
 			if (oItem.m_fValue != 0)
 				oA_Inv.m_pBuffer[oA_Inv.m_iCur_Item++] = { oItem.x - oA_Inv.m_iCol_Count,oItem.y,oItem.m_fValue,oA_Inv.m_iCur_Item + 1 };
 
@@ -7105,4 +7829,72 @@ END:
 		Free(&oMatrix_Mem, pQ);
 	if (pQ_Reverse)
 		Free(&oMatrix_Mem, pQ_Reverse);
+}
+template<typename _T>void Rotation_Vector_4_2_3(_T V[], _T V1[])
+{//将4维旋转向量转换维3维旋转向量
+	for (int i = 0; i < 3; i++)
+		V1[i] = V[i] * V[3];
+}
+template<typename _T>void Rotation_Vector_3_2_4(_T V[], _T V1[])
+{//将3维旋转向量转化为4维旋转向量
+	_T V2[4];
+	Normalize(V, 3, V2);
+	V2[3] = fGet_Mod(V,3);
+	memcpy(V1, V2, 4 * sizeof(_T));
+}
+
+template<typename _T>void Crop_Matrix(_T Source[], int m, int n, int x, int y, int w, int h, _T Dest[],int iDest_Stride)
+{//对于一个m行n列的矩阵Source, 从x,y出截出一个h行w列的子块出来，构成Dest
+//若iDest_Stride=0, 则目标默认未w*h
+	if (iDest_Stride == 0)
+		iDest_Stride = w;
+	else if(w > iDest_Stride)
+		w = iDest_Stride;
+	_T* pSource_Cur = &Source[y * n + x],
+		* pSource_End = pSource_Cur + h * n,
+		* pDest_Cur = Dest;
+	for (; pSource_Cur < pSource_End; pSource_Cur += n,pDest_Cur+=iDest_Stride)
+		for (int i = 0; i < w; i++)
+			pDest_Cur[i] = pSource_Cur[i];
+	return;
+}
+
+template<typename _T>void Copy_Matrix_Partial(_T Source[], int m, int n, _T Dest[], int iDest_Stride, int x, int y)
+{//将Source抄到 Dest对应位置上
+	int x1, y1;
+	//此处还得改进，要象Place_Image那样来考虑各种情况，现在太粗糙
+	for (y1 = 0; y1 < m; y1++)
+		for (x1 = 0; x1 < n; x1++)
+			Dest[(y1 + y) * iDest_Stride + x1 + x] = Source[y1 * n + x1];
+	return;	
+}
+
+template<typename _T>void Disp_Fillness(_T A[], int m, int n)
+{//显示一个矩阵的非零情况
+	for (int y = 0; y < m; y++)
+	{
+		for (int x = 0; x < n; x++)
+		{
+			if (A[y * n + x] != 0)
+				printf("*");
+			else
+				printf(".");
+		}
+		printf("\n");
+	}
+}
+
+float fGet_e()
+{//简单用级数形式求解e的近似解
+	float e_pre=2, e=2;
+	int n,n_perm=2;
+	for (n = 2;;)
+	{
+		e += 1.f / n_perm;
+		if (e == e_pre)
+			return e;
+		n++;
+		n_perm *= n;
+		e_pre = e;
+	}
 }

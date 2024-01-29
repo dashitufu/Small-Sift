@@ -55,6 +55,28 @@ typedef struct Two_View_Geometry {
 	int num_inliers;
 }Two_View_Geometry;
 
+template<typename _T> struct All_Camera_Data {	//专用于Slam后端估计中的数据记录
+	typedef struct One_Camera_Data {    //一个相机及其对应点的数据
+		typedef struct Point_Data {
+			int m_iPoint_Index;
+			_T m_Data_6x3[6 * 3];
+			//_T Data_3x3[3 * 3];
+		}Point_Data;
+		_T m_Data_6x6[6 * 6];    //
+		Point_Data* m_pPoint_Data;
+		int m_iCur = 0; //当前可用点位置，下一个可用位置
+		int m_iPoint_Count;
+	}One_Camera_Data;
+	_T(*m_pData_3x3)[3 * 3]; //3x3的数据是累加起来的
+	union {
+		One_Camera_Data* m_pCamera_Data;
+		unsigned char* m_pBuffer;
+	};
+	int m_iCamera_Count;
+	int m_iPoint_Count;
+	int m_iObservation_Count;
+};
+
 //对于E,F,H三个矩阵的估计，有一个Report，此处要有内存分配
 void Free_Report(Ransac_Report oReport, Mem_Mgr* poMem_Mgr = NULL);
 void Disp_Report(Ransac_Report oReport);
@@ -94,8 +116,21 @@ template<typename _T>void ICP_BA_2_Image_1(_T P_1[][3], _T P_2[][3], int iCount,
 template<typename _T>void ICP_BA_2_Image_2(_T P1[][3], _T P2[][3], int iCount, _T Pose[], int* piResult);
 template<typename _T>void ICP_SVD(_T P_1[][3], _T P_2[][3], int iCount, _T Pose[], int* piResult);
 
+//此处可能要积累一大堆雅可比
 template<typename _T>void Get_Deriv_TP_Ksi(_T T[4 * 4], _T P[3], _T Deriv[4 * 6]);
+template<typename _T>void Get_Drive_UV_P(_T fx, _T fy, _T P[3], _T J[2 * 3]);
+template<typename _T>void Get_Drive_UV_P(_T K[3 * 3], _T P[3], _T J[2 * 3]);
+
 template<typename _T>void Get_Delta_Pose(_T Pose_1[4 * 4], _T Pose_2[4 * 4], _T Delta_Pose[4 * 4]);
+
+//一组专用于存相机与点关系的函数
+template<typename _T>void Init_All_Camera_Data(All_Camera_Data<_T>* poData, int Point_Count_Each_Camera[], int iCamera_Count, int iPoint_Count);
+template<typename _T>void Free(All_Camera_Data<_T>* poData);
+template<typename _T>void Distribute_Data(All_Camera_Data<_T> oData, _T JJt[9 * 9], int iCamera_ID, int iPoint_ID);
+template<typename _T>void Copy_Data_2_Sparse(All_Camera_Data<_T> oData, Sparse_Matrix<_T>* poA);
+
+//Schur消元法解Slam线性方程
+template<typename _T>void Solve_Linear_Schur(All_Camera_Data<_T> oData, _T Sigma_JE[], _T X[], int* pbSuccess = NULL);
 
 template<typename _T> void Optical_Flow_1(Image oImage_1, Image oImage_2, _T KP_1[][2], _T KP_2[][2], int iCount, int* piMatch_Count, int bHas_Initial = 0, int bInverse = false);
 
