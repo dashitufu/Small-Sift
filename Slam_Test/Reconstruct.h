@@ -55,7 +55,7 @@ typedef struct Two_View_Geometry {
 	int num_inliers;
 }Two_View_Geometry;
 
-template<typename _T> struct All_Camera_Data {	//专用于Slam后端估计中的数据记录
+template<typename _T> struct Schur_Camera_Data {	//专用于Slam后端估计中的数据记录
 	typedef struct One_Camera_Data {    //一个相机及其对应点的数据
 		typedef struct Point_Data {
 			int m_iPoint_Index;
@@ -75,6 +75,28 @@ template<typename _T> struct All_Camera_Data {	//专用于Slam后端估计中的数据记录
 	int m_iCamera_Count;
 	int m_iPoint_Count;
 	int m_iObservation_Count;
+};
+template<typename _T> struct Measurement {
+	int m_Camera_Index[2];    //观察中的两个位姿
+	_T Delta_ksi[7];        //存个ksi，前三项相当于位移，后4项为4元数
+};
+template<typename _T> struct Pose_Graph_Sigma_H {
+	typedef struct Camera_Data {
+		_T m_Data_6x6[6 * 6];
+		int m_iIndex;   //本数据块在相机组中的索引
+	}Camera_Data;
+	typedef struct Camera_Line {
+		Camera_Data* m_pCamera_Data;     //一个相机在Sigma_H占一行，这是一行数据在块中的开始位置
+		int m_iCount;   //每个相机和其他相机产生的联系，属于反自反关系,有<i,j>就不需要<j,i>
+	}Camera_Line;
+
+	Camera_Line* m_pLine;
+	union {
+		Camera_Data* m_pCamera_Data;
+		unsigned char* m_pBuffer;
+	};
+	int m_iCamera_Data_Count;   //比Meaurement Count多 相机个数
+	int m_iCamera_Count;        //一共有多少个相机
 };
 
 //对于E,F,H三个矩阵的估计，有一个Report，此处要有内存分配
@@ -124,14 +146,28 @@ template<typename _T>void Get_Drive_UV_P(_T K[3 * 3], _T P[3], _T J[2 * 3]);
 template<typename _T>void Get_Delta_Pose(_T Pose_1[4 * 4], _T Pose_2[4 * 4], _T Delta_Pose[4 * 4]);
 
 //一组专用于存相机与点关系的函数
-template<typename _T>void Init_All_Camera_Data(All_Camera_Data<_T>* poData, int Point_Count_Each_Camera[], int iCamera_Count, int iPoint_Count);
-template<typename _T>void Free(All_Camera_Data<_T>* poData);
-template<typename _T>void Distribute_Data(All_Camera_Data<_T> oData, _T JJt[9 * 9], int iCamera_ID, int iPoint_ID);
-template<typename _T>void Copy_Data_2_Sparse(All_Camera_Data<_T> oData, Sparse_Matrix<_T>* poA);
+template<typename _T>void Init_All_Camera_Data(Schur_Camera_Data<_T>* poData, int Point_Count_Each_Camera[], int iCamera_Count, int iPoint_Count);
+template<typename _T>void Free(Schur_Camera_Data<_T>* poData);
+template<typename _T>void Distribute_Data(Schur_Camera_Data<_T> oData, _T JJt[9 * 9], int iCamera_ID, int iPoint_ID);
+template<typename _T>void Copy_Data_2_Sparse(Schur_Camera_Data<_T> oData, Sparse_Matrix<_T>* poA);
+
+//以下一组函数多用于位姿图
+template<typename _T>void TQ_2_Rt(_T TQ[7], _T Rt[4 * 4]);	//7自由度se3转换SE3上的Rt矩阵
+template<typename _T>void Init_Pose_Graph(Measurement<_T>* pMeasurement, int iMeasurement_Count, int iCamera_Count, Pose_Graph_Sigma_H<_T>* poPose_Graph);
+template<typename _T>void Reset_Pose_Graph(Pose_Graph_Sigma_H<_T> oSigma_H);
+template<typename _T>void Get_J_Inv(_T eij[6], _T J_Inv[6 * 6]);
+template<typename _T>void Get_Adj(_T Rt[4 * 4], _T Adj[6 * 6]);
+template<typename _T>void Distribute_Data(Pose_Graph_Sigma_H<_T> oSigma_H, _T JJt[12 * 12], int iCamera_i, int iCamera_j);
+template<typename _T>void Copy_Data_2_Sparse(Pose_Graph_Sigma_H<_T> oPose_Graph, Sparse_Matrix<_T>* poA);
+
 
 //Schur消元法解Slam线性方程
-template<typename _T>void Solve_Linear_Schur(All_Camera_Data<_T> oData, _T Sigma_JE[], _T X[], int* pbSuccess = NULL);
+template<typename _T>void Solve_Linear_Schur(Schur_Camera_Data<_T> oData, _T Sigma_JE[], _T X[], int* pbSuccess = NULL);
 
 template<typename _T> void Optical_Flow_1(Image oImage_1, Image oImage_2, _T KP_1[][2], _T KP_2[][2], int iCount, int* piMatch_Count, int bHas_Initial = 0, int bInverse = false);
 
 template<typename _T>void Disp_Error(_T P1[][3], _T P2[][3], int iCount, _T Pose[4 * 4]);
+
+//Temp Code
+template<typename _T> int bTemp_Load_Data(const char* pcFile, _T(**ppT)[7], int* piPoint_Count,
+	Measurement<_T>** ppMeasurement, int* piMeasure_Count);

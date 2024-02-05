@@ -1075,23 +1075,87 @@ template<typename _T>void Decompose_E(_T E[3 * 3], _T R1[3 * 3], _T R2[3 * 3], _
 
 	//Disp(t, 1, 3, "t");
 }
+template<typename _T>void Get_J_Inv(_T eij[6], _T J_Inv[6 * 6])
+{//求 J(-1)(eij)，用于位姿图估计
+	//= I + 1/2 *   phi^    rho^
+	//              0       phi^
+	_T hat[3 * 3];
+	Hat(eij, hat);  //得rho^
+	memset(J_Inv, 0, 36 * sizeof(_T));
+	//Disp(hat, 3, 3, "hat");
+	J_Inv[3] = hat[0], J_Inv[4] = hat[1], J_Inv[5] = hat[2];
+	J_Inv[9] = hat[3], J_Inv[10] = hat[4], J_Inv[11] = hat[5];
+	J_Inv[15] = hat[6], J_Inv[16] = hat[7], J_Inv[17] = hat[8];
+
+	Hat(&eij[3], hat);  //得phi^
+	J_Inv[0] = J_Inv[21] = hat[0], J_Inv[1] = J_Inv[22] = hat[1], J_Inv[2] = J_Inv[23] = hat[2];
+	J_Inv[6] = J_Inv[27] = hat[3], J_Inv[7] = J_Inv[28] = hat[4], J_Inv[8] = J_Inv[29] = hat[5];
+	J_Inv[12] = J_Inv[33] = hat[6], J_Inv[13] = J_Inv[34] = hat[7], J_Inv[14] = J_Inv[35] = hat[8];
+	//Disp(J_Inv, 6, 6, "J_Inv");
+	Matrix_Multiply(J_Inv, 6, 6, (_T)0.5f, J_Inv);
+	Add_I_Matrix(J_Inv, 6);
+	//Disp(J_Inv, 6, 6, "J_Inv");
+	return;
+}
+template<typename _T>void Get_Adj(_T Rt[4 * 4], _T Adj[6 * 6])
+{//主要利用伴随性质，对给定的齐次矩阵Rt生成伴随矩阵 R  t^R
+//                                                  0   R
+	_T R[3 * 3],
+		t_R[3 * 3],  //= t^R
+		t[3];
+	memset(Adj, 0, 36 * sizeof(_T));
+	Get_R_t(Rt, R, t);
+	Adj[0] = Adj[21] = R[0], Adj[1] = Adj[22] = R[1], Adj[2] = Adj[23] = R[2];
+	Adj[6] = Adj[27] = R[3], Adj[7] = Adj[28] = R[4], Adj[8] = Adj[29] = R[6];
+	Adj[12] = Adj[33] = R[6], Adj[13] = Adj[34] = R[7], Adj[14] = Adj[35] = R[8];
+
+	Hat(t, t_R);
+	Matrix_Multiply(t_R, 3, 3, R, 3, t_R);
+
+	Adj[3] = t_R[0], Adj[4] = t_R[1], Adj[5] = t_R[2];
+	Adj[9] = t_R[3], Adj[10] = t_R[4], Adj[11] = t_R[5];
+	Adj[15] = t_R[6], Adj[16] = t_R[7], Adj[17] = t_R[8];
+	//Disp(Adj, 6, 6, "Adj");
+	return;
+}
 
 void SB_Reconstruct()
 {//这就是个傻逼方法，用来欺骗template
-	Solve_Linear_Schur(All_Camera_Data<double>{}, (double*)NULL, (double*)NULL);
-	Solve_Linear_Schur(All_Camera_Data<float>{}, (float*)NULL, (float*)NULL);
+	Reset_Pose_Graph(Pose_Graph_Sigma_H<double>{});
+	Reset_Pose_Graph(Pose_Graph_Sigma_H<float>{});
 
-	Free((All_Camera_Data<double>*)NULL);
-	Free((All_Camera_Data<float>*)NULL);
+	Copy_Data_2_Sparse(Pose_Graph_Sigma_H<double>{}, (Sparse_Matrix<double>*)NULL);
+	Copy_Data_2_Sparse(Pose_Graph_Sigma_H<float>{}, (Sparse_Matrix<float>*)NULL);
 
-	Copy_Data_2_Sparse(All_Camera_Data<double>{}, (Sparse_Matrix<double>*)NULL);
-	Copy_Data_2_Sparse(All_Camera_Data<float>{}, (Sparse_Matrix<float>*)NULL);
+	Init_Pose_Graph((Measurement<double>*)NULL, 0, 0, (Pose_Graph_Sigma_H<double>*)NULL );
+	Init_Pose_Graph((Measurement<float>*)NULL, 0, 0, (Pose_Graph_Sigma_H<float>*)NULL);
 
-	Init_All_Camera_Data((All_Camera_Data<double>*)NULL, NULL, 0, 0);
-	Init_All_Camera_Data((All_Camera_Data<float>*)NULL, NULL, 0, 0);
+	Get_J_Inv((double*)NULL, (double*)NULL);
+	Get_J_Inv((float*)NULL, (float*)NULL);
 
-	Distribute_Data(All_Camera_Data<double>{}, (double*)NULL, 0, 0);
-	Distribute_Data(All_Camera_Data<float>{}, (float*)NULL, 0, 0);
+	TQ_2_Rt((double*)NULL, (double*)NULL);
+	TQ_2_Rt((float*)NULL, (float*)NULL);
+
+	Get_Adj((double*)NULL, (double*)NULL);
+	Get_Adj((float*)NULL, (float*)NULL);
+
+	Distribute_Data(Pose_Graph_Sigma_H<double>{}, (double*)NULL, 0, 0);
+	Distribute_Data(Pose_Graph_Sigma_H<float>{}, (float*)NULL, 0, 0);
+
+	Solve_Linear_Schur(Schur_Camera_Data<double>{}, (double*)NULL, (double*)NULL);
+	Solve_Linear_Schur(Schur_Camera_Data<float>{}, (float*)NULL, (float*)NULL);
+
+	Free((Schur_Camera_Data<double>*)NULL);
+	Free((Schur_Camera_Data<float>*)NULL);
+
+	Copy_Data_2_Sparse(Schur_Camera_Data<double>{}, (Sparse_Matrix<double>*)NULL);
+	Copy_Data_2_Sparse(Schur_Camera_Data<float>{}, (Sparse_Matrix<float>*)NULL);
+
+	Init_All_Camera_Data((Schur_Camera_Data<double>*)NULL, NULL, 0, 0);
+	Init_All_Camera_Data((Schur_Camera_Data<float>*)NULL, NULL, 0, 0);
+
+	Distribute_Data(Schur_Camera_Data<double>{}, (double*)NULL, 0, 0);
+	Distribute_Data(Schur_Camera_Data<float>{}, (float*)NULL, 0, 0);
 
 	Get_Drive_UV_P((double*)NULL, (double*)NULL, (double*)NULL);
 	Get_Drive_UV_P((float*)NULL, (float*)NULL, (float*)NULL);
@@ -2140,7 +2204,7 @@ template<typename _T>void Get_Delta_Pose(_T Pose_1[4 * 4], _T Pose_2[4 * 4], _T 
 
 	return;
 }
-template<typename _T>void Init_All_Camera_Data(All_Camera_Data<_T>* poData, int Point_Count_Each_Camera[], int iCamera_Count, int iPoint_Count)
+template<typename _T>void Init_All_Camera_Data(Schur_Camera_Data<_T>* poData, int Point_Count_Each_Camera[], int iCamera_Count, int iPoint_Count)
 {
 	poData->m_iCamera_Count = iCamera_Count;
 	poData->m_iPoint_Count = iPoint_Count;
@@ -2148,28 +2212,28 @@ template<typename _T>void Init_All_Camera_Data(All_Camera_Data<_T>* poData, int 
 	int i, iObservation_Count = 0, iSize;
 	for (i = 0; i < iCamera_Count; i++)
 		iObservation_Count += Point_Count_Each_Camera[i];
-	iSize = iCamera_Count * sizeof(All_Camera_Data<_T>::One_Camera_Data) +
+	iSize = iCamera_Count * sizeof(Schur_Camera_Data<_T>::One_Camera_Data) +
 		iPoint_Count * 9 * sizeof(_T) +
-		iObservation_Count * sizeof(All_Camera_Data<_T>::One_Camera_Data::Point_Data);
+		iObservation_Count * sizeof(Schur_Camera_Data<_T>::One_Camera_Data::Point_Data);
 	pBuffer = pStart = poData->m_pBuffer = (unsigned char*)pMalloc(&oMatrix_Mem, iSize);
 	memset(pBuffer, 0, iSize);
-	pBuffer += iCamera_Count * sizeof(All_Camera_Data<_T>::One_Camera_Data);
+	pBuffer += iCamera_Count * sizeof(Schur_Camera_Data<_T>::One_Camera_Data);
 	poData->m_pData_3x3 = (_T(*)[9])pBuffer;
 	pBuffer += iPoint_Count * 9 * sizeof(_T);
-	typename All_Camera_Data<_T>::One_Camera_Data* poCamera;
+	typename Schur_Camera_Data<_T>::One_Camera_Data* poCamera;
 	for (i = 0; i < iCamera_Count; i++)
 	{
 		poCamera = &poData->m_pCamera_Data[i];
 		poCamera->m_iPoint_Count = Point_Count_Each_Camera[i];
-		poCamera->m_pPoint_Data = (typename All_Camera_Data<_T>::One_Camera_Data::Point_Data*)pBuffer;
-		pBuffer += Point_Count_Each_Camera[i] * sizeof(All_Camera_Data<_T>::One_Camera_Data::Point_Data);
+		poCamera->m_pPoint_Data = (typename Schur_Camera_Data<_T>::One_Camera_Data::Point_Data*)pBuffer;
+		pBuffer += Point_Count_Each_Camera[i] * sizeof(Schur_Camera_Data<_T>::One_Camera_Data::Point_Data);
 	}
 	poData->m_iObservation_Count = iObservation_Count;
 	return;
 }
-template<typename _T>void Distribute_Data(All_Camera_Data<_T> oData, _T JJt[9 * 9], int iCamera_ID, int iPoint_ID)
+template<typename _T>void Distribute_Data(Schur_Camera_Data<_T> oData, _T JJt[9 * 9], int iCamera_ID, int iPoint_ID)
 {//将JJt 6x6部分累加，其余部分设值
-	typename All_Camera_Data<_T>::One_Camera_Data* poCamera_Data = &oData.m_pCamera_Data[iCamera_ID];
+	typename Schur_Camera_Data<_T>::One_Camera_Data* poCamera_Data = &oData.m_pCamera_Data[iCamera_ID];
 	_T* pData_6x6 = poCamera_Data->m_Data_6x6;
 	_T* pCur, * pCur_End = JJt + 6 * 9;
 	int iCur;
@@ -2183,7 +2247,7 @@ template<typename _T>void Distribute_Data(All_Camera_Data<_T> oData, _T JJt[9 * 
 			pData_6x6[iCur] += pCur[x];
 
 	//第二部分
-	typename All_Camera_Data<_T>::One_Camera_Data::Point_Data* poPoint_Data = &poCamera_Data->m_pPoint_Data[poCamera_Data->m_iCur++];
+	typename Schur_Camera_Data<_T>::One_Camera_Data::Point_Data* poPoint_Data = &poCamera_Data->m_pPoint_Data[poCamera_Data->m_iCur++];
 	poPoint_Data->m_iPoint_Index = iPoint_ID;
 	_T* pData_6x3 = poPoint_Data->m_Data_6x3;
 	for (pCur = JJt + 6, iCur = 0; pCur < pCur_End; pCur += 9)
@@ -2197,7 +2261,7 @@ template<typename _T>void Distribute_Data(All_Camera_Data<_T> oData, _T JJt[9 * 
 			pData_3x3[iCur] += pCur[x];
 	return;
 }
-template<typename _T>void Copy_Data_2_Sparse(All_Camera_Data<_T> oData, Sparse_Matrix<_T>* poA)
+template<typename _T>void Copy_Data_2_Sparse(Schur_Camera_Data<_T> oData, Sparse_Matrix<_T>* poA)
 {//将All_Camera_Data抄到稀疏矩阵中
 	int i, j, k, * pPoint_Index_2_Pos = (int*)pMalloc(&oMatrix_Mem, oData.m_iPoint_Count * sizeof(int));    //已知一个点索引，求其位置索引
 	if (!pPoint_Index_2_Pos)
@@ -2209,8 +2273,8 @@ template<typename _T>void Copy_Data_2_Sparse(All_Camera_Data<_T> oData, Sparse_M
 	for (i = 0; i < oData.m_iCamera_Count; i++)
 	{
 		memset(pPoint_Index_2_Pos, -1, oData.m_iPoint_Count * sizeof(int));
-		typename All_Camera_Data<_T>::One_Camera_Data* poCamera_Data = &oData.m_pCamera_Data[i];
-		typename All_Camera_Data<_T>::One_Camera_Data::Point_Data* poPoint_Data;
+		typename Schur_Camera_Data<_T>::One_Camera_Data* poCamera_Data = &oData.m_pCamera_Data[i];
+		typename Schur_Camera_Data<_T>::One_Camera_Data::Point_Data* poPoint_Data;
 		if (!poCamera_Data->m_iCur)
 			continue;
 		//做一个Revers Lookup 表,对Point进行排序，不用Quick Sort
@@ -2302,13 +2366,13 @@ template<typename _T>void Copy_Data_2_Sparse(All_Camera_Data<_T> oData, Sparse_M
 	*poA = oA;
 	return;
 }
-template<typename _T>void Free(All_Camera_Data<_T>* poData)
+template<typename _T>void Free(Schur_Camera_Data<_T>* poData)
 {
 	if (poData && poData->m_pBuffer)
 		Free(&oMatrix_Mem, poData->m_pBuffer);
 	return;
 }
-template<typename _T>void Add_I_Matrix(All_Camera_Data<_T> oData, _T fRamda = 1.f)
+template<typename _T>void Add_I_Matrix(Schur_Camera_Data<_T> oData, _T fRamda = 1.f)
 {//列文-马夸方法需要对角线上加上fRamda
 	int i;
 	union {
@@ -2330,13 +2394,13 @@ template<typename _T>void Add_I_Matrix(All_Camera_Data<_T> oData, _T fRamda = 1.
 		pData_3x3[0] += fRamda, pData_3x3[4] += fRamda, pData_3x3[8] += fRamda;
 	}
 }
-template<typename _T>void Schur_Get_C_Inv(All_Camera_Data<_T> oData)
+template<typename _T>void Schur_Get_C_Inv(Schur_Camera_Data<_T> oData)
 {//对3x3块分别求逆，直接填回到3x3位置上了事，后面这些数据全不要了
 	int i, iResult;
 	for (i = 0; i < oData.m_iPoint_Count; i++)  //此处不用列主元法快很多，所以要对比精度
 		Get_Inv_Matrix_Row_Op_2(oData.m_pData_3x3[i], oData.m_pData_3x3[i], 3, &iResult);
 }
-template<typename _T>void Schur_Gen_B_E_Cinv(All_Camera_Data<_T> oData, Sparse_Matrix<_T>* poB, Sparse_Matrix<_T>* poC_Inv, Sparse_Matrix<_T>* poE)
+template<typename _T>void Schur_Gen_B_E_Cinv(Schur_Camera_Data<_T> oData, Sparse_Matrix<_T>* poB, Sparse_Matrix<_T>* poC_Inv, Sparse_Matrix<_T>* poE)
 {
 	int i, j, k, w_B = oData.m_iCamera_Count * 6,
 		w_C = oData.m_iPoint_Count * 3;
@@ -2350,8 +2414,8 @@ template<typename _T>void Schur_Gen_B_E_Cinv(All_Camera_Data<_T> oData, Sparse_M
 	//生成oB, oE
 	for (i = 0; i < oData.m_iCamera_Count; i++)
 	{
-		typename All_Camera_Data<_T>::One_Camera_Data* poCamera_Data = &oData.m_pCamera_Data[i];
-		typename All_Camera_Data<_T>::One_Camera_Data::Point_Data* poPoint_Data;
+		typename Schur_Camera_Data<_T>::One_Camera_Data* poCamera_Data = &oData.m_pCamera_Data[i];
+		typename Schur_Camera_Data<_T>::One_Camera_Data::Point_Data* poPoint_Data;
 		//if (!poCamera_Data->m_iCur)
 		  //  continue;
 		if (poCamera_Data->m_iCur)
@@ -2457,11 +2521,11 @@ template<typename _T>void Schur_Gen_B_E_Cinv(All_Camera_Data<_T> oData, Sparse_M
 	*poE = oE;
 	return;
 }
-template<typename _T>void Schur_Get_E_Cinv(All_Camera_Data<_T> oData, Sparse_Matrix<_T>* poE_Cinv)
+template<typename _T>void Schur_Get_E_Cinv(Schur_Camera_Data<_T> oData, Sparse_Matrix<_T>* poE_Cinv)
 {//尝试直接在此E * C(-1)
 	int i, j, w = oData.m_iPoint_Count * 3, h = oData.m_iCamera_Count * 6;
-	typename All_Camera_Data<_T>::One_Camera_Data oCamera;
-	typename  All_Camera_Data<_T>::One_Camera_Data::Point_Data oPoint;
+	typename Schur_Camera_Data<_T>::One_Camera_Data oCamera;
+	typename  Schur_Camera_Data<_T>::One_Camera_Data::Point_Data oPoint;
 	Sparse_Matrix<_T> oE_Cinv = *poE_Cinv;
 
 	_T A[6 * 3], * E_Cinv;
@@ -2488,7 +2552,7 @@ template<typename _T>void Schur_Get_E_Cinv(All_Camera_Data<_T> oData, Sparse_Mat
 	*poE_Cinv = oE_Cinv;
 	return;
 }
-template<typename _T>void Schur_Get_Xc(All_Camera_Data<_T> oData, Sparse_Matrix<_T>oEt_Delta_Xc, _T Xp[])
+template<typename _T>void Schur_Get_Xc(Schur_Camera_Data<_T> oData, Sparse_Matrix<_T>oEt_Delta_Xc, _T Xp[])
 {//计算Matrix_Multiply(oC_Inv, oEt_Delta_Xc, &oXp);    //C(-1)*(w-Et* Delta Xc)
 	_T* Et_Delta_Xc = (_T*)pMalloc(&oMatrix_Mem, oEt_Delta_Xc.m_iRow_Count * sizeof(_T));
 	Sparse_2_Dense(oEt_Delta_Xc, Et_Delta_Xc);
@@ -2502,7 +2566,7 @@ template<typename _T>void Schur_Get_Xc(All_Camera_Data<_T> oData, Sparse_Matrix<
 	Free(&oMatrix_Mem, Et_Delta_Xc);
 	return;
 }
-template<typename _T>void Solve_Linear_Schur(All_Camera_Data<_T> oData, _T Sigma_JE[], _T X[], int* pbSuccess)
+template<typename _T>void Solve_Linear_Schur(Schur_Camera_Data<_T> oData, _T Sigma_JE[], _T X[], int* pbSuccess)
 {//用All_Camera_Data表示Slam数据，解出来以后放在X里
 	//此处可能要多一步，用列文-马夸的方式，Add_I_Matrix
 	Add_I_Matrix(oData);
@@ -2585,5 +2649,217 @@ template<typename _T>void Solve_Linear_Schur(All_Camera_Data<_T> oData, _T Sigma
 	Free_Sparse_Matrix(&oEt_Delta_Xc);
 	Free_Sparse_Matrix(&ov);
 	//Disp_Mem(&oMatrix_Mem, 0);
+	return;
+}
+template<typename _T>void Init_Pose_Graph(Measurement<_T>* pMeasurement, int iMeasurement_Count, int iCamera_Count, Pose_Graph_Sigma_H<_T>* poPose_Graph)
+{
+	Pose_Graph_Sigma_H<_T> oPose_Graph;
+	int i, iSize;
+	oPose_Graph.m_iCamera_Data_Count = iMeasurement_Count + iCamera_Count;
+	oPose_Graph.m_iCamera_Count = iCamera_Count;
+
+	iSize = oPose_Graph.m_iCamera_Data_Count * sizeof(Pose_Graph_Sigma_H<_T>::Camera_Data) +
+		iCamera_Count * sizeof(Pose_Graph_Sigma_H<_T>::Camera_Line);
+	oPose_Graph.m_pBuffer = (unsigned char*)pMalloc(&oMatrix_Mem, iSize);
+	oPose_Graph.m_pLine = (typename Pose_Graph_Sigma_H<_T>::Camera_Line*)(oPose_Graph.m_pCamera_Data + oPose_Graph.m_iCamera_Data_Count);
+	memset(oPose_Graph.m_pLine, 0, iCamera_Count * sizeof(Pose_Graph_Sigma_H<_T>::Camera_Line));
+	int iSum = 0;
+	for (i = 0; i < iMeasurement_Count; i++)
+		oPose_Graph.m_pLine[pMeasurement[i].m_Camera_Index[0]].m_iCount++;
+
+	typename Pose_Graph_Sigma_H<_T>::Camera_Data* pCur = oPose_Graph.m_pCamera_Data;
+	for (i = 0; i < iCamera_Count; i++)
+	{
+		typename Pose_Graph_Sigma_H<_T>::Camera_Line* poLine = &oPose_Graph.m_pLine[i];
+		poLine->m_pCamera_Data = pCur;
+		pCur += poLine->m_iCount + 1;
+		poLine->m_iCount = 0;   //后面有用
+	}
+
+	for (i = 0; i < iMeasurement_Count; i++)
+	{
+		Measurement<_T> oM = pMeasurement[i];
+		typename Pose_Graph_Sigma_H<_T>::Camera_Line* poLine = &oPose_Graph.m_pLine[oM.m_Camera_Index[0]];
+		if (poLine->m_iCount)
+		{
+			if (poLine->m_pCamera_Data[poLine->m_iCount - 1].m_iIndex >= oM.m_Camera_Index[1])
+			{
+				printf("error in Init_Pose_Graph");
+				return;
+			}
+			poLine->m_pCamera_Data[poLine->m_iCount].m_iIndex = oM.m_Camera_Index[1];
+			poLine->m_iCount++;
+		}
+		else
+		{//第一次加到这行，连加两个
+			poLine->m_pCamera_Data[0].m_iIndex = oM.m_Camera_Index[0];
+			poLine->m_pCamera_Data[1].m_iIndex = oM.m_Camera_Index[1];
+			if (oM.m_Camera_Index[0] >= oM.m_Camera_Index[1])
+			{
+				printf("error in Init_Pose_Graph");
+				return;
+			}
+			poLine->m_iCount += 2;
+		}
+	}
+	*poPose_Graph = oPose_Graph;
+	return;
+}
+template<typename _T>void Reset_Pose_Graph(Pose_Graph_Sigma_H<_T> oSigma_H)
+{
+	int i;
+	for (i = 0; i < oSigma_H.m_iCamera_Data_Count; i++)
+		memset(oSigma_H.m_pCamera_Data[i].m_Data_6x6, 0, 6 * 6 * sizeof(_T));
+	return;
+}
+template<typename _T>void Distribute_Data(Pose_Graph_Sigma_H<_T> oSigma_H, _T JJt[12 * 12], int iCamera_i, int iCamera_j)
+{//注意对角线累加，其余直接设值
+	//整个JJt劈开4部分，先搞对角线
+	_T* pSource_End, * pSource_Cur;
+	_T* pDest_Cur;
+	int x;
+	//先搞Ti数据
+	pSource_Cur = JJt;
+	pSource_End = pSource_Cur + 6 * 12;
+	pDest_Cur = oSigma_H.m_pLine[iCamera_i].m_pCamera_Data[0].m_Data_6x6;
+	while (pSource_Cur < pSource_End)
+	{
+		for (x = 0; x < 6; x++)
+			pDest_Cur[x] += pSource_Cur[x];
+		pSource_Cur += 12;
+		pDest_Cur += 6;
+	}
+
+	//再搞Tj数据
+	pSource_Cur = &JJt[6 * 12 + 6];
+	pSource_End = pSource_Cur + 6 * 12;
+	pDest_Cur = oSigma_H.m_pLine[iCamera_j].m_pCamera_Data[0].m_Data_6x6;
+	while (pSource_Cur < pSource_End)
+	{
+		for (x = 0; x < 6; x++)
+			pDest_Cur[x] += pSource_Cur[x];
+		pSource_Cur += 12;
+		pDest_Cur += 6;
+	}
+
+	//再搞非对角线上的Item
+	pSource_Cur = &JJt[6];
+	pSource_End = pSource_Cur + 6 * 12;
+	typename Pose_Graph_Sigma_H<_T>::Camera_Line oLine = oSigma_H.m_pLine[iCamera_i];
+	for (pDest_Cur = NULL, x = 1; x < oLine.m_iCount; x++)
+	{
+		if (oLine.m_pCamera_Data[x].m_iIndex == iCamera_j)
+		{//找到
+			pDest_Cur = oLine.m_pCamera_Data[x].m_Data_6x6;
+			break;
+		}
+	}
+	if (pDest_Cur)
+	{
+		while (pSource_Cur < pSource_End)
+		{
+			for (x = 0; x < 6; x++)
+				pDest_Cur[x] = pSource_Cur[x];
+			pSource_Cur += 12;
+			pDest_Cur += 6;
+		}
+	}
+	else
+	{
+		printf("Errror in Distribute_Data\n");
+		return;
+	}
+	return;
+}
+template<typename _T>void Copy_Data_2_Sparse(Pose_Graph_Sigma_H<_T> oPose_Graph, Sparse_Matrix<_T>* poA)
+{//讲oPose_Graph里的数据用稀疏矩阵表示，以便后续解方程
+	int i, j, k;
+	Sparse_Matrix<_T> oA = *poA;
+	_T* pSource_Cur;
+	typename Pose_Graph_Sigma_H<_T>::Camera_Line* poLine;
+	for (i = 0; i < oPose_Graph.m_iCamera_Count; i++)
+	{//最外层逐个相机
+		poLine = &oPose_Graph.m_pLine[i];
+		if (!poLine->m_iCount)
+			continue;
+		int iRow = i * 6;
+		for (j = 0; j < 6; j++, iRow++)
+		{//逐行
+			oA.m_pRow[iRow] = oA.m_iCur_Item;
+			//逐个Camera
+			for (k = 0; k < poLine->m_iCount; k++)
+			{
+				typename Pose_Graph_Sigma_H<_T>::Camera_Data* poCamera_Data = &poLine->m_pCamera_Data[k];
+				pSource_Cur = &poLine->m_pCamera_Data[k].m_Data_6x6[j * 6];
+				typename Sparse_Matrix<_T>::Item* poItem = &oA.m_pBuffer[oA.m_iCur_Item];
+				unsigned int iItem_x = poCamera_Data->m_iIndex * 6,
+					iItem_y = i * 6 + j;
+				if (oA.m_iCur_Item + 6 >= oA.m_iMax_Item_Count)
+				{
+					printf("Insufficient space in Copy_Data_2_Sparse\n");
+					return;
+				}
+				for (int i = 0; i < 6; i++, iItem_x++)
+				{
+					if (pSource_Cur[i] != 0)
+					{
+						*poItem = { iItem_x,iItem_y,pSource_Cur[i],++oA.m_iCur_Item };
+						poItem++;
+					}
+				}
+			}
+			if (oA.m_pRow[iRow] != oA.m_iCur_Item)
+				oA.m_pBuffer[oA.m_iCur_Item - 1].m_iRow_Next = 0;
+			else
+				oA.m_pRow[iRow] = 0;
+		}
+	}
+	Build_Link_Col_1(oA);
+
+	//以下脱离oPose_Graph，直接根据对成型抄过来
+	typename Sparse_Matrix<_T>::Item* poRow_Item = NULL, * poCol_Item;
+	for (i = 0; i < oA.m_iCol_Count; i++)
+	{
+		if (!oA.m_pCol[i])
+			continue;
+		poCol_Item = &oA.m_pBuffer[oA.m_pCol[i]];
+		if (oA.m_pRow[i])
+		{
+			poRow_Item = &oA.m_pBuffer[oA.m_pRow[i]];
+			if (poCol_Item->y == poRow_Item->x)
+				continue;
+		}
+		int iOrg_Index = oA.m_iCur_Item;
+		while (poCol_Item->y < (unsigned int)i && poCol_Item->y < oA.m_pBuffer[oA.m_pRow[i]].x)
+		{
+			//if (i == 7 && poCol_Item->y == 5)
+			  // printf("here");            
+			if (poCol_Item->m_fValue)
+			{
+				oA.m_pBuffer[oA.m_iCur_Item] = { poCol_Item->y, poCol_Item->x,poCol_Item->m_fValue,oA.m_iCur_Item + 1 };
+				poRow_Item = &oA.m_pBuffer[oA.m_iCur_Item];
+				oA.m_iCur_Item++;
+			}
+			if (poCol_Item->m_iCol_Next)
+				poCol_Item = &oA.m_pBuffer[poCol_Item->m_iCol_Next];
+			else
+				break;
+		}
+		if (iOrg_Index != oA.m_iCur_Item)
+		{
+			oA.m_pBuffer[oA.m_iCur_Item - 1].m_iRow_Next = oA.m_pRow[i];
+			oA.m_pRow[i] = iOrg_Index;
+		}
+	}
+	Build_Link_Col(oA);
+	*poA = oA;
+}
+template<typename _T>void TQ_2_Rt(_T TQ[7], _T Rt[4 * 4])
+{//将一个se3上的数据转换为Rt. se3数据前三项为位移，后4项为4元数
+	//TQ中的T表示Translation Q表示为Quaternion
+	//此函数跟sophus已经完全一致。需要留意的是四元数中实部与虚部各自的位置
+	_T R[3 * 3];
+	Quaternion_2_Rotation_Matrix(&TQ[3], R);
+	Gen_Homo_Matrix(R, TQ, Rt);
 	return;
 }

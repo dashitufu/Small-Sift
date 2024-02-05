@@ -746,9 +746,9 @@ int bTest_Space_Layer_0(Mem_Mgr* poMem_Mgr, int iBlock_Start_Limit, int iBlock_E
 		return 0;
 }
 
-static void Set_Index(Mem_Mgr* poMem_Mgr, int iSub_Block_Start, int iSub_Block_Count, int iBit, int iCur_Piece)
+static void Set_Index(Mem_Mgr* poMem_Mgr, unsigned int iSub_Block_Start, unsigned int iSub_Block_Count, int iBit, int iCur_Piece)
 {//从0层的iSub_Block_Start开始，连续设置iSub_Block_Count个值，分两种情况，1:占用，0，空闲
-	int i, iBlock_Start,
+	unsigned int i, iBlock_Start,
 		iSub_Block_Start_All, iSub_Block_End_All, iSub_Block_Remain, iSub_Block_To_Set;
 	unsigned long long iSize, iSpace_Start, * pIndex_64, iOccupancy;
 	struct Mem_Mgr_Layer* poLayer;
@@ -792,12 +792,12 @@ static void Set_Index(Mem_Mgr* poMem_Mgr, int iSub_Block_Start, int iSub_Block_C
 	}
 
 	//至此，已经完成0层的修改
-	for (i = 1; i < poMem_Mgr->m_iLayer_Count; i++)
+	for (i = 1; (int)i < poMem_Mgr->m_iLayer_Count; i++)
 	{//再逐层向上修改
 		//先解决左边点
 		poLayer = &poMem_Mgr->m_Layer[i];
 		pIndex_64 = (unsigned long long*)poLayer->m_pIndex;
-		iSub_Block_Count = (int)(iSize / poLayer->m_iBytes_Per_Sub_Block);	//子块（位开始）的位置
+		iSub_Block_Count = (unsigned int)(iSize / poLayer->m_iBytes_Per_Sub_Block);	//子块（位开始）的位置
 		iSub_Block_Start_All = iSub_Block_Start = (int)(iSpace_Start / poLayer->m_iBytes_Per_Sub_Block);
 		iOccupancy = ((unsigned long long*)poMem_Mgr->m_Layer[i - 1].m_pIndex)[iSub_Block_Start];
 		iBlock_Start = iSub_Block_Start >> 5;
@@ -849,10 +849,10 @@ static void Set_Index(Mem_Mgr* poMem_Mgr, int iSub_Block_Start, int iSub_Block_C
 		//中间所有的连续块设置全0
 		iBlock_Start = iSub_Block_Start_All >> 5;
 		if (iBit)
-			for (; iSub_Block_Start_All <= iSub_Block_End_All - 31; iSub_Block_Start_All += 32)
+			for (; iSub_Block_Start_All <= ((long long)iSub_Block_End_All - 31); iSub_Block_Start_All += 32)
 				pIndex_64[iBlock_Start++] = 0xFFFFFFFFFFFFFFFF;
 		else
-			for (; iSub_Block_Start_All <= iSub_Block_End_All - 31; iSub_Block_Start_All += 32)
+			for (; iSub_Block_Start_All <= ((long long)iSub_Block_End_All - 31); iSub_Block_Start_All += 32)
 				pIndex_64[iBlock_Start++] = 0;
 
 		//搞右边一块余数
@@ -1256,7 +1256,7 @@ void Disp_Mem(Mem_Mgr* poMem_Mgr,int iLayer_Count)
 	//破逼Quick_Sort太渣，应对不了特殊形态的序列，要换一种方式
 	Quick_Sort(pBuffer, 0, poMem_Mgr->m_iPiece_Count - 1);
 	printf("End 为下一个可用位置\n");
-	for (i = poMem_Mgr->m_iLayer_Count - 1; i > poMem_Mgr->m_iLayer_Count- iLayer_Count-1 && i>=0; i--)
+	for (i = poMem_Mgr->m_iLayer_Count - 1; i >poMem_Mgr->m_iLayer_Count- iLayer_Count-1 && i>=0; i--)
 	{
 		printf("Layer:%d\n", i);
 		for (j = 0; j < (int)poMem_Mgr->m_Layer[i].m_iBlock_Count; j++)

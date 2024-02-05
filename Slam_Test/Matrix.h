@@ -178,7 +178,7 @@ void Rect_2_Screen_Coordinate(float x, float y, int* px_Screen, int* py_Screen, 
 void Screen_2_Coordinate(int x_Screen, int y_Screen, float* px, float* py, int iWidth = 1920, int iHeight = 1080);			//屏幕坐标转直角坐标系
 
 //一组与线性方程有关的函数
-void Cholosky_Decompose(float A[], int iOrder, float B[]);
+template<typename _T>void Cholosky_Decompose(_T A[], int iOrder, _T B[]);
 void Conjugate_Gradient(float* A, const int n, float B[], float X[]);
 void Get_Inv_Matrix(float* pM, float* pInv, int iOrder, int* pbSuccess);
 void Solve_Linear_Cramer(float* A, int iOrder, float* B, float* X, int* pbSuccess); //克莱姆法则解线性方程组
@@ -249,6 +249,8 @@ template<typename _T> void Build_Link_Col_1(Sparse_Matrix<_T> oC)
 	memset(oC.m_pCol, 0, oC.m_iCol_Count * sizeof(int));
 	for (int i = oC.m_iRow_Count - 1; i >= 0; i--)
 	{
+		//if (i == 238)
+			//printf("here");
 		if (oC.m_pRow[i])
 		{
 			iItem_Index = oC.m_pRow[i];
@@ -297,7 +299,7 @@ template<typename _T> void Build_Link_Col_1(Sparse_Matrix<_T> oC)
 		} \
 	} \
 }
-
+template<typename _T>int bIs_Symmetric_Matrix(Sparse_Matrix<_T> oA);
 template<typename _T> _T fGet_Value(Sparse_Matrix<_T>* poMatrix, int x, int y);
 template<typename _T>void Init_Sparse_Matrix(Sparse_Matrix<_T>* poMatrix, int iItem_Count, int w, int h);
 //template<typename _T>void Init_Sparse_Matrix(Sparse_Matrix<_T>* poMatrix, int iItem_Count, int iMax_Order);
@@ -313,7 +315,7 @@ template<typename _T>void Matrix_Minus(Sparse_Matrix<_T> oA, Sparse_Matrix<_T> o
 template<typename _T>void Matrix_Add(Sparse_Matrix<_T> oA, Sparse_Matrix<_T> oB, Sparse_Matrix<_T>* poC, int bCompact=1);
 template<typename _T>void Sparse_2_Dense(Sparse_Matrix<_T> oA, _T B[]);
 template<typename _T>void Dense_2_Sparse(_T A[], int m, int n, Sparse_Matrix<_T>* poA, int bCompact=1);
-template<typename _T>void Add_I_Matrix(Sparse_Matrix<_T>* poA, int* pbSuccess = NULL);
+template<typename _T>void Add_I_Matrix(Sparse_Matrix<_T>* poA, int* pbSuccess = NULL, _T ramda=1.f);
 template<typename _T>void Solve_Linear_Gause(Sparse_Matrix<_T> oA, _T B[], _T X[], int* pbSuccess = NULL);
 template<typename _T>void Solve_Linear_Gause_1(Sparse_Matrix<_T>oA1, _T B[], _T X[], int* pbSuccess = NULL);
 template<typename _T>void Re_Arrange_Sparse_Matrix(Sparse_Matrix<_T>* poA);
