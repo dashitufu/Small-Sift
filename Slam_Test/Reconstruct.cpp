@@ -2652,7 +2652,7 @@ template<typename _T>void Solve_Linear_Schur(Schur_Camera_Data<_T> oData, _T Sig
 	return;
 }
 template<typename _T>void Init_Pose_Graph(Measurement<_T>* pMeasurement, int iMeasurement_Count, int iCamera_Count, Pose_Graph_Sigma_H<_T>* poPose_Graph)
-{
+{//暂时权宜之计，不是什么健壮性很高的算法，要重写。目的是先把位姿图搞定了事，其余以后再收拾
 	Pose_Graph_Sigma_H<_T> oPose_Graph;
 	int i, iSize;
 	oPose_Graph.m_iCamera_Data_Count = iMeasurement_Count + iCamera_Count;
@@ -2664,13 +2664,23 @@ template<typename _T>void Init_Pose_Graph(Measurement<_T>* pMeasurement, int iMe
 	oPose_Graph.m_pLine = (typename Pose_Graph_Sigma_H<_T>::Camera_Line*)(oPose_Graph.m_pCamera_Data + oPose_Graph.m_iCamera_Data_Count);
 	memset(oPose_Graph.m_pLine, 0, iCamera_Count * sizeof(Pose_Graph_Sigma_H<_T>::Camera_Line));
 	int iSum = 0;
+
 	for (i = 0; i < iMeasurement_Count; i++)
-		oPose_Graph.m_pLine[pMeasurement[i].m_Camera_Index[0]].m_iCount++;
+	{
+		Measurement<_T> oM = pMeasurement[i];
+		if (oM.m_Camera_Index[0] >= iCamera_Count || oM.m_Camera_Index[1] >= iCamera_Count)
+		{
+			printf("Camera Index exceed the Camera Count in Init_Pose_Graph\n");
+			return;
+		}
+		oPose_Graph.m_pLine[oM.m_Camera_Index[0]].m_iCount++;
+	}	
 
 	typename Pose_Graph_Sigma_H<_T>::Camera_Data* pCur = oPose_Graph.m_pCamera_Data;
+	typename Pose_Graph_Sigma_H<_T>::Camera_Line* poLine;
 	for (i = 0; i < iCamera_Count; i++)
 	{
-		typename Pose_Graph_Sigma_H<_T>::Camera_Line* poLine = &oPose_Graph.m_pLine[i];
+		poLine = &oPose_Graph.m_pLine[i];
 		poLine->m_pCamera_Data = pCur;
 		pCur += poLine->m_iCount + 1;
 		poLine->m_iCount = 0;   //后面有用
@@ -2679,7 +2689,7 @@ template<typename _T>void Init_Pose_Graph(Measurement<_T>* pMeasurement, int iMe
 	for (i = 0; i < iMeasurement_Count; i++)
 	{
 		Measurement<_T> oM = pMeasurement[i];
-		typename Pose_Graph_Sigma_H<_T>::Camera_Line* poLine = &oPose_Graph.m_pLine[oM.m_Camera_Index[0]];
+		poLine = &oPose_Graph.m_pLine[oM.m_Camera_Index[0]];
 		if (poLine->m_iCount)
 		{
 			if (poLine->m_pCamera_Data[poLine->m_iCount - 1].m_iIndex >= oM.m_Camera_Index[1])
@@ -2702,6 +2712,15 @@ template<typename _T>void Init_Pose_Graph(Measurement<_T>* pMeasurement, int iMe
 			poLine->m_iCount += 2;
 		}
 	}
+
+	poLine =&oPose_Graph.m_pLine[oPose_Graph.m_iCamera_Count - 1];
+	if (!poLine->m_iCount)
+	{
+		poLine->m_iCount = 1;
+		poLine->m_pCamera_Data[0].m_iIndex = oPose_Graph.m_iCamera_Count - 1;
+
+	}
+		
 	*poPose_Graph = oPose_Graph;
 	return;
 }
@@ -2782,6 +2801,8 @@ template<typename _T>void Copy_Data_2_Sparse(Pose_Graph_Sigma_H<_T> oPose_Graph,
 		poLine = &oPose_Graph.m_pLine[i];
 		if (!poLine->m_iCount)
 			continue;
+		//if (i == 9)
+			//printf("here");
 		int iRow = i * 6;
 		for (j = 0; j < 6; j++, iRow++)
 		{//逐行
@@ -2815,6 +2836,7 @@ template<typename _T>void Copy_Data_2_Sparse(Pose_Graph_Sigma_H<_T> oPose_Graph,
 		}
 	}
 	Build_Link_Col_1(oA);
+	//Disp_Fillness(oA);
 
 	//以下脱离oPose_Graph，直接根据对成型抄过来
 	typename Sparse_Matrix<_T>::Item* poRow_Item = NULL, * poCol_Item;

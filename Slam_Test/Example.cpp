@@ -3,11 +3,16 @@
 #include "Image.h"
 #include "Matrix.h"
 #include "Reconstruct.h"
+template<typename _T> int bTemp_Load_Data(const char* pcFile, _T(**ppT)[7], int* piPoint_Count,
+	Measurement<_T>** ppMeasurement, int* piMeasure_Count);
 
 void SB_Sample()
 {
 	Normalize((double*)NULL, 0, (double*)NULL);
 	Normalize((float*)NULL, 0, (float*)NULL);
+
+	bTemp_Load_Data(NULL, (double(**)[7])NULL, NULL, (Measurement<double>**)NULL, NULL);
+	bTemp_Load_Data(NULL, (float(**)[7])NULL, NULL, (Measurement<float>**)NULL, NULL);
 
 	Temp_Load_File(NULL, (double(**)[3])NULL, (double(**)[3])NULL, NULL);
 	Temp_Load_File(NULL, (float(**)[3])NULL, (float(**)[3])NULL, NULL);
@@ -3325,9 +3330,13 @@ template<typename _T> int bTemp_Load_Data(const char* pcFile, _T(**ppT)[7], int*
 		for (j = 0; j < 7; j++)
 			poM->Delta_ksi[j] = Pose[j];
 		//Disp(&poM->Delta_ksi[3], 4, 1);
+		int Information[] = { 10000,0, 0, 0, 0, 0, 10000, 0, 0, 0, 0, 10000, 0, 0, 0, 40000, 0, 0, 40000, 0, 40000 };
 		for (j = 0; j < 21; j++)
+		{
 			fscanf(pFile, "%d ", &iCur);
-
+			if (iCur != Information[j])
+				printf("error");
+		}
 	}
 	Shrink(&oMatrix_Mem, pMeasurement, i * sizeof(Measurement<_T>));
 	fclose(pFile);
@@ -3339,9 +3348,11 @@ template<typename _T> int bTemp_Load_Data(const char* pcFile, _T(**ppT)[7], int*
 	return 1;
 }
 
-void Pose_Graph_Test()
+void Pose_Graph_Test_1()
 {//位姿图优化，两大问题尚未解决，1，鲁棒性函数（删点）;2,性能
-//但是已经可以收敛，目测比原模型光滑。
+//但是已经可以收敛，目测比原模型光滑。但是，这只是一个粗暴的方法，只做全局最优化，没有引入信息矩阵
+//故此还没完全收敛成一个光滑的球
+
 	typedef float _T;
 	int i, j, iResult, iMeasurement_Count, iCamera_Count;
 	_T(*pKsi)[7], (*Camera)[4 * 4];
@@ -3391,13 +3402,12 @@ void Pose_Graph_Test()
 			Get_Inv_Matrix_Row_Op_2(Ti, Ti_Inv, 4, &iResult);
 			if (!iResult)break;
 
-			Matrix_Multiply(Ti_Inv, 4, 4, Tj, 4, E_4x4);
-			Matrix_Multiply(M_Inv_4x4, 4, 4, E_4x4, 4, E_4x4);
-			Matrix_Multiply(M_Inv_4x4, 4, 4, Ti_Inv, 4, E_4x4);
-			Matrix_Multiply(E_4x4, 4, 4, Tj, 4, E_4x4);
+			//注意，书上是错的
+			Matrix_Multiply(M_Inv_4x4, 4, 4, Ti_Inv, 4, E_4x4);	
+			Matrix_Multiply(E_4x4, 4, 4, Tj, 4, E_4x4);			//=Tij(-1) * Ti(-1) * Tj
 			SE3_2_se3(E_4x4, E_6);
 
-			for (e = 0, j = 0; j < 6; j++)
+			for (e = 0, j = 0; j < 3; j++)
 				e += E_6[j] * E_6[j];
 			fSum_e += e;
 
@@ -3405,12 +3415,11 @@ void Pose_Graph_Test()
 			Get_J_Inv(E_6, J_Inv);  //此处搞定了一个近似的J(-1)
 			Get_Inv_Matrix_Row_Op_2(Tj, Tj_Inv, 4, &iResult);
 			if (!iResult)break;
-			Get_Adj(Tj_Inv, Adj);
 
+			Get_Adj(Tj_Inv, Adj);
 			//此时形成两个雅可比, Ti的雅可比放在Jt的0-5列，Tj的雅可比放在Jt的6-11列
 			//第一个雅可比
 			Matrix_Multiply(J_Inv, 6, 6, Adj, 6, Temp);
-
 			//∂eij/∂ξj
 			Copy_Matrix_Partial(Temp, 6, 6, Jt, 12, 6, 0);
 
@@ -3430,18 +3439,20 @@ void Pose_Graph_Test()
 			Vector_Add(&Sigma_JEt[oM.m_Camera_Index[1] * 6], &JEt[6], 6, &Sigma_JEt[oM.m_Camera_Index[1] * 6]);
 		}
 		printf("iIter:%d %f\n", iIter, fSum_e);
+		if (fSum_e_Pre <= fSum_e)
+			break;
+
 		Copy_Data_2_Sparse(oPose_Graph, &oSigma_H);
 
 		Add_I_Matrix(&oSigma_H, &iResult, 1.f);
 		Compact_Sparse_Matrix(&oSigma_H);
 		unsigned long long tStart = iGet_Tick_Count();
-		Solve_Linear_Gause(oSigma_H, Sigma_JEt, Delta_X, &iResult);
+		Solve_Linear_Gause_1(oSigma_H, Sigma_JEt, Delta_X, &iResult);
 		printf("%lld\n", iGet_Tick_Count() - tStart);
 
 		Free_Sparse_Matrix(&oSigma_H);
-
 		Matrix_Multiply(Delta_X, 1, iCamera_Count * 6, (_T)-1, Delta_X);
-		if (fSum_e_Pre <= fSum_e || !iResult)
+		if (!iResult)
 			break;
 		for (i = 0; i < iCamera_Count; i++)
 		{
@@ -3460,9 +3471,307 @@ void Pose_Graph_Test()
 	printf("Last error:%f\n", fSum_e);
 	return;
 }
+
+void Pose_Graph_Test_2()
+{//引入信息矩阵，已经按照书本搞，但是还是无卵用。算法值得保留，因为首次要修改ramda
+	typedef double _T;
+	int i, iResult, iMeasurement_Count, iCamera_Count;
+	_T(*pKsi)[7], (*Camera)[4 * 4];
+	Measurement<_T>* pMeasurement;
+	Pose_Graph_Sigma_H<_T> oPose_Graph;
+	iResult = bTemp_Load_Data("D:\\Samp\\YBKJ\\Slam_Test\\Slam_Test\\Sample\\sphere.g2o", &pKsi, &iCamera_Count, &pMeasurement, &iMeasurement_Count);
+	iMeasurement_Count = iMeasurement_Count;
+	iCamera_Count = 2500;
+	Camera = (_T(*)[4 * 4])pMalloc(&oMatrix_Mem, iCamera_Count * 4 * 4 * sizeof(_T));
+	for (i = 0; i < iCamera_Count; i++)
+		TQ_2_Rt(pKsi[i], Camera[i]);
+
+	Free(&oMatrix_Mem, pKsi);
+	Init_Pose_Graph(pMeasurement, iMeasurement_Count, iCamera_Count, &oPose_Graph);
+
+	int iIter;
+	union { _T Ti[4 * 4]; _T Ti_Inv[4 * 4]; };
+	union { _T M_4x4[4 * 4]; _T M_Inv_4x4[4 * 4]; };
+	union { _T Tj[4 * 4]; _T Tj_Inv[4 * 4]; };
+	_T E_4x4[4 * 4], E_6[6], J_Inv[6 * 6], Adj[6 * 6],
+		Jt[12 * 6], J[6 * 12], H[12 * 12], Delta_Pose[4 * 4], Temp[6 * 6],
+		* Sigma_J_Z_Inv_E, * Delta_X;
+	_T fSum_e, e, fSum_e_Pre = (_T)1e20;
+	Sparse_Matrix<_T> oSigma_H;
+	Sigma_J_Z_Inv_E = (_T*)pMalloc(&oMatrix_Mem, iCamera_Count * 6 * sizeof(_T));
+	Delta_X = (_T*)pMalloc(&oMatrix_Mem, iCamera_Count * 6 * sizeof(_T));
+
+	_T(*pPoint_3D)[3] = (_T(*)[3])pMalloc(&oMatrix_Mem, iCamera_Count * 3 * sizeof(_T));
+	for (iIter = 0;; iIter++)
+	{
+		fSum_e = 0;
+		Reset_Pose_Graph(oPose_Graph);
+		Init_Sparse_Matrix(&oSigma_H, oPose_Graph.m_iCamera_Data_Count * 3 * 6 * 6, iCamera_Count * 6, iCamera_Count * 6);
+		memset(Sigma_J_Z_Inv_E, 0, iCamera_Count * 6 * sizeof(_T));
+		for (i = 0; i < iMeasurement_Count; i++)
+		{//没一个测量都带来一个调整权重
+			Measurement<_T> oM = pMeasurement[i];
+			if (oM.m_Camera_Index[0] >= iCamera_Count || oM.m_Camera_Index[1] >= iCamera_Count)
+				continue;
+			memcpy(Ti, Camera[oM.m_Camera_Index[0]], 4 * 4 * sizeof(_T));
+			memcpy(Tj, Camera[oM.m_Camera_Index[1]], 4 * 4 * sizeof(_T));
+			TQ_2_Rt(oM.Delta_ksi, M_4x4);
+			Get_Inv_Matrix_Row_Op_2(M_4x4, M_Inv_4x4, 4, &iResult);
+			if (!iResult)break;
+			Get_Inv_Matrix_Row_Op_2(Ti, Ti_Inv, 4, &iResult);
+			if (!iResult)break;
+
+			//注意，书上是错的
+			Matrix_Multiply(M_Inv_4x4, 4, 4, Ti_Inv, 4, E_4x4);
+			Matrix_Multiply(E_4x4, 4, 4, Tj, 4, E_4x4);			//=Tij(-1) * Ti(-1) * Tj
+
+			SE3_2_se3(E_4x4, E_6);
+			//Disp(E_6, 6, 1);
+			int j;
+			for (e = 0, j = 0; j < 3; j++)
+				e += E_6[j] * E_6[j];
+			fSum_e += e;
+
+			//printf("Sum_e:%.10f\n", fSum_e);
+			//接着求雅可比
+			Get_J_Inv(E_6, J_Inv);  //此处搞定了一个近似的J(-1)
+			Get_Inv_Matrix_Row_Op_2(Tj, Tj_Inv, 4, &iResult);
+			if (!iResult)break;
+
+			Get_Adj(Tj_Inv, Adj);
+			//此时形成两个雅可比, Ti的雅可比放在Jt的0-5列，Tj的雅可比放在Jt的6-11列
+			//第一个雅可比
+			Matrix_Multiply(J_Inv, 6, 6, Adj, 6, Temp);
+			//∂eij/∂ξj
+			Copy_Matrix_Partial(Temp, 6, 6, Jt, 12, 6, 0);
+
+			//∂eij/∂ξi  算第二个雅可比
+			Matrix_Multiply(Temp, 6, 6, (_T)-1.f, Temp);
+			Copy_Matrix_Partial(Temp, 6, 6, Jt, 12, 0, 0);
+			Matrix_Transpose(Jt, 6, 12, J);
+			//到此， J, Jt已经就绪，第一个第二个雅可比都紧凑放在Jt中
+
+			//注意了，这里求的Z^-1 不是 H矩阵，H=JJt, 然而，Z^-1 = JtJ，矩阵是不可交换的！
+			//所有的网上结论都是错的
+			union {
+				_T Z_Inv[6 * 6];
+				_T J_Z_Inv[12 * 6];
+				_T J_Z_Inv_E[12 * 1];
+			};
+			
+			//先求H=J * Z^-1 * Jt
+			Matrix_Multiply(Jt, 6, 12, J, 6, Z_Inv);        //=Z^-1 = JtJ
+
+			//_T Temp[1 * 6];
+			/*Matrix_Multiply(E_6, 1, 6, Z_Inv, 6, Temp);
+			Matrix_Multiply(Temp, 1, 6, E_6, 1, &e);
+			fSum_e += e;*/
+
+			Matrix_Multiply(J, 12, 6, Z_Inv, 6, J_Z_Inv);   //=J*Z^-1
+
+			//H=J * Z^-1 * Jt   相当于取平方
+			Matrix_Multiply(J_Z_Inv, 12, 6, Jt, 12, H);
+			//此处要把H矩阵散发到稀疏矩阵Sigma_H中去
+			Distribute_Data(oPose_Graph, H, oM.m_Camera_Index[0], oM.m_Camera_Index[1]);
+
+			//再求 J * Z^1 * E
+			Matrix_Multiply(J_Z_Inv, 12, 6, E_6, 1, J_Z_Inv_E);
+			Vector_Add(&Sigma_J_Z_Inv_E[oM.m_Camera_Index[0] * 6], J_Z_Inv_E, 6, &Sigma_J_Z_Inv_E[oM.m_Camera_Index[0] * 6]);
+			Vector_Add(&Sigma_J_Z_Inv_E[oM.m_Camera_Index[1] * 6], &J_Z_Inv_E[6], 6, &Sigma_J_Z_Inv_E[oM.m_Camera_Index[1] * 6]);
+
+		}
+		printf("iIter:%d %.10f\n", iIter, fSum_e);
+		if (fSum_e_Pre <= fSum_e)
+			break;
+
+		Copy_Data_2_Sparse(oPose_Graph, &oSigma_H);
+		Add_I_Matrix(&oSigma_H, &iResult, (_T)500.f);   //此处终于需要改变ramda值了！
+		Compact_Sparse_Matrix(&oSigma_H);
+		unsigned long long tStart = iGet_Tick_Count();
+		Solve_Linear_Gause_1(oSigma_H, Sigma_J_Z_Inv_E, Delta_X, &iResult);
+		printf("%lld\n", iGet_Tick_Count() - tStart);
+
+		Free_Sparse_Matrix(&oSigma_H);
+		Matrix_Multiply(Delta_X, 1, iCamera_Count * 6, (_T)-1, Delta_X);
+		if (!iResult)
+			break;
+
+		if (!iResult)
+			break;
+		for (i = 0; i < iCamera_Count; i++)
+		{
+			se3_2_SE3(&Delta_X[6 * i], Delta_Pose);
+			Matrix_Multiply(Delta_Pose, 4, 4, Camera[i], 4, Camera[i]);
+			pPoint_3D[i][0] = Camera[i][3];
+			pPoint_3D[i][1] = Camera[i][7];
+			pPoint_3D[i][2] = Camera[i][11];
+		}
+
+		char File[256];
+		sprintf(File, "c:\\tmp\\%d.ply", iIter);
+		bSave_PLY(File, pPoint_3D, iCamera_Count);
+		fSum_e_Pre = fSum_e;
+		fSum_e_Pre = fSum_e;
+	}
+}
+void Pose_Graph_Test_3()
+{//引入信息矩阵，已经按照书本搞，但是还是无卵用。算法值得保留，因为首次要修改ramda
+	typedef double _T;
+	int i, iResult, iMeasurement_Count, iCamera_Count;
+	_T(*pKsi)[7], (*Camera)[4 * 4];
+	Measurement<_T>* pMeasurement;
+	Pose_Graph_Sigma_H<_T> oPose_Graph;
+	iResult = bTemp_Load_Data("D:\\Samp\\YBKJ\\Slam_Test\\Slam_Test\\Sample\\sphere.g2o", &pKsi, &iCamera_Count, &pMeasurement, &iMeasurement_Count);
+	iMeasurement_Count = iMeasurement_Count;
+	iCamera_Count = 2500;
+	Camera = (_T(*)[4 * 4])pMalloc(&oMatrix_Mem, iCamera_Count * 4 * 4 * sizeof(_T));
+	for (i = 0; i < iCamera_Count; i++)
+		TQ_2_Rt(pKsi[i], Camera[i]);
+
+	Free(&oMatrix_Mem, pKsi);
+	Init_Pose_Graph(pMeasurement, iMeasurement_Count, iCamera_Count, &oPose_Graph);
+
+	int iIter;
+	union { _T Ti[4 * 4]; _T Ti_Inv[4 * 4]; };
+	union { _T M_4x4[4 * 4]; _T M_Inv_4x4[4 * 4]; };
+	union { _T Tj[4 * 4]; _T Tj_Inv[4 * 4]; };
+	_T E_4x4[4 * 4], E_6[6], J_Inv[6 * 6], Adj[6 * 6],
+		Jt[12 * 6], J[6 * 12], H[12 * 12], Delta_Pose[4 * 4], Temp[6 * 6],
+		* Sigma_J_Z_Inv_E, * Delta_X;
+	_T fSum_e, e, fSum_e_Pre = (_T)1e20;
+	Sparse_Matrix<_T> oSigma_H;
+	Sigma_J_Z_Inv_E = (_T*)pMalloc(&oMatrix_Mem, iCamera_Count * 6 * sizeof(_T));
+	Delta_X = (_T*)pMalloc(&oMatrix_Mem, iCamera_Count * 6 * sizeof(_T));
+
+	_T(*pPoint_3D)[3] = (_T(*)[3])pMalloc(&oMatrix_Mem, iCamera_Count * 3 * sizeof(_T));
+	for (iIter = 0;; iIter++)
+	{
+		fSum_e = 0;
+		Reset_Pose_Graph(oPose_Graph);
+		Init_Sparse_Matrix(&oSigma_H, oPose_Graph.m_iCamera_Data_Count * 3 * 6 * 6, iCamera_Count * 6, iCamera_Count * 6);
+		memset(Sigma_J_Z_Inv_E, 0, iCamera_Count * 6 * sizeof(_T));
+		for (i = 0; i < iMeasurement_Count; i++)
+		{//没一个测量都带来一个调整权重
+			Measurement<_T> oM = pMeasurement[i];
+			if (oM.m_Camera_Index[0] >= iCamera_Count || oM.m_Camera_Index[1] >= iCamera_Count)
+				continue;
+			memcpy(Ti, Camera[oM.m_Camera_Index[0]], 4 * 4 * sizeof(_T));
+			memcpy(Tj, Camera[oM.m_Camera_Index[1]], 4 * 4 * sizeof(_T));
+			TQ_2_Rt(oM.Delta_ksi, M_4x4);
+			Get_Inv_Matrix_Row_Op_2(M_4x4, M_Inv_4x4, 4, &iResult);
+			if (!iResult)break;
+			Get_Inv_Matrix_Row_Op_2(Ti, Ti_Inv, 4, &iResult);
+			if (!iResult)break;
+
+			//注意，书上是错的
+			Matrix_Multiply(M_Inv_4x4, 4, 4, Ti_Inv, 4, E_4x4);
+			Matrix_Multiply(E_4x4, 4, 4, Tj, 4, E_4x4);			//=Tij(-1) * Ti(-1) * Tj
+
+			SE3_2_se3(E_4x4, E_6);
+			//Disp(E_6, 6, 1);
+			int j;
+			for (e = 0, j = 0; j < 3; j++)
+				e += E_6[j] * E_6[j];
+			fSum_e += e;
+
+			//printf("Sum_e:%.10f\n", fSum_e);
+			//接着求雅可比
+			Get_J_Inv(E_6, J_Inv);  //此处搞定了一个近似的J(-1)
+			Get_Inv_Matrix_Row_Op_2(Tj, Tj_Inv, 4, &iResult);
+			if (!iResult)break;
+
+			Get_Adj(Tj_Inv, Adj);
+			//此时形成两个雅可比, Ti的雅可比放在Jt的0-5列，Tj的雅可比放在Jt的6-11列
+			//第一个雅可比
+			Matrix_Multiply(J_Inv, 6, 6, Adj, 6, Temp);
+			//∂eij/∂ξj
+			Copy_Matrix_Partial(Temp, 6, 6, Jt, 12, 6, 0);
+
+			//∂eij/∂ξi  算第二个雅可比
+			Matrix_Multiply(Temp, 6, 6, (_T)-1.f, Temp);
+			Copy_Matrix_Partial(Temp, 6, 6, Jt, 12, 0, 0);
+			Matrix_Transpose(Jt, 6, 12, J);
+			//到此， J, Jt已经就绪，第一个第二个雅可比都紧凑放在Jt中
+
+			//注意了，这里求的Z^-1 不是 H矩阵，H=JJt, 然而，Z^-1 = JtJ，矩阵是不可交换的！
+			//所有的网上结论都是错的
+			union {
+				_T Z_Inv[6 * 6];
+				_T J_Z_Inv[12 * 6];
+				_T J_Z_Inv_E[12 * 1];
+			};
+			_T Infomation[] = { 10000,0, 0, 0, 0, 0,
+				0, 10000, 0, 0, 0, 0,
+				0, 0, 10000, 0, 0, 0,
+				0, 0, 0, 40000, 0, 0,
+				0, 0, 0, 0, 40000, 0,
+				0, 0, 0, 0, 0, 40000 };
+			_T Temp[1 * 6];
+			//先求H=J * Z^-1 * Jt
+			//Matrix_Multiply(Jt, 6, 12, J, 6, Z_Inv);        //=Z^-1 = JtJ
+			memcpy(Z_Inv, Infomation, 6 * 6 * sizeof(_T));
+			//Get_Inv_Matrix_Row_Op_2(Infomation, Z_Inv, 6, &iResult);
+
+			//Matrix_Multiply(E_6, 1, 6, Z_Inv, 6, Temp);
+			//Matrix_Multiply(Temp, 1, 6, E_6, 1, &e);
+			Matrix_Multiply(Z_Inv, 6, 6, E_6, 1, Temp);
+			/* int j;
+			 for (e = 0, j = 0; j < 6; j++)
+				 e += Temp[j] * Temp[j];
+			 fSum_e += e;*/
+
+			Matrix_Multiply(J, 12, 6, Z_Inv, 6, J_Z_Inv);   //=J*Z^-1
+
+			//H=J * Z^-1 * Jt   相当于取平方
+			Matrix_Multiply(J_Z_Inv, 12, 6, Jt, 12, H);
+			//此处要把H矩阵散发到稀疏矩阵Sigma_H中去
+			Distribute_Data(oPose_Graph, H, oM.m_Camera_Index[0], oM.m_Camera_Index[1]);
+
+			//再求 J * Z^1 * E
+			Matrix_Multiply(J_Z_Inv, 12, 6, E_6, 1, J_Z_Inv_E);
+			Vector_Add(&Sigma_J_Z_Inv_E[oM.m_Camera_Index[0] * 6], J_Z_Inv_E, 6, &Sigma_J_Z_Inv_E[oM.m_Camera_Index[0] * 6]);
+			Vector_Add(&Sigma_J_Z_Inv_E[oM.m_Camera_Index[1] * 6], &J_Z_Inv_E[6], 6, &Sigma_J_Z_Inv_E[oM.m_Camera_Index[1] * 6]);
+
+		}
+		printf("iIter:%d %.10f\n", iIter, fSum_e);
+		if (fSum_e_Pre <= fSum_e)
+			break;
+
+		Copy_Data_2_Sparse(oPose_Graph, &oSigma_H);
+		Add_I_Matrix(&oSigma_H, &iResult, (_T)1000);   //此处终于需要改变ramda值了！
+		Compact_Sparse_Matrix(&oSigma_H);
+		unsigned long long tStart = iGet_Tick_Count();
+		Solve_Linear_Gause_1(oSigma_H, Sigma_J_Z_Inv_E, Delta_X, &iResult);
+		printf("%lld\n", iGet_Tick_Count() - tStart);
+
+		Free_Sparse_Matrix(&oSigma_H);
+		Matrix_Multiply(Delta_X, 1, iCamera_Count * 6, (_T)-1, Delta_X);
+		if (!iResult)
+			break;
+
+		if (!iResult)
+			break;
+		for (i = 0; i < iCamera_Count; i++)
+		{
+			se3_2_SE3(&Delta_X[6 * i], Delta_Pose);
+			Matrix_Multiply(Delta_Pose, 4, 4, Camera[i], 4, Camera[i]);
+			pPoint_3D[i][0] = Camera[i][3];
+			pPoint_3D[i][1] = Camera[i][7];
+			pPoint_3D[i][2] = Camera[i][11];
+		}
+
+		char File[256];
+		sprintf(File, "c:\\tmp\\%d.ply", iIter);
+		bSave_PLY(File, pPoint_3D, iCamera_Count);
+		fSum_e_Pre = fSum_e;
+		fSum_e_Pre = fSum_e;
+	}
+}
 void Test_Main()
 {
-	Pose_Graph_Test();			//位姿图优化
+	Pose_Graph_Test_1();			//位姿图优化，暴力解
+	Pose_Graph_Test_2();			//位姿图优化，引入信息矩阵，无卵用
+	Pose_Graph_Test_3();			//位姿图优化，用源信息矩阵，无卵用
 
 	//Schur_Test();				//Schur消元法解大样本例
 	//BA_Test_1();

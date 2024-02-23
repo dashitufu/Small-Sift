@@ -19,6 +19,9 @@ using namespace std;
 #ifndef Max
 #define Max(A,B)(A>=B?A:B)
 #endif
+#ifndef Clip3
+#define Clip3(x,y,z)  ( (z)<(x)?(x): (z)>(y)?(y):(z))
+#endif
 
 #define ALIGN_SIZE_128(iSize) ((( (int)(iSize)+127)>>7)<<7) 
 #define ALIGN_SIZE_1024(iSize) ((( (int)(iSize)+1023)>>10)<<10) 
