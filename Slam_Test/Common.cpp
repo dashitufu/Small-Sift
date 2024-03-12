@@ -356,6 +356,8 @@ template<typename _T>int bSave_PLY(const char* pcFile, _T Point[][3], int iPoint
 		if (bText)
 		{
 			fprintf(pFile, "%f %f %f ", pPos[0], pPos[1], pPos[2]);
+			if (pPos[0] >= 1000000.f)
+				printf("here");
 			if (Color)
 				fprintf(pFile, "%d %d %d\r\n", Color[i][0], Color[i][1], Color[i][2]);
 			else

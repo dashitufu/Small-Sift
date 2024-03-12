@@ -178,13 +178,14 @@ void Rect_2_Screen_Coordinate(float x, float y, int* px_Screen, int* py_Screen, 
 void Screen_2_Coordinate(int x_Screen, int y_Screen, float* px, float* py, int iWidth = 1920, int iHeight = 1080);			//屏幕坐标转直角坐标系
 
 //一组与线性方程有关的函数
-template<typename _T>void Cholosky_Decompose(_T A[], int iOrder, _T B[]);
+template<typename _T>void Cholosky_Decompose(_T A[], int iOrder, _T B[]=NULL,_T *pd=NULL, int* pbSuccess=NULL);
 void Conjugate_Gradient(float* A, const int n, float B[], float X[]);
 void Get_Inv_Matrix(float* pM, float* pInv, int iOrder, int* pbSuccess);
 void Solve_Linear_Cramer(float* A, int iOrder, float* B, float* X, int* pbSuccess); //克莱姆法则解线性方程组
-
+template<typename _T>void Test_Linear(_T A[], int iOrder, _T B[], _T X[]);
 template<typename _T>void Solve_Linear_Gause(_T* A, int iOrder, _T* B, _T* X, int* pbSuccess);	//高斯法求解线性方程组
 //void Solve_Linear_Gause(float* A, int iOrder, float* B, float* X, int* pbSuccess=NULL);
+template<typename _T>void Solve_Linear_LLt(_T A[], int iOrder, _T* B, _T* X, int* pbSuccess=NULL);
 
 void Solve_Linear_Jocabi(float A[], float B[], int iOrder, float X[], int* pbResult);				//雅可比迭代法求解线性方程组
 void Solve_Linear_Gauss_Seidel(float A[], float B[], int iOrder, float X[], int* pbResult);
@@ -318,6 +319,8 @@ template<typename _T>void Dense_2_Sparse(_T A[], int m, int n, Sparse_Matrix<_T>
 template<typename _T>void Add_I_Matrix(Sparse_Matrix<_T>* poA, int* pbSuccess = NULL, _T ramda=1.f);
 template<typename _T>void Solve_Linear_Gause(Sparse_Matrix<_T> oA, _T B[], _T X[], int* pbSuccess = NULL);
 template<typename _T>void Solve_Linear_Gause_1(Sparse_Matrix<_T>oA1, _T B[], _T X[], int* pbSuccess = NULL);
+template<typename _T>void Solve_Linear_Gause_2(Sparse_Matrix<_T>oA1, _T B[], _T X[], int* pbSuccess = NULL);
+
 template<typename _T>void Re_Arrange_Sparse_Matrix(Sparse_Matrix<_T>* poA);
 template<typename _T>void Get_Inv_Matrix_Row_Op(Sparse_Matrix<_T> oA, Sparse_Matrix<_T>* poA_Inv, int* pbSuccess=NULL);
 //**************************稀疏矩阵*******************************
