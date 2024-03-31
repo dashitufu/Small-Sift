@@ -3,6 +3,9 @@
 #include "Matrix.h"
 #include "Image.h"
 
+typedef struct Plane {
+	float a, b, d;
+}Plane;
 
 typedef struct Recon_Image {	//轮到重建阶段一张图的信息
 	void* m_poFeature_Image;	//本图对应的Feature匹配图情况
@@ -114,7 +117,7 @@ template<typename _T> void Ransac_Estimate_F(_T Point_1[][2], _T Point_2[][2], i
 
 template<typename _T>void Decompose_E(_T E[3 * 3], _T R1[3 * 3], _T R2[3 * 3], _T t1[3], _T t2[3], int bNormalize_t = 1);
 
-template<typename _T>void E_2_R_t(_T E[3 * 3], _T Point_1[][2], _T Point_2[][2], int iCount, _T R[3 * 3], _T t[3], _T Point_3D[][3]=NULL);
+template<typename _T>void E_2_R_t(_T E[3 * 3], _T Norm_Point_1[][2], _T Norm_Point_2[][2], int iCount, _T R[3 * 3], _T t[3], _T Point_3D[][3]=NULL);
 
 template<typename _T> void Compute_Squared_Sampson_Error(_T Point_1[][2], _T Point_2[][2], int iCount, _T E[3 * 3], _T Residual[]);
 
@@ -168,6 +171,14 @@ template<typename _T> void Optical_Flow_1(Image oImage_1, Image oImage_2, _T KP_
 
 template<typename _T>void Disp_Error(_T P1[][3], _T P2[][3], int iCount, _T Pose[4 * 4]);
 
+template<typename _T> void Gen_Cube(_T Cube[][4], float fScale, _T x_Center = 0, _T y_Center = 0, _T z_Center = 0);//生成一个Cube
+template<typename _T>void Gen_Cube(_T(**ppCube)[3], int* piCount, float fScale, _T x_Center = 0, _T y_Center = 0, _T z_Center = 0);
+
+template<typename _T>void Gen_Sphere(_T(**ppPoint_3D)[3], int* piCount, _T r = 1.f, int iStep_Count = 40);
+template<typename _T>void Gen_Plane(_T(**ppPoint)[3], int* piCount, _T K[3 * 3] = NULL, _T T[4 * 4] = NULL);
+template<typename _T>void Gen_Plane_z0(_T(**ppPoint_3D)[3], int* piCount);
+template<typename _T>void Get_K_Inv(_T K[3 * 3], _T K_Inv[3 * 3]);	//快速得内参逆矩阵
+template<typename _T>void Gen_Pose(_T T[4 * 4], _T v0, _T v1, _T v2, _T theta, _T t0, _T t1, _T t2, int* piResult = NULL);
 //Temp Code
 template<typename _T> int bTemp_Load_Data(const char* pcFile, _T(**ppT)[7], int* piPoint_Count,
 	Measurement<_T>** ppMeasurement, int* piMeasure_Count);

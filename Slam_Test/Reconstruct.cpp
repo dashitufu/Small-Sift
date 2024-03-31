@@ -355,7 +355,8 @@ template<typename _T> void Estimate_H(_T Point_1[][2], _T Point_2[][2], int iCou
 	_T(*A)[9];	// , * S, * Vt;
 	unsigned char* pCur;
 
-	Malloc(oPtr, iCount * 9 * sizeof(_T), pCur);
+	//此处分配有问题
+	Malloc(oPtr, iCount * 2 * 9 * sizeof(_T), pCur);
 	A = (_T(*)[9])pCur;
 
 	memset(A, 0, iCount * 2 * 9 * sizeof(_T));
@@ -854,7 +855,7 @@ template<typename _T> void Ransac_Estimate_H(_T Point_1[][2], _T Point_2[][2], i
 	{//以下分配内存，有点蠢，但又必需
 		iSize = ALIGN_SIZE_128(iCount * sizeof(short) + 
 			iCount * 5 * sizeof(_T) +
-			iCount * 9 * sizeof(_T)+		//A Vt S //iCount * iCount +
+			iCount * 9 * 2 * sizeof(_T)+		//A Vt S //iCount * iCount +
 			128 * 4);						//补余数凑128字节对齐
 		if (pMem_Mgr)
 			poMem_Mgr = pMem_Mgr;
@@ -890,7 +891,6 @@ template<typename _T> void Ransac_Estimate_H(_T Point_1[][2], _T Point_2[][2], i
 	}	
 	for (i = 0; i < iCount; i++)	//初始化样本索引，后面是随机选取样本，不断打乱。这里保证索引乱点不乱
 		pSample_Index[i] = i;
-
 	for (oReport.m_iTrial_Count = 0; oReport.m_iTrial_Count < 1381551042; oReport.m_iTrial_Count++)
 	{
 		if (bAbort)
@@ -906,7 +906,7 @@ template<typename _T> void Ransac_Estimate_H(_T Point_1[][2], _T Point_2[][2], i
 		//Ransac要素3，求解算法。每种数据都有不同的求解方法，不一而足，故此Ransac只有
 		//程序结构上的意义，没有细节上的意义，此处要自己写自己的求解方法
 		Estimate_H(X_rand, Y_rand, 4, H, pNorm_Point_1, pNorm_Point_2,oPtr);
-		//Estimate_H(X_rand, Y_rand, SAMPLE_COUNT, H);
+
 		//此处似乎用欧氏距离
 		Get_Residual_H(Point_1, Point_2, iCount, H, pResidual);
 		Get_Support(pResidual, iCount, fMax_Residual, &oCur_Support.m_iInlier_Count, &oCur_Support.m_fResidual_Sum);
@@ -938,15 +938,16 @@ template<typename _T> void Ransac_Estimate_H(_T Point_1[][2], _T Point_2[][2], i
 					}
 					prev_best_num_inliers = oBest_Support.m_iInlier_Count;
 					Estimate_H(pX_Inlier, pY_Inlier,oBest_Support.m_iInlier_Count, H, pNorm_Point_1, pNorm_Point_2, oPtr);
-					//Estimate_H(pX_Inlier, pY_Inlier, oBest_Support.m_iInlier_Count, H);
 					Get_Residual_H(Point_1, Point_2, iCount, H, pResidual);
 					Get_Support(pResidual, iCount, fMax_Residual, &oLocal_Support.m_iInlier_Count, &oLocal_Support.m_fResidual_Sum);
+					
 					if (oLocal_Support.m_iInlier_Count > oBest_Support.m_iInlier_Count || (oLocal_Support.m_iInlier_Count == oBest_Support.m_iInlier_Count && oLocal_Support.m_fResidual_Sum < oBest_Support.m_fResidual_Sum))
 					{
 						oBest_Support = oLocal_Support;
 						memcpy(Best_Modal, H, 9 * sizeof(_T));
 						//bBest_Model_is_Local = 1;
 					}
+					
 					if (oBest_Support.m_iInlier_Count <= prev_best_num_inliers)
 						break;
 					//printf("4 points Trial:%d Full Trial:%d Inlier:%d Residual:%f\n", oReport.m_iTrial_Count,iTrial,
@@ -969,6 +970,9 @@ template<typename _T> void Ransac_Estimate_H(_T Point_1[][2], _T Point_2[][2], i
 	
 	if (oReport.m_oSupport.m_iInlier_Count > 8)
 		oReport.m_bSuccess = 1;
+	
+	//Get_Residual_H(Point_1, Point_2, iCount, Best_Modal, pResidual);
+	//Get_Support(pResidual, iCount, fMax_Residual, &oBest_Support.m_iInlier_Count, &oBest_Support.m_fResidual_Sum);
 
 	for (i = 0; i < iCount; i++)
 	{
@@ -1121,6 +1125,27 @@ template<typename _T>void Get_Adj(_T Rt[4 * 4], _T Adj[6 * 6])
 
 void SB_Reconstruct()
 {//这就是个傻逼方法，用来欺骗template
+	Gen_Pose((double*)NULL, (double)0.f, (double)0.f, (double)0.f, (double)0.f, (double)0.f, (double)0.f, (double)0.f);
+	Gen_Pose((float*)NULL, (float)0.f, (float)0.f, (float)0.f, (float)0.f, (float)0.f, (float)0.f, (float)0.f);
+
+	Get_K_Inv((double*)NULL, (double*)NULL);
+	Get_K_Inv((float*)NULL, (float*)NULL);
+
+	Gen_Plane((double(**)[3])NULL, NULL);
+	Gen_Plane((float(**)[3])NULL, NULL);
+
+	Gen_Plane_z0((double(**)[3])NULL, NULL);
+	Gen_Plane_z0((float(**)[3])NULL, NULL);
+
+	Gen_Sphere((double(**)[3])NULL, NULL);
+	Gen_Sphere((float(**)[3])NULL, NULL);
+
+	Gen_Cube((double(**)[3])NULL, NULL,1.f);
+	Gen_Cube((float(**)[3])NULL, NULL, 1.f);
+
+	Gen_Cube((double(*)[4])NULL, 0);
+	Gen_Cube((float(*)[4])NULL, 0);
+
 	Reset_Pose_Graph(Pose_Graph_Sigma_H<double>{});
 	Reset_Pose_Graph(Pose_Graph_Sigma_H<float>{});
 
@@ -1327,7 +1352,7 @@ template<typename _T>void Check_Cheirality(_T Point_1[][2], _T Point_2[][2], int
 			fDepth_2 = fDot(&P2[2 * 4], New_Point, 3) * fMod_P2_Col_2;
 			if (fDepth_2 > kMinDepth && fDepth_2 < fMax_Depth)
 			{
-				if(Point_3d)
+				if (Point_3d)
 					memcpy(Point_3d[j], New_Point, 3 * sizeof(_T));
 				j++;
 			}
@@ -1347,14 +1372,6 @@ template<typename _T>void E_2_R_t(_T E[3 * 3], _T Norm_Point_1[][2], _T Norm_Poi
 
 	int i;
 	Decompose_E(E, R1, R2, t1, t2); //E = a * t^ * R
-
-	//不服可以验算一下
-	//Test_Decompose_E(E, R1, t1);
-
-	/*Disp(R1, 3, 3, "R1");
-	Disp(R2, 3, 3, "R2");
-	Disp(t1, 1, 3, "t1");
-	Disp(t2, 1, 3, "t2");*/
 
 	//组成4对 (R1,t1), (R2,t1),(R1,t2),(R2,t2),分别检验转换后结果的对错
 	int Count_1[4], iMax_Count=0,iMax_Index;;
@@ -1391,7 +1408,10 @@ template<typename _T>void Test_E(_T E[], _T Norm_Point_1[][2], _T Norm_Point_2[]
 	E_2_R_t(E, Norm_Point_1, Norm_Point_2, iCount, R, t);
 
 	Disp(E, 3, 3, "E");
-	
+
+	//这是一个很有用的实验，此处揭示了尺度不变性,意思是只要镜头方向不变，把三角按相似性质拉开有限倍，不改变投影结果
+	//Matrix_Multiply(t, 3, 1, (_T)1000.f, t);
+
 	Gen_Homo_Matrix(R, t, Rt);
 	Gen_I_Matrix(I, 4, 4);
 	for (i = 0; i < 8; i++)
@@ -1418,7 +1438,6 @@ template<typename _T>void Test_E(_T E[], _T Norm_Point_1[][2], _T Norm_Point_2[]
 		Matrix_Multiply(Temp_1, 1, 4, 1.f / z2, Temp_1);	//最后再除以 z2, 此时就符合三角化公式了
 		Disp(Norm_Point_2[i], 1, 2, "NP2");
 		Disp(Temp_1, 1, 4, "z1/z2 * Rt * NP1");
-
 		//总结一下，x' = (z1/z2) * Rt * x， 但看这条式子是有问题的，因为x是2d点，Rt是三维变换阵，驴唇对马嘴
 		//所以，要两者能一起运算，关键是将x变为三维点
 		//x= (x,y,1)*z1 变成(x*z1,y*z1,z1) 再补1，最后 x=（x*z1,y*z1,z1,1) 这就可以参与运算了
@@ -2884,4 +2903,213 @@ template<typename _T>void TQ_2_Rt(_T TQ[7], _T Rt[4 * 4])
 	Quaternion_2_Rotation_Matrix(&TQ[3], R);
 	Gen_Homo_Matrix(R, TQ, Rt);
 	return;
+}
+template<typename _T>void Gen_Cube(_T(**ppCube)[3], int* piCount, float fScale, _T x_Center, _T y_Center, _T z_Center)
+{//不搞齐次坐标，只搞x,y,z坐标
+	_T Cube_1[8][4],(*pCube)[3];
+	Gen_Cube(Cube_1, fScale, x_Center, y_Center, z_Center);
+	pCube = (_T(*)[3])pMalloc(&oMatrix_Mem, 8 * 3 * sizeof(_T));
+	for (int i = 0; i < 8; i++)
+		memcpy(pCube[i], Cube_1[i], 3 * sizeof(_T));
+	if (ppCube)
+		*ppCube = pCube;
+	if (piCount)
+		*piCount = 8;
+	return;
+}
+template<typename _T> void Gen_Cube(_T Cube[][4], float fScale, _T x_Center, _T y_Center, _T z_Center)
+{//先下后上，先后再前，从现在开始，面向屏幕方向为正，和以前不一样
+	_T Cube_1[8][4] = { {-1,-1,1,1},	//左下后
+						{1,-1,1,1},	//右下后
+						{1,-1,-1,1},		//右下前
+						{-1,-1,-1,1},	//左下前
+						{-1,1,1,1},	//左上后
+						{1,1,1,1},		//右上后
+						{1,1,-1,1},		//右上前
+						{-1,1,-1,1} };	//左上前
+	int i;
+	for (i = 0; i < 8; i++)
+	{
+		Cube[i][0] = Cube_1[i][0] * fScale + x_Center;
+		Cube[i][1] = Cube_1[i][1] * fScale + y_Center;
+		Cube[i][2] = Cube_1[i][2] * fScale + z_Center;
+		Cube[i][3] = 1;
+	}
+	return;
+}
+
+template<typename _T>void Gen_Sphere(_T(**ppPoint_3D)[3], int* piCount, _T r ,int iStep_Count)
+{//生成一个球，半径为1
+// x = r*sin(beta)*cos(alpha)
+// y = r*sin(beta)*sin(alpha)
+// z = r*cos(beta)
+	_T alpha, beta, (*pPoint_3D)[3], x, y, z, fDelta_2, r_sin_beta, fDelta_2_Start;
+	int i, j, iCur_Point = 0, iStep_Count_1;
+	const _T fDelta_1 = PI / iStep_Count;
+	Line_1 oLine;
+	pPoint_3D = (_T(*)[3])pMalloc(&oMatrix_Mem, (iStep_Count * iStep_Count/2) * 3 * sizeof(_T));
+
+	Cal_Line(&oLine, 0.f, 1.f, (float)iStep_Count, (float)iStep_Count);
+	for (i = 0; i <= (iStep_Count >> 1); i++)
+	{//外层是z
+		beta = i * fDelta_1;
+		z = r* (_T)cos(beta);
+		iStep_Count_1 = (int)fGet_Line_y(&oLine, (float)i);
+		fDelta_2 = PI * 2.f / iStep_Count_1;
+		r_sin_beta = r* (_T)sin(beta);
+		fDelta_2_Start = (iRandom() % 100) * (3.14f / 100.f);
+		for (j = 0; j < iStep_Count_1; j++)
+		{
+			alpha = j * fDelta_2 + fDelta_2_Start;
+			x = r_sin_beta * (_T)cos(alpha);
+			y = r_sin_beta * (_T)sin(alpha);
+			pPoint_3D[iCur_Point][0] = x;
+			pPoint_3D[iCur_Point][1] = y;
+			pPoint_3D[iCur_Point][2] = z;
+			iCur_Point++;
+			if (z > 0)
+			{
+				pPoint_3D[iCur_Point][0] = x;
+				pPoint_3D[iCur_Point][1] = y;
+				pPoint_3D[iCur_Point][2] = -z;
+				iCur_Point++;
+			}
+		}
+		//printf("%d\n", iStep_Count_1);
+	}
+	Shrink(&oMatrix_Mem, pPoint_3D, iCur_Point * 3 * sizeof(_T));
+	if (ppPoint_3D)
+		*ppPoint_3D = pPoint_3D;
+	if (piCount)
+		*piCount = iCur_Point;
+	return;
+}
+void Cal_Plane(Plane* poPlane, float a, float b, float d)
+{//构造 z = ax + bx +c
+	poPlane->a = a;
+	poPlane->b = b;
+	poPlane->d = d;
+	return;
+}
+
+void Cal_Plane(Plane* poPlane, float a, float b, float c, float d)
+{
+	poPlane->a = a / c;
+	poPlane->b = b / c;
+	poPlane->d = d / c;
+	return;
+}
+template<typename _T>_T fGet_Plane_z(Plane oPlane, _T x, _T y)
+{
+	return -(_T)(oPlane.a * x + oPlane.b * y + oPlane.d);
+}
+template<typename _T>void Cal_Plane(Plane* poPlane, _T Point[3][3])
+{//用空间中三点来确定一个平面
+	//列三条式的齐次方程方程，求4个未知数，
+	_T A[] = { Point[0][0],Point[0][1],Point[0][2],1.f,
+					Point[1][0],Point[1][1],Point[1][2],1.f,
+					Point[2][0],Point[2][1],Point[2][2],1.f };
+	_T B[3] = { 0 }, X[4 * 2];
+	int iResult, iBasic_Solution_Count;
+	Solve_Linear_Solution_Construction(A, 3, 4, B, &iResult, X, &iBasic_Solution_Count);
+	poPlane->a = (float)(X[0] / X[2]);
+	poPlane->b = (float)(X[1] / X[2]);
+	poPlane->d = (float)(X[3] / X[2]);
+	printf("%f\n", fGet_Plane_z(*poPlane, 0.f, 0.f));
+	return;
+}
+
+template<typename _T>void Gen_Plane(_T(**ppPoint)[3], int* piCount, _T K[3 * 3], _T T[4 * 4])
+{//这个不好，太难调
+	Plane oPlane;   //构造一个面
+	//Cal_Plane(&oPlane, 10, 10, 10,10);  //a,b,c,d形式
+	_T(*pPoint)[3] = (_T(*)[3])pMalloc(100 * 3 * sizeof(_T));
+
+	_T Point[3][3] = { {1,0,0},
+		{0,1,0},
+		{0,0,10} };
+	_T Temp[4];
+	Cal_Plane(&oPlane, Point);
+
+	float x, y, z;
+	int i = 0;
+	for (y = -50; y < 50; y += 10)
+	{
+		for (x = -50; x < 50; x += 10, i++)
+		{
+			z = fGet_Plane_z(oPlane, x, y);
+			pPoint[i][0] = x;
+			pPoint[i][1] = y;
+			pPoint[i][2] = z + 1000;
+			if (K)
+			{
+				if (pPoint[i][2] < 0)
+					printf("Error");
+				memcpy(Temp, pPoint[i], 3 * sizeof(_T));
+				Matrix_Multiply(K, 3, 3, Temp, 1, Temp);
+				Temp[0] /= Temp[2], Temp[1] /= Temp[2];
+				if (Temp[0] > K[2] * 2 || Temp[1] > K[5] * 2)
+					printf("Error");
+			}
+
+			if (T)
+			{
+				memcpy(Temp, pPoint[i], 3 * sizeof(_T));
+				Temp[3] = 1.f;
+				Matrix_Multiply(T, 4, 4, Temp, 1, Temp);
+				Matrix_Multiply(K, 3, 3, Temp, 1, Temp);
+				Temp[0] /= Temp[2], Temp[1] /= Temp[2];
+				if (Temp[0] > K[2] * 2 || Temp[1] > K[5] * 2)
+					printf("Error");
+			}
+		}
+	}
+	//bSave_PLY("c:\\tmp\\1.ply", pPoint, 100);
+	*ppPoint = pPoint;
+	*piCount = i;
+
+	return;
+}
+
+template<typename _T>void Gen_Plane_z0(_T(**ppPoint_3D)[3], int* piCount)
+{//做一组样本，z=0
+	int x, y, i;
+	_T(*pPoint_3D)[3] = (_T(*)[3])pMalloc(100 * 3 * sizeof(_T));
+	for (i = y = 0; y < 10; y++)
+	{
+		for (x = 0; x < 10; x++, i++)
+		{
+			pPoint_3D[i][0] = (_T)x;
+			pPoint_3D[i][1] = (_T)y;
+			pPoint_3D[i][2] = 0.f;
+		}
+	}
+	if (ppPoint_3D)
+		*ppPoint_3D = pPoint_3D;
+	if (piCount)
+		*piCount = i;
+	return;
+}
+template<typename _T>void Get_K_Inv(_T K[3 * 3], _T K_Inv[3 * 3])
+{
+	K_Inv[2] = -K[2] / K[0];
+	K_Inv[5] = -K[5] / K[4];
+	K_Inv[0] = 1.f / K[0];
+	K_Inv[4] = 1.f / K[4];
+	K_Inv[8] = 1;
+	K_Inv[1] = K_Inv[3] = K_Inv[6] = K_Inv[7] = 0;
+}
+template<typename _T>void Gen_Pose(_T T[4 * 4], _T v0, _T v1, _T v2, _T theta, _T t0, _T t1, _T t2, int* piResult)
+{//一步生成相机位姿了事, v0,v1,v2,theta 表示一个旋转向量，t0,t1,t2表示位移
+//相机首先绕(v0,v1,v2)轴绕theta弧度，然后移动到(t0,t1,t2)
+
+	_T R[3 * 3], Rotation_Vector[] = { v0,v1,v2,theta };
+	_T t[] = { t0,t1,t2 };
+	int iResult;
+	Rotation_Vector_2_Matrix(Rotation_Vector, R);
+	Gen_Homo_Matrix(R, t, T);
+	Get_Inv_Matrix_Row_Op_2(T, T, 4, &iResult); //w2c
+	//Disp(T, 4, 4, "T");
+	if (piResult)
+		*piResult = iResult;
 }

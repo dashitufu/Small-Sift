@@ -327,6 +327,11 @@ template<typename _T>int bSave_PLY(const char* pcFile, _T Point[][3], int iPoint
 		printf("Fail to open file:%s\n", pcFile);
 		return 0;
 	}
+	if (!iPoint_Count)
+	{
+		printf("No point to save\n");
+		return 0;
+	}
 
 	//œ»–¥»ÎHeader
 	sprintf(Header, "ply\r\n");
@@ -356,7 +361,7 @@ template<typename _T>int bSave_PLY(const char* pcFile, _T Point[][3], int iPoint
 		if (bText)
 		{
 			fprintf(pFile, "%f %f %f ", pPos[0], pPos[1], pPos[2]);
-			if (pPos[0] >= 1000000.f)
+			if (pPos[0] >= 1000000.f || isnan(pPos[0]))
 				printf("here");
 			if (Color)
 				fprintf(pFile, "%d %d %d\r\n", Color[i][0], Color[i][1], Color[i][2]);

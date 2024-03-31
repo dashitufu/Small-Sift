@@ -131,24 +131,7 @@ template<typename _T>_T NCC(Image oRef, Image oCur, int x1, int y1, _T x2, _T y2
         unsigned int mean_ref_int = 0;
         _T mean_ref;
     };
-    
-    /*for (i=0,x = -ncc_window_size; x <= ncc_window_size; x++)
-    {
-        for (y = -ncc_window_size; y <= ncc_window_size; y++,i++)
-        {
-            iPos = ((int)(y + y1)) * oRef.m_iWidth + (int)(x + x1);
-            value_ref = oRef.m_pChannel[0][iPos];
-            mean_ref_int += value_ref;
-            
-            value_curr = fInterpolate(oCur, x2 + x, y2 + y);
-            mean_curr += value_curr;
-
-            values_ref[i] = value_ref* (1./255.f);
-            values_curr[i] = value_curr;
-        }
-    }*/
-
-    for (i=0,y = -ncc_window_size; y <= ncc_window_size; y++)
+     for (i=0,y = -ncc_window_size; y <= ncc_window_size; y++)
     {
         iPos = ((int)(y + y1)) * oRef.m_iWidth - ncc_window_size + (int)x1;
         for (x = -ncc_window_size; x <= ncc_window_size; x++,i++,iPos++)
@@ -325,6 +308,7 @@ template<typename _T>void Update(Image oRef, Image oCur,_T Depth[],_T Depth_Cov[
         }
     }
 }
+
 template<typename _T>void evaludateDepth(_T depth_truth[], _T depth_estimate[],int iWidth,int iHeight)
 {
     int y, x,iPos, cnt_depth_data = 0;
@@ -345,6 +329,7 @@ template<typename _T>void evaludateDepth(_T depth_truth[], _T depth_estimate[],i
 
     cout << "Average squared error = " << ave_depth_error_sq << ", average error: " << ave_depth_error << endl;
 }
+
 static void Test_1()
 {//尝试搞歌单目稠密重建
     typedef double _T;
@@ -385,10 +370,12 @@ static void Test_1()
     return;
 }
 
+
 int main()
 {
     Init_Env();
     //Test_1();
+
 	Test_Main();
     Free_Env();
 #ifdef WIN32

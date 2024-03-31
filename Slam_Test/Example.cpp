@@ -374,6 +374,67 @@ void SB_Sample()
 //	}
 //}
 
+static void E_Test_3()
+{//自己生成一个球，用这个球的各点坐标测试E矩阵的特性
+	int i, iCount;
+	typedef float _T;
+	_T(*pPoint_3D_1)[3], (*pPoint_3D_2)[3];
+	_T T[4 * 4], R[3 * 3];    //相机外参
+	_T t[] = { 100,0,0 };
+
+	{//生成一个相机外参，表示从点集1 -> 点集2
+		_T Rotation_Vector[] = { 0,1,0,PI / 6 };
+		Rotation_Vector_2_Matrix(Rotation_Vector, R);
+		Gen_Homo_Matrix(R, t, T);
+		Disp(Rotation_Vector, 4, 1);
+	}
+
+	Gen_Sphere(&pPoint_3D_1, &iCount, 1000.f);
+	//将点集向z方向位移1000
+	for (i = 0; i < iCount; i++)
+		pPoint_3D_1[i][2] += 2000.f;
+
+	//Gen_Cube(&pPoint_3D_1, &iCount,1,0.f,0.f,1000.f);
+	pPoint_3D_2 = (_T(*)[3])pMalloc(&oMatrix_Mem, (iCount + 1) * 3 * sizeof(_T));
+	for (i = 0; i < iCount; i++)
+	{
+		_T Point_3D[4];
+		memcpy(Point_3D, pPoint_3D_1[i], 3 * sizeof(_T));
+		Point_3D[3] = 1.f;
+		Matrix_Multiply(T, 4, 4, Point_3D, 1, pPoint_3D_2[i]);
+	}
+
+	//投影到归一化平面上
+	_T(*pNP_1)[2], (*pNP_2)[2];
+	pNP_1 = (_T(*)[2])pMalloc(&oMatrix_Mem, iCount * 3 * sizeof(_T));
+	pNP_2 = (_T(*)[2])pMalloc(&oMatrix_Mem, iCount * 3 * sizeof(_T));
+	for (i = 0; i < iCount; i++)
+	{//
+		pNP_1[i][0] = pPoint_3D_1[i][0] / pPoint_3D_1[i][2];
+		pNP_1[i][1] = pPoint_3D_1[i][1] / pPoint_3D_1[i][2];
+		//pNP_1[i][2] = 1.f;
+
+		pNP_2[i][0] = pPoint_3D_2[i][0] / pPoint_3D_2[i][2];
+		pNP_2[i][1] = pPoint_3D_2[i][1] / pPoint_3D_2[i][2];
+		//pNP_2[i][2] = 1.f;
+	}
+
+	Ransac_Report oReport;
+	Ransac_Estimate_E(pNP_1, pNP_2, iCount, 1.f, 0.f, 0.f, &oReport);
+	E_2_R_t(oReport.m_Modal_f, pNP_1, pNP_2, iCount, R, t);
+
+	//测试办法，用三角化推导出每一个空间点的坐标P, 再求 P' = Rt * P
+	//再将P' 投影到归一化平面上得到NP'，比较NP_2 与 NP'
+	Test_E(oReport.m_Modal_f, pNP_1, pNP_2, iCount);
+
+	//然而，这个实验并不能还原空间点的真正位置，关键就在Rt中的t可以是at,具有某种尺度不变性
+	//故此，单靠归一化平面上的点集不能重建。
+	//直觉靠像素平面与归一化平面之间的关系能逆推出焦距
+
+	//bSave_PLY("c:\\tmp\\1.ply", pNP_2, iCount);
+	return;
+}
+
 static void E_Test_1()
 {//找一组数据验算E矩阵。虽然代码有点散，但咬死了推导过程
 #define SAMPLE_COUNT 8
@@ -917,7 +978,7 @@ static void Sift_Test_3()
 	Sift_Simple_Match_Item oMatch;
 	Mem_Mgr oMem_Mgr;
 	Init_Mem_Mgr(&oMem_Mgr, 128000000, 1024, 997);
-	Sift_Match_Path("C:\\Users\\Administrator\\Desktop\\colmap-dev\\ComputerVisionDatasets-master\\Datasets\\ET\\bmp", &oMatch_Map, &oMem_Mgr);
+	Sift_Match_Path_1("C:\\Users\\Administrator\\Desktop\\colmap-dev\\ComputerVisionDatasets-master\\Datasets\\ET\\bmp", &oMatch_Map, &oMem_Mgr);
 	int y, x, iIndex;
 	for (y = 0; y < oMatch_Map.m_iImage_Count; y++)
 	{
@@ -931,6 +992,8 @@ static void Sift_Test_3()
 					 oMatch.m_pPoint_2[k][0], oMatch.m_pPoint_2[k][1]);*/
 		}
 	}
+
+	Free(&oMem_Mgr, oMatch_Map.m_pBuffer);
 	Free_Mem_Mgr(&oMem_Mgr);
 	return;
 }
@@ -4096,7 +4159,7 @@ void Pose_Graph_Test_3()
 		Add_I_Matrix(&oSigma_H, &iResult, (_T)1000);   //此处终于需要改变ramda值了！
 		Compact_Sparse_Matrix(&oSigma_H);
 		unsigned long long tStart = iGet_Tick_Count();
-		Solve_Linear_Gause_2(oSigma_H, Sigma_J_Z_Inv_E, Delta_X, &iResult);
+		Solve_Linear_Gause_1(oSigma_H, Sigma_J_Z_Inv_E, Delta_X, &iResult);
 		//Disp(Delta_X, 10, 1);
 		printf("%lld\n", iGet_Tick_Count() - tStart);
 
@@ -4223,13 +4286,471 @@ void Point_Cloud_Test()
 
 	return;
 }
+void Cholosky_Test()
+{//以简单堆成性质构造正定矩阵失败，还得老老实实先搞个对角矩阵A，再搞一堆特征向量X，再用相似矩阵原理来搞
+	typedef float _T;
+	//用逆推的方法构造正定矩阵看看
+	//_T LLt[4 * 4], Temp[4 * 4], L[] = { 1,0,0,0,  //非正定
+	//            2,3,0,0,
+	//            0,4,5,0,
+	//            0,2,8,10 };
+	const int iDim = 10;
+	_T* pLLt, * pTemp, * pL;
+	int y, x, iResult;
+	pL = (_T*)pMalloc(iDim * iDim);
+	pLLt = (_T*)pMalloc(iDim * iDim);
+	pTemp = (_T*)pMalloc(iDim * iDim);
+	for (y = 0; y < iDim; y++)
+		for (x = 0; x < iDim; x++)
+			pL[y * iDim + x] = (_T)((x > y) ? 0 : iRandom() % 100);
+
+	//Disp(pL, iDim, iDim, "L");
+	Transpose_Multiply(pL, iDim, iDim, pLLt);
+	Cholosky_Decompose(pLLt, iDim, pTemp, &iResult);
+
+	Sparse_Matrix<_T> oLLt, oB;
+	Init_Sparse_Matrix(&oLLt, iDim * iDim, iDim, iDim);
+	Dense_2_Sparse(pLLt, iDim, iDim, &oLLt);
+	Cholosky_Decompose(oLLt, &oB, &iResult);
+
+	Free(pL);
+	Free(pLLt);
+	Free(pTemp);
+	Free_Sparse_Matrix(&oLLt);
+	Free_Sparse_Matrix(&oB);
+	//Disp(oB, "B");
+}
+
+void H_Test_4()
+{//原版想搞个张定友标定实验，发觉条件不够
+	typedef double _T;
+	//验证以下K矩阵的逆
+	_T K_Inv[3 * 3], K[3 * 3] = { 1000,0,960, //搞一个内参
+				 0, 1000,540,
+				0,  0,  1 };
+	int i, iCount, iResult;
+
+	Get_K_Inv(K, K_Inv);
+	_T(*pPoint_3D_0)[3], (*pPoint_3D_1)[3], (*pPoint_3D_2)[3], (*pPoint_3D_3)[3];
+	_T(*pUV_0)[2], (*pUV_1)[2], (*pUV_2)[2], (*pUV_3)[2];
+	_T T1[4 * 4], T2[4 * 4], T3[4 * 4];
+	_T A[6 * 5], X[5];    //试一下列6条式子，求5个变量，用svd搞
+
+	Ransac_Report Report[3];
+
+	Gen_Plane_z0(&pPoint_3D_0, &iCount);
+	pPoint_3D_1 = (_T(*)[3])pMalloc(iCount * 3 * sizeof(_T));
+	pPoint_3D_2 = (_T(*)[3])pMalloc(iCount * 3 * sizeof(_T));
+	pPoint_3D_3 = (_T(*)[3])pMalloc(iCount * 3 * sizeof(_T));
+	pUV_0 = (_T(*)[2])pMalloc(iCount * 2 * sizeof(_T));
+	pUV_1 = (_T(*)[2])pMalloc(iCount * 2 * sizeof(_T));
+	pUV_2 = (_T(*)[2])pMalloc(iCount * 2 * sizeof(_T));
+	pUV_3 = (_T(*)[2])pMalloc(iCount * 2 * sizeof(_T));
+
+
+	Gen_Pose(T1, (_T)0.f, (_T)1.f, (_T)0.f, (_T)PI / 6, (_T)0.f, (_T)0.f, (_T)-1000.f);
+	Gen_Pose(T2, (_T)0.f, (_T)1.f, (_T)0.f, (_T)PI / 7, (_T)0.f, (_T)0.f, (_T)-1000.f);
+	Gen_Pose(T3, (_T)0.f, (_T)1.f, (_T)0.f, (_T)PI / 8, (_T)0.f, (_T)0.f, (_T)-1000.f);
+
+	for (i = 0; i < iCount; i++)
+	{
+		pUV_0[i][0] = pPoint_3D_0[i][0];
+		pUV_0[i][1] = pPoint_3D_0[i][1];
+
+		_T Temp[4] = { pPoint_3D_0[i][0], pPoint_3D_0[i][1], pPoint_3D_0[i][2], 1.f };
+		Matrix_Multiply(T1, 4, 4, Temp, 1, Temp);
+		memcpy(pPoint_3D_1[i], Temp, 3 * sizeof(_T));
+		Matrix_Multiply(K, 3, 3, Temp, 1, Temp);
+		pUV_1[i][0] = Temp[0] / Temp[2], pUV_1[i][1] = Temp[1] / Temp[2];
+
+		memcpy(Temp, pPoint_3D_0[i], 3 * sizeof(_T));
+		Temp[3] = 1.f;
+		Matrix_Multiply(T2, 4, 4, Temp, 1, Temp);
+		memcpy(pPoint_3D_2[i], Temp, 3 * sizeof(_T));
+		Matrix_Multiply(K, 3, 3, Temp, 1, Temp);
+		pUV_2[i][0] = Temp[0] / Temp[2], pUV_2[i][1] = Temp[1] / Temp[2];
+
+		memcpy(Temp, pPoint_3D_0[i], 3 * sizeof(_T));
+		Temp[3] = 1.f;
+		Matrix_Multiply(T3, 4, 4, Temp, 1, Temp);
+		memcpy(pPoint_3D_3[i], Temp, 3 * sizeof(_T));
+		Matrix_Multiply(K, 3, 3, Temp, 1, Temp);
+		pUV_3[i][0] = Temp[0] / Temp[2], pUV_3[i][1] = Temp[1] / Temp[2];
+	}
+
+	Ransac_Estimate_H(pUV_0, pUV_1, iCount, &Report[0], &oMatrix_Mem);
+	Ransac_Estimate_H(pUV_0, pUV_2, iCount, &Report[1], &oMatrix_Mem);
+	Ransac_Estimate_H(pUV_0, pUV_3, iCount, &Report[2], &oMatrix_Mem);
+	if (!Report[0].m_bSuccess || !Report[1].m_bSuccess || !Report[2].m_bSuccess)
+		return;
+
+	_T* H, B[3 * 3];
+	Transpose_Multiply(K_Inv, 3, 3, B, 0);
+	Disp(B, 3, 3, "B");
+	B[1] = B[2], B[2] = B[4], B[3] = B[5], B[4] = B[8];
+	B[5] = B[6] = B[7] = B[8] = 0;
+	Disp(B, 9, 1, "B");
+
+	for (i = 0; i < 3; i++)
+	{
+		//开始列式，先根据1,2列
+	//    hi1 hj1 		'	* 	b11	
+	//    hi1 hj3 + hi3 hj1		b13
+	//    hi2 hj2				b22
+	//    hi2 hj3 + hi3 hj2		b23
+	//    hi3 hj3				b33
+		H = (_T*)Report[i].m_Modal;
+		//Disp(H, 3, 3, "H");
+		//第一条v12 * b =0
+		A[(i * 2) * 5 + 0] = H[0] * H[1];                 //h11 * h21
+		A[(i * 2) * 5 + 1] = H[0] * H[7] + H[6] * H[1];   //h11 * h23 + h13*h21
+		A[(i * 2) * 5 + 2] = H[3] * H[4];                 //h12*h22
+		A[(i * 2) * 5 + 3] = H[3] * H[7] + H[6] * H[4];   //h12 * h23 + h13*h22
+		A[(i * 2) * 5 + 4] = H[6] * H[7];                 //h13*h23
+		//第二条(v11 - v22) *b =0
+		A[((i * 2) + 1) * 5 + 0] = H[0] * H[0] - H[1] * H[1];//h11*h11 - h21*h21
+		A[((i * 2) + 1) * 5 + 1] = H[0] * H[6] + H[6] * H[0] - H[1] * H[7] - H[7] * H[1];//h11*h13+h13*h11   -(h21*h23 + h23*h21)
+		A[((i * 2) + 1) * 5 + 2] = H[3] * H[3] - H[2] * H[2];//h12*h12   - h22*h22
+		A[((i * 2) + 1) * 5 + 3] = H[3] * H[6] + H[6] * H[3] - H[4] * H[7] - H[7] * H[4];//h12*h13 + h13*h12 - (h22*h23+h23*h22)
+		A[((i * 2) + 1) * 5 + 4] = H[6] * H[6] - H[7] * H[7];//h13*h13 - h23*h23
+
+		printf("Dot:%f\n", fDot(&A[(i * 2) * 5 + 0], B, 5));
+		printf("Dot:%f\n", fDot(&A[((i * 2) + 1) * 5 + 0], B, 5));
+	}
+
+	SVD_Info oSVD;
+	SVD_Alloc<_T>(6, 5, &oSVD);
+	svd_3((_T*)A, oSVD, &iResult);
+
+	//Vt的最后一行就是解
+	memcpy(X, &((_T*)oSVD.Vt)[4 * 5], 5 * sizeof(_T));
+	Disp(X, 5, 1, "X");
+
+	/*printf("Dot:%f\n", fDot(&A[0], X, 5));
+	printf("Dot:%f\n", fDot(&A[5], X, 5));
+	printf("Dot:%f\n", fDot(&A[10], X, 5));
+	printf("Dot:%f\n", fDot(&A[15], X, 5));
+	printf("Dot:%f\n", fDot(&A[20], X, 5));
+	printf("Dot:%f\n", fDot(&A[25], X, 5));*/
+
+
+	//再算K
+	_T K_Estimate[3 * 3] = { 0 };
+	K_Estimate[0] = sqrt(1.f / X[0]);
+	K_Estimate[4] = sqrt(1.f / X[2]);
+	K_Estimate[2] = -X[1] / X[0];
+	K_Estimate[5] = -X[3] / X[2];
+	//这里做不下去了，显然搞不定scale
+
+	Disp(A, 6, 5, "A");
+
+	Free(pPoint_3D_0), Free(pPoint_3D_1);
+	Free(pUV_0), Free(pUV_1);
+	Free_Report(Report[0], &oMatrix_Mem);
+
+	return;
+}
+
+static void H_Test_1()
+{//试一下从像素平面的角度观察
+	int i, iCount,iResult;
+	typedef float _T;
+	_T(*pPoint_3D_1)[3], (*pPoint_3D_2)[3], Point_4[4];
+	_T T[4 * 4], R[3 * 3];      //相机外参
+	_T K[3 * 3] = { 1000,0,960, //搞一个内参
+				 0, 1000,540,
+				0,  0,  1 };
+	_T t[] = { 10,0,0 };
+
+	{//生成一个相机外参，表示从点集1 -> 点集2
+		_T Rotation_Vector[] = { 0,1,0,PI / 6 };
+		Rotation_Vector_2_Matrix(Rotation_Vector, R);
+		Gen_Homo_Matrix(R, t, T);
+		Get_Inv_Matrix_Row_Op_2(T, T, 4, &iResult); //w2c
+		Disp(T, 4, 4, "T");
+	}
+
+	//生成两组空间平面上的点集
+	Gen_Plane(&pPoint_3D_1, &iCount, K, T);
+	pPoint_3D_2 = (_T(*)[3])pMalloc((iCount * 3 + 1) * sizeof(_T));
+	Point_4[3] = 1;
+	for (i = 0; i < iCount; i++)
+	{
+		memcpy(Point_4, pPoint_3D_1[i], 3 * sizeof(_T));
+		Matrix_Multiply(T, 4, 4, Point_4, 1, pPoint_3D_2[i]);
+	}
+
+	_T  uv[3];
+	//以下一段单纯为了投影到像素平面上看看效果
+	{
+		Image oImage;
+		Init_Image(&oImage, 1920, 1080, Image::IMAGE_TYPE_BMP, 8);
+		Set_Color(oImage);
+
+		for (i = 0; i < iCount; i++)
+		{
+			if (pPoint_3D_1[i][2] < 0)
+				continue;
+			Matrix_Multiply(K, 3, 3, pPoint_3D_1[i], 1, uv);
+			uv[0] /= pPoint_3D_1[i][2], uv[1] /= pPoint_3D_1[i][2], uv[2] = 1;
+			//printf("i:%d %f %f\n",i, uv[0], uv[1]);
+			if (uv[0] >= 0 && uv[0] < oImage.m_iWidth &&
+				uv[1] >= 0 && uv[1] < oImage.m_iHeight)
+				Draw_Point(oImage, (int)uv[0], (int)uv[1]);
+		}
+		bSave_Image("c:\\tmp\\1.bmp", oImage);
+	}
+
+	{//试一下两个点集投影到归一化平面上进行匹配
+		_T(*pNorm_Point_1)[2] = (_T(*)[2])pMalloc(iCount * 2 * sizeof(_T));
+		_T(*pNorm_Point_2)[2] = (_T(*)[2])pMalloc(iCount * 2 * sizeof(_T));
+		Ransac_Report oReport;
+		for (i = 0; i < iCount; i++)
+		{
+			//搞归一化平面1上的点集1
+			pNorm_Point_1[i][0] = pPoint_3D_1[i][0] / pPoint_3D_1[i][2];
+			pNorm_Point_1[i][1] = pPoint_3D_1[i][1] / pPoint_3D_1[i][2];
+
+			//搞归一化平面2上的点集
+			pNorm_Point_2[i][0] = pPoint_3D_2[i][0] / pPoint_3D_2[i][2];
+			pNorm_Point_2[i][1] = pPoint_3D_2[i][1] / pPoint_3D_2[i][2];
+		}
+
+		Ransac_Estimate_H(pNorm_Point_1, pNorm_Point_2, iCount, &oReport, &oMatrix_Mem);
+		//以下可以验算一下两个归一化平面是否有： p2 ≌ H p1，注意，此处是尺度意义的相等，
+		//数据非常漂亮
+		for (i = 0; i < oReport.m_oSupport.m_iInlier_Count; i++)
+		{
+			if (oReport.m_pInlier_Mask[i])
+			{
+				_T Temp[3] = { pNorm_Point_1[i][0],pNorm_Point_1[i][1],1 };
+				Matrix_Multiply((_T*)oReport.m_Modal, 3, 3, Temp, 1, Temp);
+				printf("p2:%f %f\t", pNorm_Point_2[i][0], pNorm_Point_2[i][1]);
+				//注意，此处要除以z，这正是尺度等价的意义
+				printf("%f %f\n", Temp[0] / Temp[2], Temp[1] / Temp[2]);
+			}
+		}
+		Free_Report(oReport, &oMatrix_Mem);
+		Free(pNorm_Point_1), Free(pNorm_Point_2);
+	}
+
+	{
+		//试一下在像素平面上搞一下，p1,p2为像素平面I1,I2的匹配点对
+		int iPixel_Count = 0;
+		Ransac_Report oReport;
+		_T(*pUV_1)[2] = (_T(*)[2])pMalloc((iCount * 2 + 1) * sizeof(_T)),
+			(*pUV_2)[2] = (_T(*)[2])pMalloc((iCount * 2 + 1) * sizeof(_T));
+		for (i = 0; i < iCount; i++)
+		{
+			_T Temp[4];
+			Matrix_Multiply(K, 3, 3, pPoint_3D_1[i], 1, Temp);
+			if (Temp[2] < 0)
+				continue;
+			Temp[0] /= Temp[2], Temp[1] /= Temp[2];
+			if (Temp[0] < 0 || Temp[0] >= 1920 ||
+				Temp[1] < 0 || Temp[1] >= 1080)
+				continue;
+			pUV_1[iPixel_Count][0] = Temp[0];
+			pUV_1[iPixel_Count][1] = Temp[1];
+
+			Matrix_Multiply(K, 3, 3, pPoint_3D_2[i], 1, Temp);
+			if (Temp[2] < 0)
+				continue;
+			Temp[0] /= Temp[2], Temp[1] /= Temp[2];
+			if (Temp[0] < 0 || Temp[0] >= 1920 ||
+				Temp[1] < 0 || Temp[1] >= 1080)
+				continue;
+			pUV_2[iPixel_Count][0] = Temp[0];
+			pUV_2[iPixel_Count][1] = Temp[1];
+			iPixel_Count++;
+		}
+
+		//实验结果，在像素平面上，有p2 ≌ H p1，
+		Ransac_Estimate_H(pUV_1, pUV_2, iPixel_Count, &oReport, &oMatrix_Mem);
+		for (i = 0; i < oReport.m_oSupport.m_iInlier_Count; i++)
+		{
+			if (oReport.m_pInlier_Mask[i])
+			{
+				_T Temp[3] = { pUV_1[i][0],pUV_1[i][1],1 };
+				Matrix_Multiply((_T*)oReport.m_Modal, 3, 3, Temp, 1, Temp);
+				printf("p2:%f %f\t", pUV_2[i][0], pUV_2[i][1]);
+				//注意，此处要除以z，这正是尺度等价的意义
+				printf("%f %f\n", Temp[0] / Temp[2], Temp[1] / Temp[2]);
+			}
+		}
+
+		//再实验验证 p2≌ H*KP，数据漂亮！
+		for (i = 0; i < oReport.m_oSupport.m_iInlier_Count; i++)
+		{
+			_T Temp[3];
+			Matrix_Multiply(K, 3, 3, pPoint_3D_1[i], 1, Temp);
+			Matrix_Multiply((_T*)oReport.m_Modal, 3, 3, Temp, 1, Temp);
+			printf("p2:%f %f\t", pUV_2[i][0], pUV_2[i][1]);
+			printf("%f %f\n", Temp[0] / Temp[2], Temp[1] / Temp[2]);
+		}
+		Free_Report(oReport, &oMatrix_Mem);
+		Free(pUV_1), Free(pUV_2);
+	}
+	Free(pPoint_3D_1), Free(pPoint_3D_2);
+	return;
+}
+
+void H_Test_3()
+{//验证像素平面上的H矩阵
+	typedef float _T;
+	//第一步，另建一个空间平面 z=0
+	_T(*pPoint_3D_1)[3], (*pPoint_3D_2)[3];
+	int i, iCount, iResult;
+	Gen_Plane_z0(&pPoint_3D_1, &iCount);
+	pPoint_3D_2 = (_T(*)[3])pMalloc((iCount * 3 + 1) * sizeof(_T));
+	_T T[4 * 4], R[3 * 3], t[] = { 10,0,-1000 };      //相机外参
+	{//生成一个相机外参，表示从点集1 -> 点集2
+		_T Rotation_Vector[] = { 0,1,0,PI / 6 };
+		Rotation_Vector_2_Matrix(Rotation_Vector, R);
+		Gen_Homo_Matrix(R, t, T);                   //c2w
+		Get_Inv_Matrix_Row_Op_2(T, T, 4, &iResult); //w2c
+		Disp(T, 4, 4, "T");
+	}
+	for (i = 0; i < iCount; i++)
+	{
+		_T Temp[4] = { pPoint_3D_1[i][0], pPoint_3D_1[i][1], pPoint_3D_1[i][2], 1.f };
+		Matrix_Multiply(T, 4, 4, Temp, 1, pPoint_3D_2[i]);;
+	}
+	Disp((_T*)pPoint_3D_2, iCount, 3);
+
+	_T K[3 * 3] = { 1000,0,960, //搞一个内参
+				 0, 1000,540,
+				0,  0,  1 };
+	_T(*pUV_1)[2] = (_T(*)[2])pMalloc(iCount * 2 * sizeof(_T));
+	_T(*pUV_2)[2] = (_T(*)[2])pMalloc(iCount * 2 * sizeof(_T));
+	for (i = 0; i < iCount; i++)
+	{
+		_T Temp[3];
+		pUV_1[i][0] = pPoint_3D_1[i][0];
+		pUV_1[i][1] = pPoint_3D_1[i][1];
+
+		Matrix_Multiply(K, 3, 3, pPoint_3D_2[i], 1, Temp);
+		pUV_2[i][0] = Temp[0] / Temp[2], pUV_2[i][1] = Temp[1] / Temp[2];
+	}
+	Ransac_Report oReport;
+	//完美估计
+	Ransac_Estimate_H(pUV_1, pUV_2, iCount, &oReport, &oMatrix_Mem);
+
+	//此处关键，想验证张定友标定法中的H矩阵
+	_T H[3 * 3];    //再从张正友标定法推导一个H出来，两相比较
+	_T T1[3 * 3] = { T[0],T[1],T[3],
+					T[4],T[5],T[7],
+					T[8],T[9],T[11] };
+	Matrix_Multiply(K, 3, 3, T1, 3, H);
+	//从以下可以看出，两者数值不一样，但是两者可以只差一个scale
+	Disp((_T*)oReport.m_Modal, 3, 3, "Modal");
+	Disp(H, 3, 3, "H");
+	for (i = 0; i < 9; i++) //从以下看出，两者非常接近了，符合猜想
+		printf("H%d: %f %f\n", i, H[i], ((_T*)oReport.m_Modal)[i] * H[0] / ((_T*)oReport.m_Modal)[0]);
+
+	//验证 p2 ≌ HP, 其中为z=0平面上的点
+	for (i = 0; i < iCount; i++)
+	{
+		//此处一定要注意，虽然在z=0平面上，此处用以计算的坐标必须是 (x,y,1)
+		_T Temp[3] = { pPoint_3D_1[i][0],pPoint_3D_1[i][1],1.f };
+		Matrix_Multiply(H, 3, 3, Temp, 1, Temp);
+		printf("p2:%f %f\t", pUV_2[i][0], pUV_2[i][1]);
+		printf("%f %f\n", Temp[0] / Temp[2], Temp[1] / Temp[2]);
+	}
+
+	printf("数据完全一致。故此张定友标定法中的H矩阵是一般H矩阵的一个特例\n");
+	//bSave_PLY("c:\\tmp\\1.ply", pPoint_3D_1, iCount);
+
+	return;
+}
+
+void H_Test_2()
+{//搞个球，此时点不在同一个平面上，看看H矩阵还存在不存在
+//反面例子，这个例子揭示了非共面空间点估计不出一个H矩阵
+	typedef float _T;
+	_T(*pPoint_3D_1)[3], (*pPoint_3D_2)[3];
+	int i, iCount,iResult;
+	_T T[4 * 4], R[3 * 3], t[] = { 10,0,0 };      //相机外参
+	_T K[3 * 3] = { 1000,0,960, //搞一个内参
+				 0, 1000,540,
+				0,  0,  1 };
+
+	Gen_Sphere(&pPoint_3D_1, &iCount, 100.f);
+	for (i = 0; i < iCount; i++)
+		pPoint_3D_1[i][2] += 500;
+
+	{//生成一个相机外参，表示从点集1 -> 点集2
+		_T Rotation_Vector[] = { 0,1,0,PI / 6 };
+		Rotation_Vector_2_Matrix(Rotation_Vector, R);
+		Gen_Homo_Matrix(R, t, T);
+		Get_Inv_Matrix_Row_Op_2(T, T, 4, &iResult); //w2c
+		Disp(T, 4, 4, "T");
+	}
+	pPoint_3D_2 = (_T(*)[3])pMalloc(iCount * 3 * sizeof(_T));
+	for (i = 0; i < iCount; i++)
+	{
+		_T Temp[4] = { pPoint_3D_1[i][0], pPoint_3D_1[i][1], pPoint_3D_1[i][2], 1.f };
+		Matrix_Multiply(T, 4, 4, Temp, 1, pPoint_3D_2[i]);
+	}
+	_T(*pUV_1)[2] = (_T(*)[2])pMalloc(iCount * 2 * sizeof(_T));
+	_T(*pUV_2)[2] = (_T(*)[2])pMalloc(iCount * 2 * sizeof(_T));
+	Ransac_Report oReport;
+
+	{//首先在归一化平面上搞搞看行不行，最纯粹
+		//数据显示，貌似等价，然而误差大了不少
+		for (i = 0; i < iCount; i++)
+		{
+			pUV_1[i][0] = pPoint_3D_1[i][0] / pPoint_3D_1[i][2];
+			pUV_1[i][1] = pPoint_3D_1[i][1] / pPoint_3D_1[i][2];
+
+			pUV_2[i][0] = pPoint_3D_2[i][0] / pPoint_3D_2[i][2];
+			pUV_2[i][1] = pPoint_3D_2[i][1] / pPoint_3D_2[i][2];
+		}
+		Ransac_Estimate_H(pUV_1, pUV_2, iCount, &oReport, &oMatrix_Mem);
+		for (i = 0; i < iCount; i++)
+		{
+			if (oReport.m_pInlier_Mask[i])
+			{
+				_T Temp[3] = { pUV_1[i][0],pUV_1[i][1],1.f };
+				Matrix_Multiply((_T*)oReport.m_Modal, 3, 3, Temp, 1, Temp);
+				printf("p2:%f %f\t", pUV_2[i][0], pUV_2[i][1]);
+				printf("%f %f\n", Temp[0] / Temp[2], Temp[1] / Temp[2]);
+			}
+		}
+		Free_Report(oReport, &oMatrix_Mem);
+	}
+
+	//再轮到像素平面上搞
+	{
+		for (i = 0; i < iCount; i++)
+		{
+			_T Temp[4] = { pPoint_3D_2[i][0],pPoint_3D_2[i][1],pPoint_3D_2[i][2],1.f };
+			Matrix_Multiply(T, 4, 4, Temp, 1, Temp);
+			Matrix_Multiply(K, 3, 3, Temp, 1, Temp);
+			pUV_2[i][0] = Temp[0] / Temp[2], pUV_2[i][1] = Temp[1] / Temp[2];
+
+			Matrix_Multiply(K, 3, 3, pPoint_3D_1[i], 1, Temp);
+			pUV_1[i][0] = Temp[0] / Temp[2], pUV_1[i][1] = Temp[1] / Temp[2];
+		}
+		//秘密就在这里，显然，估计H矩阵的效果很差，只有1/4的点符合变换阵
+		//可见H矩阵选哟共面点
+		Ransac_Estimate_H(pUV_1, pUV_2, iCount, &oReport, &oMatrix_Mem);
+		printf("Only %d/%d points matched\n", oReport.m_oSupport.m_iInlier_Count, iCount);
+		//而E矩阵则丝滑估计，100%命中
+		Ransac_Estimate_E(pUV_1, pUV_2, iCount, K[0], K[2], K[5], &oReport, &oMatrix_Mem);
+	}
+
+	bSave_PLY("c:\\tmp\\1.ply", pPoint_3D_2, iCount);
+	return;
+}
+
 void Test_Main()
 {
 	//Point_Cloud_Test();				//点云重建最简例子，没营养
 
 	//Pose_Graph_Test_1();			//位姿图优化，暴力解
 	//Pose_Graph_Test_2();			//位姿图优化，引入信息矩阵，无卵用
-	Pose_Graph_Test_3();			//位姿图优化，用源信息矩阵，无卵用
+	//Pose_Graph_Test_3();			//位姿图优化，用源信息矩阵，无卵用
 
 	//Schur_Test();				//Schur消元法解大样本例
 	//BA_Test_1();
@@ -4243,27 +4764,35 @@ void Test_Main()
 	//ICP_Test_3();	//两图ICP 实验，自己造数据
 	//ICP_Test_4();	//闭环实验，仅估计位姿
 	//ICP_Test_5();	//最简三图闭环实验
-
-	//Camera_Extrinsic_Test_2();
+		
 	//Least_Square_Test_4();	//一阶梯度法
 	//Least_Square_Test_5();	//二阶梯度法
 	//Least_Square_Test_6();	//高斯牛顿法
 
 	//E_Test_2();	//对E矩阵进行验算实验
+	//E_Test_3;		//自己生成一个球数据测试E矩阵
+
+	//H_Test_1();		//单应矩阵实验，验证归一化平面与像素平面下H矩阵的有效性
+	//H_Test_2();		//反面例子，球面点估计不出一个H矩阵
+	//H_Test_3();			//验证张定友标定法中的特殊H矩阵，与一般H矩阵只差一个scale，即等价
 
 	////4个Sift实验，各种接口场合
 	//Sift_Test_1();
 	//Sift_Test_2();
 	//Sift_Test_3();
-	//Sift_Test_4();
+	Sift_Test_4();
 
 	//SVD_Test_1();		//作为SVD分解实验还是不错的
 	//E_Test_2();		//这个例子非常简洁
 	//Ransac_Test();	//Ransac实验
 
-	//Camera_Param_Test();	//相机参数实验
-
+	//Camera_Intrinsic_Test();	//内参实验
+	//Camera_Extrinsic_Test_1();	//相机参数实验
+	//Camera_Extrinsic_Test_2();	//相机参数实验
+	
 	//Sphere_Test_1();	//4基站定位实验，二维方法
 	//Sphere_Test_2();	//4基站定位实验，三维方法
 	//Sphere_Test_3();	//4基站定位实验，三维方法解线性方程法
+
+	//Cholosky_Test();	//Cholosky分解实验
 }

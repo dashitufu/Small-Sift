@@ -35,6 +35,7 @@ extern "C"
 #define Get_Homo_Pos(Pos, Homo_Pos) Homo_Pos[0]=Pos[0], Homo_Pos[1]=Pos[1], Homo_Pos[2]=Pos[2],Homo_Pos[3]=1;
 
 
+
 typedef struct Complex_d {//双精度复数
 	double real;	//实部
 	double im;		//虚部 imagary part	
@@ -178,7 +179,8 @@ void Rect_2_Screen_Coordinate(float x, float y, int* px_Screen, int* py_Screen, 
 void Screen_2_Coordinate(int x_Screen, int y_Screen, float* px, float* py, int iWidth = 1920, int iHeight = 1080);			//屏幕坐标转直角坐标系
 
 //一组与线性方程有关的函数
-template<typename _T>void Cholosky_Decompose(_T A[], int iOrder, _T B[]=NULL,_T *pd=NULL, int* pbSuccess=NULL);
+template<typename _T>void LLt_Decompose(_T A[], int iOrder, _T B[], int* pbSuccess=NULL);
+template<typename _T>void Cholosky_Decompose(_T A[], int iOrder, _T B[]=NULL,int* pbSuccess=NULL);
 void Conjugate_Gradient(float* A, const int n, float B[], float X[]);
 void Get_Inv_Matrix(float* pM, float* pInv, int iOrder, int* pbSuccess);
 void Solve_Linear_Cramer(float* A, int iOrder, float* B, float* X, int* pbSuccess); //克莱姆法则解线性方程组
@@ -320,6 +322,7 @@ template<typename _T>void Add_I_Matrix(Sparse_Matrix<_T>* poA, int* pbSuccess = 
 template<typename _T>void Solve_Linear_Gause(Sparse_Matrix<_T> oA, _T B[], _T X[], int* pbSuccess = NULL);
 template<typename _T>void Solve_Linear_Gause_1(Sparse_Matrix<_T>oA1, _T B[], _T X[], int* pbSuccess = NULL);
 template<typename _T>void Solve_Linear_Gause_2(Sparse_Matrix<_T>oA1, _T B[], _T X[], int* pbSuccess = NULL);
+template<typename _T>void Cholosky_Decompose(Sparse_Matrix<_T> oA, Sparse_Matrix<_T> *poB,int *pbSuccess=NULL);
 
 template<typename _T>void Re_Arrange_Sparse_Matrix(Sparse_Matrix<_T>* poA);
 template<typename _T>void Get_Inv_Matrix_Row_Op(Sparse_Matrix<_T> oA, Sparse_Matrix<_T>* poA_Inv, int* pbSuccess=NULL);
@@ -401,7 +404,6 @@ template<typename _T>void Gen_Homo_Matrix_1(_T Rotation_Vector[3], _T t[3], _T c
 template<typename _T>void Get_R_t(_T T[4 * 4], _T R[3 * 3]=NULL, _T t[3]=NULL);
 
 void Gen_Homo_Matrix(float R[], float t[], float s, float M[]);	//用旋转,位移，缩放构成一个变换矩阵
-template<typename _T> void Gen_Cube(_T Cube[][4], float fScale, _T x_Center=0, _T y_Center=0, _T z_Center=0);//生成一个Cube
 
 //取代透视变换，一步计算
 void Perspective(float Pos_Source[3], float h[3], float Pos_Dest[3]);
@@ -423,3 +425,5 @@ float fGet_Polynormial_Value(Polynormial oPoly, float x[]);	//代入x求多项�
 
 template<typename _T>void Copy_Matrix_Partial(_T Source[], int m, int n, _T Dest[], int iDest_Stride, int x, int y);
 float fGet_e();
+void* pMalloc(unsigned int iSize);
+void Free(void* p);

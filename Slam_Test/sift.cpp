@@ -1599,138 +1599,107 @@ int iGet_Distance_AVX512(unsigned char A[], unsigned char  B[])
 	__m512i Value_32;
 	union {
 		__m512i Sum;
-		__m256i Sum_1[2];
-		__m128i Sum_2[2];
-		int Sum_4[4];
+		//int Sum_4[4];
 	};
 	union {
 		__m512i Sum_32;
 		__m256i Sum_16[2];
 	};	
-	/*for (int i = 0; i < 128; i++)
-	{
-		A[i] = i;
-		B[i] = i + i;
-	}*/
-
-	////从以下可以看出，zmm0 与ymm0共用同一寄存器,所以要转换的话，得换寄存器
-	//__asm {
-	//	push rax;
-	//	push rbx;
-	//	mov rax, [A];
-	//	mov rbx, [B];
-
-	//	vmovdqu ymm0, ymmword ptr[rax];		//从A中装入数据 ymm0=A
-	//	vpmovzxbw zmm16, ymm0;				//转换为uint_8	zmm16=A
-	//	vmovdqu ymm0, [rbx];
-	//	vpmovzxbw zmm17, ymm0;				//zmm17=B
-	//	vpsubw zmm18, zmm16, zmm17;			//zmm18=A-B
-	//	vpmullw zmm20, zmm18, zmm18;		//zmm20= (A-B)^2
-
-	//	add rax, 32;
-	//	add rbx, 32;
-	//	vmovdqu ymm0, ymmword ptr[rax];
-	//	vpmovzxbw zmm16, ymm0;				//转换为uint_8	zmm16=A
-	//	vmovdqu ymm0, [rbx];
-	//	vpmovzxbw zmm17, ymm0;				//zmm17=B
-	//	vpsubw zmm18, zmm16, zmm17;			//zmm18=A-B
-	//	vpmullw zmm18, zmm18, zmm18;		//zmm20= (A-B)^2
-	//	vpaddusw zmm20, zmm20, zmm18;		//zmm20= sum( (A-B)^2)
-	//	
-	//	//累加到32位
-	//	vextracti64x4 ymm0, zmm20, 0;
-	//	vpmovsxwd zmm16, ymm0;				//zmm16= 低256位，转换为32位
-	//	vextracti64x4 ymm0, zmm20, 1;
-	//	vpmovsxwd zmm17, ymm0;				//zmm17= 高256位，转换为32位
-	//	vpaddd zmm21, zmm16, zmm17;			//zmm21 = sum( (A-B)^2) 32位
-
-	//	add rax, 32;
-	//	add rbx, 32;
-	//	vmovdqu ymm0, ymmword ptr[rax];		//从A中装入数据 ymm0=A
-	//	vpmovzxbw zmm16, ymm0;				//转换为uint_8	zmm16=A
-	//	vmovdqu ymm0, [rbx];
-	//	vpmovzxbw zmm17, ymm0;				//zmm17=B
-	//	vpsubw zmm18, zmm16, zmm17;			//zmm18=A-B
-	//	vpmullw zmm20, zmm18, zmm18;		//zmm20= (A-B)^2
-
-	//	add rax, 32;
-	//	add rbx, 32;
-	//	vmovdqu ymm0, ymmword ptr[rax];
-	//	vpmovzxbw zmm16, ymm0;				//转换为uint_8	zmm16=A
-	//	vmovdqu ymm0, [rbx];
-	//	vpmovzxbw zmm17, ymm0;				//zmm17=B
-	//	vpsubw zmm18, zmm16, zmm17;			//zmm18=A-B
-	//	vpmullw zmm18, zmm18, zmm18;		//zmm20= (A-B)^2
-	//	vpaddusw zmm20, zmm20, zmm18;		//zmm20= sum( (A-B)^2)
-
-	//	//累加到32位
-	//	vextracti64x4 ymm0, zmm20, 0;
-	//	vpmovsxwd zmm16, ymm0;				//zmm16= 低256位，转换为32位
-	//	vextracti64x4 ymm0, zmm20, 1;
-	//	vpmovsxwd zmm17, ymm0;				//zmm17= 高256位，转换为32位
-	//	vpaddd zmm21,zmm21, zmm16;			//zmm21 = sum( (A-B)^2) 32位
-	//	vpaddd zmm21,zmm21, zmm17;
-
-	//	//将16个32位sum递归加到一个
-	//	vextracti64x4 ymm0, zmm21, 0;		
-	//	vextracti64x4 ymm1, zmm21, 1;
-	//	vpaddd ymm0, ymm0, ymm1;
-
-	//	vextracti64x2 xmm2, ymm0, 0;
-	//	vextracti64x2 xmm3, ymm0, 1;
-	//	vpaddd xmm2, xmm2, xmm3;
-
-	//	movdq2q  mm0, xmm2;					//将xmm2低64位转换到mmx
-	//	psrldq xmm2, 8;						//右移8字节
-	//	movdq2q mm1, xmm2;
-	//	paddd mm0, mm1;
-
-	//	movq mm1, mm0;
-	//	psrlq mm1, 32;
-	//	paddd mm0, mm1;
-	//	movd iResult, mm0;
-	//	pop rbx;
-	//	pop rax;
-	//}
-	//return iResult;
-
+	
 	Value_32 = _mm512_sub_epi16(_mm512_cvtepu8_epi16(*(__m256i*) & A[0]), _mm512_cvtepu8_epi16(*(__m256i*) & B[0]));
 	Sum_32 = _mm512_mullo_epi16(Value_32, Value_32);
 
 	Value_32 = _mm512_sub_epi16(_mm512_cvtepu8_epi16(*(__m256i*) & A[32]), _mm512_cvtepu8_epi16(*(__m256i*) & B[32]));
 	Sum_32 = _mm512_adds_epu16(Sum_32, _mm512_mullo_epi16(Value_32, Value_32));
-	Sum=_mm512_add_epi32(_mm512_cvtepi16_epi32(Sum_16[0]), _mm512_cvtepi16_epi32(Sum_16[1]));
-
+	Sum = _mm512_add_epi32(_mm512_cvtepu16_epi32(Sum_16[0]), _mm512_cvtepu16_epi32(Sum_16[1]));
+	
 	Value_32 = _mm512_sub_epi16(_mm512_cvtepu8_epi16(*(__m256i*) & A[64]), _mm512_cvtepu8_epi16(*(__m256i*) & B[64]));
 	Sum_32 = _mm512_mullo_epi16(Value_32, Value_32);
 
 	Value_32 = _mm512_sub_epi16(_mm512_cvtepu8_epi16(*(__m256i*) & A[96]), _mm512_cvtepu8_epi16(*(__m256i*) & B[96]));
 	Sum_32 = _mm512_adds_epu16(Sum_32, _mm512_mullo_epi16(Value_32, Value_32));
-	Sum=_mm512_add_epi32(Sum, _mm512_add_epi32(_mm512_cvtepi16_epi32(Sum_16[0]), _mm512_cvtepi16_epi32(Sum_16[1])));
+	Sum = _mm512_add_epi32(Sum, _mm512_add_epi32(_mm512_cvtepu16_epi32(Sum_16[0]), _mm512_cvtepu16_epi32(Sum_16[1])));
 
-	Sum_1[0] = _mm256_add_epi32(Sum_1[0], Sum_1[1]);
-	Sum_2[0] = _mm_add_epi32(Sum_2[0], Sum_2[1]);
-	return Sum_4[0]+Sum_4[1]+Sum_4[2]+Sum_4[3];
+	return _mm512_reduce_add_epi32(Sum);	//快些
+
+	//Sum_1[0] = _mm256_add_epi32(Sum_1[0], Sum_1[1]);
+	//Sum_2[0] = _mm_add_epi32(Sum_2[0], Sum_2[1]);
+	//return Sum_4[0]+Sum_4[1]+Sum_4[2]+Sum_4[3];
 }
 
-void Get_Distance_16_AVX512()
-{
-
-}
-void Get_Nearest_2_Point_1(unsigned char Pos[128], unsigned char(*Point)[16], int iPoint_Count, Neighbour_K* poNeighbour)
-{
-	//从Point集中种找到与Pos匹配的点
+void Get_Nearest_2_Point_1(unsigned char Pos[128], unsigned char(*Point)[128], int iPoint_Count, Neighbour_K* poNeighbour, int iIndex_A, Neighbour_K Neighbour_B[])
+{//Neighbour_B 是这么一个集，每一点的Neighbour表示
 	Neighbour_K oNeighbour;
-	int i, iDistance;
+	int i;
+	unsigned int iDistance;
 	unsigned char* pCur_Point;
 	if (iPoint_Count < 2)
 	{
 		printf("Point Count less then 2\n");
 		return;	//不干也罢
 	}
+	pCur_Point = Point[0];
+	iDistance = iGet_Distance_AVX512(Pos, pCur_Point);
+	oNeighbour.m_Buffer[0] = { 0, (unsigned int)iDistance };
+
+	//再反向给Neighbour_B反向赋值
+	if (iDistance < Neighbour_B[0].m_Buffer[1].m_iDistance)
+	{
+		if (iDistance < Neighbour_B[0].m_Buffer[0].m_iDistance)
+		{
+			Neighbour_B[0].m_Buffer[1] = Neighbour_B[0].m_Buffer[0];
+			Neighbour_B[0].m_Buffer[0] = { iIndex_A,iDistance };
+		}else
+			Neighbour_B[0].m_Buffer[1] = { iIndex_A,iDistance };
+	}
+	//Neighbour_B[0].m_Buffer[0] = {iIndex_A,(unsigned int)iDistance};
+
+	pCur_Point = Point[1];
+	iDistance = iGet_Distance_AVX512(Pos, pCur_Point);
+	oNeighbour.m_Buffer[1] = { 1,iDistance };
+	if (oNeighbour.m_Buffer[1].m_iDistance < oNeighbour.m_Buffer[0].m_iDistance)
+		swap(oNeighbour.m_Buffer[0], oNeighbour.m_Buffer[1]);
+	//再反向给Neighbour_B反向赋值
+	if (iDistance < Neighbour_B[1].m_Buffer[1].m_iDistance)
+	{
+		if (iDistance < Neighbour_B[1].m_Buffer[0].m_iDistance)
+		{
+			Neighbour_B[1].m_Buffer[1] = Neighbour_B[1].m_Buffer[0];
+			Neighbour_B[1].m_Buffer[0] = { iIndex_A,iDistance };
+		}else
+			Neighbour_B[1].m_Buffer[1] = { iIndex_A,iDistance };
+	}
+	//Neighbour_B[1].m_Buffer[0] = { iIndex_A,iDistance };
 	
+	for (i = 2; i < iPoint_Count; i++)
+	{
+		pCur_Point = Point[i];
+		iDistance = iGet_Distance_AVX512(Pos, pCur_Point);
+		if (iDistance < (int)oNeighbour.m_Buffer[1].m_iDistance)
+		{
+			if (iDistance < (int)oNeighbour.m_Buffer[0].m_iDistance)
+			{
+				oNeighbour.m_Buffer[1] = oNeighbour.m_Buffer[0];
+				oNeighbour.m_Buffer[0] = { i,iDistance };
+			}else
+				oNeighbour.m_Buffer[1] = { i,iDistance };
+		}
+		//Neighbour_B的第i点，也要判断一下是否为最近点
+		if (iDistance < Neighbour_B[i].m_Buffer[1].m_iDistance)
+		{
+			if (iDistance < Neighbour_B[i].m_Buffer[0].m_iDistance)
+			{
+				Neighbour_B[i].m_Buffer[1] = Neighbour_B[i].m_Buffer[0];
+				Neighbour_B[i].m_Buffer[0] = { iIndex_A,iDistance };
+			}else
+				Neighbour_B[i].m_Buffer[1] = { iIndex_A,iDistance };
+		}
+	}
+	*poNeighbour = oNeighbour;
+
 	return;
 }
+
 void Get_Nearest_2_Point(unsigned char Pos[128], unsigned char(*Point)[128], int iPoint_Count, Neighbour_K* poNeighbour)
 {//从Point集中种找到与Pos匹配的点
 	Neighbour_K oNeighbour;
@@ -1768,6 +1737,42 @@ void Get_Nearest_2_Point(unsigned char Pos[128], unsigned char(*Point)[128], int
 	return;
 }
 
+unsigned int iDot(unsigned char A[], unsigned char B[])
+{
+	__m512i Sum;
+	union {
+		__m512i Sum_32;
+		__m256i Sum_16[2];
+	};
+	Sum_32 = _mm512_mullo_epi16(_mm512_cvtepu8_epi16(*(__m256i*) & A[0]), _mm512_cvtepu8_epi16(*(__m256i*) & B[0]));
+	Sum = _mm512_add_epi32(_mm512_cvtepu16_epi32(Sum_16[0]), _mm512_cvtepu16_epi32(Sum_16[1]));
+	Sum_32 = _mm512_mullo_epi16(_mm512_cvtepu8_epi16(*(__m256i*) & A[32]), _mm512_cvtepu8_epi16(*(__m256i*) & B[32]));
+	Sum = _mm512_add_epi32(Sum, _mm512_add_epi32(_mm512_cvtepu16_epi32(Sum_16[0]), _mm512_cvtepu16_epi32(Sum_16[1])));
+	Sum_32 = _mm512_mullo_epi16(_mm512_cvtepu8_epi16(*(__m256i*) & A[64]), _mm512_cvtepu8_epi16(*(__m256i*) & B[64]));
+	Sum = _mm512_add_epi32(Sum, _mm512_add_epi32(_mm512_cvtepu16_epi32(Sum_16[0]), _mm512_cvtepu16_epi32(Sum_16[1])));
+	Sum_32 = _mm512_mullo_epi16(_mm512_cvtepu8_epi16(*(__m256i*) & A[96]), _mm512_cvtepu8_epi16(*(__m256i*) & B[96]));
+	Sum = _mm512_add_epi32(Sum, _mm512_add_epi32(_mm512_cvtepu16_epi32(Sum_16[0]), _mm512_cvtepu16_epi32(Sum_16[1])));
+	return _mm512_reduce_add_epi32(Sum);
+}
+#define Dot_1(A, B, iDistance) \
+{ \
+	unsigned char *A1=A,*B1=B;	\
+	__m512i Sum;	\
+	union {	\
+		__m512i Sum_32;	\
+		__m256i Sum_16[2];	\
+	};	\
+	Sum_32 = _mm512_mullo_epi16(_mm512_cvtepu8_epi16(*(__m256i*) & A1[0]), _mm512_cvtepu8_epi16(*(__m256i*) & B1[0]));	\
+	Sum = _mm512_add_epi32(_mm512_cvtepu16_epi32(Sum_16[0]), _mm512_cvtepu16_epi32(Sum_16[1]));	\
+	Sum_32 = _mm512_mullo_epi16(_mm512_cvtepu8_epi16(*(__m256i*) & A1[32]), _mm512_cvtepu8_epi16(*(__m256i*) & B1[32]));	\
+	Sum = _mm512_add_epi32(Sum, _mm512_add_epi32(_mm512_cvtepu16_epi32(Sum_16[0]), _mm512_cvtepu16_epi32(Sum_16[1])));	\
+	Sum_32 = _mm512_mullo_epi16(_mm512_cvtepu8_epi16(*(__m256i*) & A1[64]), _mm512_cvtepu8_epi16(*(__m256i*) & B1[64]));	\
+	Sum = _mm512_add_epi32(Sum, _mm512_add_epi32(_mm512_cvtepu16_epi32(Sum_16[0]), _mm512_cvtepu16_epi32(Sum_16[1])));	\
+	Sum_32 = _mm512_mullo_epi16(_mm512_cvtepu8_epi16(*(__m256i*) & A1[96]), _mm512_cvtepu8_epi16(*(__m256i*) & B1[96]));	\
+	Sum = _mm512_add_epi32(Sum, _mm512_add_epi32(_mm512_cvtepu16_epi32(Sum_16[0]), _mm512_cvtepu16_epi32(Sum_16[1])));	\
+	(iDistance)=_mm512_reduce_add_epi32(Sum);\
+}
+
 #define Dot(A, B, iDistance) { \
 	unsigned char *B_1=(B); \
 	(iDistance)=0;	\
@@ -1775,19 +1780,21 @@ void Get_Nearest_2_Point(unsigned char Pos[128], unsigned char(*Point)[128], int
 		(iDistance)+= A[j] * B_1[j]; \
 }
 
-int iGet_Match_1(unsigned char Desc_A[128], unsigned char(*pDesc_B)[16], int iCount_B)
-{//另一种方法
+int iGet_Match_1(unsigned char Desc_A[128], unsigned char(*pDesc_B)[128], int iCount_B,int iIndex_A,Neighbour_K Neighbour_B[])
+{//从B中找到最近邻，返回B中最合适的索引
 	Neighbour_K oNeighbour;
 	const float kDistNorm = 1.0f / (512.0f * 512.0f);
 	const float max_distance = 0.7f,
 		max_ratio = 0.8f;
 	float best_dist_normed, second_best_dist_normed;
 
-	Get_Nearest_2_Point_1(Desc_A, pDesc_B, iCount_B, &oNeighbour);
-
+	Get_Nearest_2_Point_1(Desc_A, pDesc_B, iCount_B, &oNeighbour,iIndex_A, Neighbour_B);
+	
 	//将欧式距离改为点积
-	Dot(Desc_A, pDesc_B[oNeighbour.m_Buffer[0].m_iIndex], oNeighbour.m_Buffer[0].m_iDistance);
-	Dot(Desc_A, pDesc_B[oNeighbour.m_Buffer[1].m_iIndex], oNeighbour.m_Buffer[1].m_iDistance);
+	Dot_1(Desc_A, pDesc_B[oNeighbour.m_Buffer[0].m_iIndex], oNeighbour.m_Buffer[0].m_iDistance);
+	Dot_1(Desc_A, pDesc_B[oNeighbour.m_Buffer[1].m_iIndex], oNeighbour.m_Buffer[1].m_iDistance);
+	//oNeighbour.m_Buffer[0].m_iDistance = iDot(Desc_A, pDesc_B[oNeighbour.m_Buffer[0].m_iIndex]);
+	//oNeighbour.m_Buffer[1].m_iDistance = iDot(Desc_A, pDesc_B[oNeighbour.m_Buffer[1].m_iIndex]);
 
 	//再将距离大者放在[0],次之放在[1]
 	if (oNeighbour.m_Buffer[0].m_iDistance < oNeighbour.m_Buffer[1].m_iDistance)
@@ -1803,9 +1810,10 @@ int iGet_Match_1(unsigned char Desc_A[128], unsigned char(*pDesc_B)[16], int iCo
 	//这个判断尚未明白。次优点不是来捣乱的吗？
 	if (best_dist_normed >= max_ratio * second_best_dist_normed)
 		return -1;
+
 	return oNeighbour.m_Buffer[0].m_iIndex;
-	return -1;
 }
+
 int iGet_Match(unsigned char Desc_A[128], unsigned char(*pDesc_B)[128], int iCount_B)
 {//从B中找到最近邻，返回B中最合适的索引
 	Neighbour_K oNeighbour;
@@ -1837,19 +1845,69 @@ int iGet_Match(unsigned char Desc_A[128], unsigned char(*pDesc_B)[128], int iCou
 	return oNeighbour.m_Buffer[0].m_iIndex;
 }
 
-void Sift_Match_2_Image_1(Sift_Image oImage_A, Sift_Image oImage_B, int iA_Index, int iB_Index, Sift_Match_Item* poMatch)
+void Sift_Match_2_Image_1(Sift_Image oImage_A, Sift_Image oImage_B, int iA_Index, int iB_Index, Sift_Match_Item* poMatch,Neighbour_K Neighbour_B[])
 {//尝试用另一种方法
 	int i, iMatch_B;
 	Sift_Match_Item oMatch = { (short)iA_Index,(short)iB_Index,0,poMatch->m_Match };
+	Neighbour_K oNeighbour;
+	memset(Neighbour_B, 0xFF, oImage_B.m_iCount * sizeof(Neighbour_K));
 	//以下直接找，不经过多轮查找
 	for (i = 0; i < oImage_A.m_iCount; i++)
 	{//此处为优化关键
-		if ((iMatch_B = iGet_Match_1(oImage_A.m_pDesc[i], (unsigned char (*)[16])oImage_B.m_pDesc_1, oImage_B.m_iCount)) != -1)
+		if ((iMatch_B = iGet_Match_1(oImage_A.m_pDesc[i], oImage_B.m_pDesc, oImage_B.m_iCount,i, Neighbour_B)) != -1)
 		{
-
+			oMatch.m_Match[oMatch.m_iMatch_Count][0] = i;
+			oMatch.m_Match[oMatch.m_iMatch_Count++][1] = iMatch_B;
 		}
 	}
+
+	//再找一次从B到A的查找
+	int j,iMatch_A;
+	const float kDistNorm = 1.0f / (512.0f * 512.0f);
+	const float max_distance = 0.7f,
+		max_ratio = 0.8f;
+	float best_dist_normed, second_best_dist_normed;
+
+	for (i = j = 0; i < oMatch.m_iMatch_Count; i++)
+	{
+		iMatch_A = oMatch.m_Match[i][0];
+		iMatch_B = oMatch.m_Match[i][1];
+
+		//对于点集B的第iMatch_B点，反向处理其Neighbour
+		oNeighbour = Neighbour_B[iMatch_B];
+
+		//将欧式距离改为点积
+		Dot_1(oImage_A.m_pDesc[oNeighbour.m_Buffer[0].m_iIndex], oImage_B.m_pDesc[iMatch_B], oNeighbour.m_Buffer[0].m_iDistance);
+		Dot_1(oImage_A.m_pDesc[oNeighbour.m_Buffer[1].m_iIndex], oImage_B.m_pDesc[iMatch_B], oNeighbour.m_Buffer[1].m_iDistance);
+		//oNeighbour.m_Buffer[0].m_iDistance = iDot(oImage_A.m_pDesc[oNeighbour.m_Buffer[0].m_iIndex], oImage_B.m_pDesc[iMatch_B]);
+		//oNeighbour.m_Buffer[1].m_iDistance = iDot(oImage_A.m_pDesc[oNeighbour.m_Buffer[1].m_iIndex], oImage_B.m_pDesc[iMatch_B]);
+		//再将距离大者放在[0],次之放在[1]
+		if (oNeighbour.m_Buffer[0].m_iDistance < oNeighbour.m_Buffer[1].m_iDistance)
+			swap(oNeighbour.m_Buffer[0], oNeighbour.m_Buffer[1]);
+
+		if (oNeighbour.m_Buffer[0].m_iIndex != iMatch_A)
+			continue;
+
+		best_dist_normed = (float)acos(std::min(kDistNorm * oNeighbour.m_Buffer[0].m_iDistance, 1.0f));
+		//首先判断最优点是否大于阈值max_distance,如果大了就跳过，没毛病
+		if (best_dist_normed > max_distance)
+			continue;
+		second_best_dist_normed = (float)acos(std::min(kDistNorm * oNeighbour.m_Buffer[1].m_iDistance, 1.0f));
+		//再判断最优点是否比次优点的0.8倍还大，表示最优点离此优点不能太远，
+		//这个判断尚未明白。次优点不是来捣乱的吗？
+		if (best_dist_normed >= max_ratio * second_best_dist_normed)
+			continue;
+
+		oMatch.m_Match[j][0] = iMatch_A;
+		oMatch.m_Match[j][1] = iMatch_B;
+		j++;
+		//printf("A:%d B:%d\n", iMatch_A, iMatch_B);
+	}
+	oMatch.m_iMatch_Count = j;
+	*poMatch = oMatch;
+	return;
 }
+
 void Sift_Match_2_Image(Sift_Image oImage_A, Sift_Image oImage_B, int iA_Index, int iB_Index, Sift_Match_Item* poMatch)
 {
 	int i, iMatch_B;
@@ -1863,16 +1921,27 @@ void Sift_Match_2_Image(Sift_Image oImage_A, Sift_Image oImage_B, int iA_Index, 
 			{
 				oMatch.m_Match[oMatch.m_iMatch_Count][0] = i;
 				oMatch.m_Match[oMatch.m_iMatch_Count++][1] = iMatch_B;
+				printf("A:%d B:%d\n", i, iMatch_B);
 			}
 		}
 	}
+
+	////临时存储代码
+	//FILE* pFile = fopen("c:\\tmp\\A.bin", "wb");
+	//fwrite(oImage_A.m_pDesc, 1, oImage_A.m_iCount * 128, pFile);
+	//fclose(pFile);
+	//pFile = fopen("c:\\tmp\\B.bin", "wb");
+	//fwrite(oImage_B.m_pDesc, 1, oImage_B.m_iCount * 128, pFile);
+	//fclose(pFile);
+
 	*poMatch = oMatch;
 	return;
 }
 template<typename _T>void Sift_Match_2_Image(const char* pcFile_1, const char* pcFile_2, _T(**ppPoint_1)[2], _T(**ppPoint_2)[2], int* piCount, int o_min)
 {//比较两张图的关键点，找出匹配对
 	//return pPoint_1, pPoint_2， 但是调用函数只需释放pPoint_1即可
-	_T(*pPoint_1)[2] = NULL, (*pPoint_2)[2];
+	_T(*pPoint_1)[2] = NULL, (*pPoint_2)[2]=NULL;
+	Sift_Feature* pFeature_1, * pFeature_2;
 	Mem_Mgr oMem_Mgr;
 	Image oImage;
 	float* pImage;
@@ -1911,7 +1980,7 @@ template<typename _T>void Sift_Match_2_Image(const char* pcFile_1, const char* p
 		Shrink(&oMem_Mgr, oSift_Image.m_pFeature, oSift_Image.m_iCount * sizeof(Sift_Feature));
 		pSift_Image_Arr[i] = oSift_Image;
 	}
-	//Disp_Mem(&oMem_Mgr, 2);
+
 	//出来以后OK了，可以搞匹配，先预先分配空间
 	iSift_Size = iGet_Sift_Match_Size(pSift_Image_Arr, 2);
 	pBuffer = (unsigned char*)pMalloc(&oMem_Mgr, iSift_Size);
@@ -1941,16 +2010,26 @@ template<typename _T>void Sift_Match_2_Image(const char* pcFile_1, const char* p
 		printf("Insufficient memory\n");
 		return;
 	}
-	Sift_Match_2_Image(pSift_Image_Arr[0], pSift_Image_Arr[1], 0, 1, &oMatch_Item);
+	iMax_Size = Max(pSift_Image_Arr[0].m_iCount, pSift_Image_Arr[1].m_iCount);
+	//到此处要分配一块内存用于匹配的临时空间
+	Neighbour_K* pNeighbour_B;	//点集A的最近邻	
+	pNeighbour_B = (Neighbour_K*)pMalloc(&oMem_Mgr, iMax_Size);
+	if (!pNeighbour_B)
+	{
+		printf("Insufficient memory\n");
+		goto END;
+	}
+
+	Sift_Match_2_Image_1(pSift_Image_Arr[0], pSift_Image_Arr[1], 0, 1, &oMatch_Item,pNeighbour_B);
 	pBuffer += ALIGN_SIZE_128(oMatch_Item.m_iMatch_Count * 2 * sizeof(unsigned short));
 	pSift_Image_Arr[1].m_pMatch[0] = pSift_Image_Arr[0].m_pMatch[1] = oMatch_Item;
 	printf("Match_Count:%d \n", oMatch_Item.m_iMatch_Count);
 
-
 	pPoint_1 = (_T(*)[2])malloc(oMatch_Item.m_iMatch_Count * 4 * sizeof(_T));
 	pPoint_2 = pPoint_1 + oMatch_Item.m_iMatch_Count;
-	Sift_Feature* pFeature_1 = pSift_Image_Arr[0].m_pFeature,
-		* pFeature_2 = pSift_Image_Arr[1].m_pFeature;
+
+	pFeature_1 = pSift_Image_Arr[0].m_pFeature;
+	pFeature_2 = pSift_Image_Arr[1].m_pFeature;
 	for (i = 0; i < oMatch_Item.m_iMatch_Count; i++)
 	{
 		int Index[2] = { oMatch_Item.m_Match[i][0],oMatch_Item.m_Match[i][1] };
@@ -1959,7 +2038,8 @@ template<typename _T>void Sift_Match_2_Image(const char* pcFile_1, const char* p
 		pPoint_2[i][0] = pFeature_2[Index[1]].x;
 		pPoint_2[i][1] = pFeature_2[Index[1]].y;
 	}
-	//Disp_Mem(&oMem_Mgr, 0);
+END:
+
 	Free_Mem_Mgr(&oMem_Mgr);
 	if (ppPoint_1)
 		*ppPoint_1 = pPoint_1;
@@ -2044,6 +2124,181 @@ void Init_Simple_Match(const char *pcPath,Sift_Match_Map *poMap, Mem_Mgr* poMem_
 	poMap->m_pMatch[0].m_pPoint_1 = (float(*)[2])pCur;
 	iSize += iImage_Count * MAX_KEY_POINT_COUNT * 4 * sizeof(float);
 	Shrink(poMem_Mgr, poMap->m_pBuffer, iSize);
+	poMap->m_iImage_Count = iImage_Count;
+	return;
+}
+
+void Sift_Match_Path_1(const char* pcPath, Sift_Match_Map* poMap, Mem_Mgr* poMem_Mgr, int o_min)
+{//尝试在匹配阶段提速
+	char File[256];
+	Sift_Image* pSift_Image_Arr, oSift_Image;
+	float* pImage;
+	int i, j, iSize, iMax_Match_Size, iImage_Count;
+	unsigned char* pCur, * pStart;
+	char* pFile_Name;
+	Image oImage;
+
+	//Disp_Mem(poMem_Mgr, 0);
+	Init_Simple_Match(pcPath, poMap, poMem_Mgr);
+	if (!poMap->m_pBuffer)
+		return;
+	iImage_Count = poMap->m_iImage_Count;
+	//Disp_Mem(poMem_Mgr, 0);
+
+	int iMax_Size;
+	//再给pSift_Image_Arr分配File_Name内存
+	pSift_Image_Arr = (Sift_Image*)pMalloc(poMem_Mgr, iImage_Count * sizeof(Sift_Image));
+	pCur = (unsigned char*)poMap->m_pImage_Arr[0].m_pFile_Name;
+	iSize = iImage_Count * 256;
+	pFile_Name = (char*)pMalloc(poMem_Mgr, iSize);
+	memcpy(pFile_Name, pCur, iSize);
+	for (pCur = (unsigned char*)pFile_Name, i = 0; i < iImage_Count; i++)
+	{
+		pSift_Image_Arr[i].m_pFile_Name = (char*)pCur;
+		pCur += strlen((char*)pCur) + 1;
+	}
+	iSize = (int)((char*)pCur - pFile_Name);
+	Shrink(poMem_Mgr, pFile_Name, iSize);
+
+	iMax_Match_Size = MAX_KEY_POINT_COUNT * sizeof(Sift_Feature);
+	for (i = 0; i < iImage_Count; i++)
+	{
+		sprintf(File, "%s\\%s", pcPath, poMap->m_pImage_Arr[i].m_pFile_Name);
+		oSift_Image = pSift_Image_Arr[i];
+		sprintf(File, "%s\\%s", pcPath, oSift_Image.m_pFile_Name);
+		Get_Image_Info(File, &oImage);
+		iMax_Size = max((int)iMax_Match_Size, (int)(oImage.m_iWidth * oImage.m_iHeight * sizeof(float)));
+		pImage = (float*)pMalloc(poMem_Mgr, iMax_Size);
+		if (!pImage)
+		{
+			printf("Fail to pMalloc in Sift_Match_Path\n");
+			return;
+		}
+		if (!bLoad_Image(File, &oImage, 0, 0, 0, 1, poMem_Mgr))
+			return;
+		RGB_2_Gray(oImage, pImage);
+		Free_Image(poMem_Mgr, oImage);
+
+		iSize = iGet_Sift_Detect_Size(oImage.m_iWidth, oImage.m_iHeight);
+		pCur = (unsigned char*)pMalloc(poMem_Mgr, iSize);
+		if (!pCur)
+			return;
+		Get_Sift_Feature(pImage, oImage.m_iWidth, oImage.m_iHeight, o_min, pCur, iSize, &oSift_Image.m_iCount);
+		//printf("Detect %d\n", i);
+		Free(poMem_Mgr, pImage);
+		oSift_Image.m_pFeature = (Sift_Feature*)pCur;
+		pSift_Image_Arr[i] = oSift_Image;
+		iSize = oSift_Image.m_iCount * sizeof(Sift_Feature);
+		Shrink(poMem_Mgr, pCur, iSize);
+		pSift_Image_Arr[i] = oSift_Image;
+		//printf(".");
+		printf("Feature Count:%d\n", oSift_Image.m_iCount);
+	}
+
+	//此处算Sift_Image的Match
+	//Disp_Mem(poMem_Mgr, 0);
+	iSize = iGet_Sift_Match_Size(pSift_Image_Arr, iImage_Count);
+	//Temp code
+	iSize *= 2;
+
+	pCur = pStart = (unsigned char*)pMalloc(poMem_Mgr, iSize);
+	if (!pCur)
+		return;	//不够内存，严重错误
+
+	//分配Match, 一共分走了 iImage_Count*iImage_Count*sizeof(Sift_Match_Item)
+	for (i = 0; i < iImage_Count; i++)
+	{
+		pSift_Image_Arr[i].m_pMatch = (Sift_Match_Item*)pCur;
+		memset(pCur, 0, iImage_Count * sizeof(Sift_Match_Item));
+		pCur += iImage_Count * sizeof(Sift_Match_Item);
+	}//出来以后，内存移到 pStart + iImage_Count*iImage_Count*sizeof(Sift_Match_Item)
+
+	//再分配一次Desc, 整齐点以便于后面提速
+	iMax_Size = 0;
+	for (i = 0; i < iImage_Count; i++)
+	{
+		pSift_Image_Arr[i].m_pDesc = (unsigned char(*)[128])pCur;
+		pCur += pSift_Image_Arr[i].m_iCount * 128;
+
+		if (pSift_Image_Arr[i].m_iCount > iMax_Size)//寻找最大开辟空间
+			iMax_Size = pSift_Image_Arr[i].m_iCount;
+	}
+	iMax_Size *= sizeof(Neighbour_K);
+
+	Copy_Desc(pSift_Image_Arr, iImage_Count, pSift_Image_Arr->m_pDesc[0]);
+
+	//到此处要分配一块内存用于匹配的临时空间
+	Neighbour_K* pNeighbour_B;	//点集A的最近邻	
+	pNeighbour_B = (Neighbour_K*)pMalloc(poMem_Mgr, iMax_Size);
+	if (!pNeighbour_B)
+	{
+		printf("Insufficient memory\n");
+		goto END;
+	}
+	Sift_Match_Item oMatch_Item;
+	for (i = 0; i < iImage_Count; i++)
+	{
+		for (j = i + 1; j < iImage_Count; j++)
+		{
+			oMatch_Item = { (short)i,(short)j,0,(unsigned short(*)[2])pCur };
+			if (pCur + pSift_Image_Arr[i].m_iCount * sizeof(unsigned short) * 2 - pStart > iSize)
+			{//判断是否越界
+				printf("Insufficient memory\n");
+				return;
+			}
+			Sift_Match_2_Image_1(pSift_Image_Arr[i], pSift_Image_Arr[j], i, j, &oMatch_Item, pNeighbour_B);
+			pCur += ALIGN_SIZE_128(oMatch_Item.m_iMatch_Count * 2 * sizeof(unsigned short));
+			pSift_Image_Arr[j].m_pMatch[i] = pSift_Image_Arr[i].m_pMatch[j] = oMatch_Item;
+			printf("i:%d j:%d Match_Count:%d \n", i, j, oMatch_Item.m_iMatch_Count);
+		}
+	}
+
+	//最后将Feature 抄到 Match_Map
+	//pCur = (unsigned char*)poMap->m_pMatch[0].m_pMatch;
+	pCur = (unsigned char*)poMap->m_pMatch[0].m_pPoint_1;
+	for (i = 0; i < iImage_Count; i++)
+	{
+		oSift_Image = pSift_Image_Arr[i];
+		Sift_Feature* pFeature_A = oSift_Image.m_pFeature;
+		for (j = i + 1; j < iImage_Count; j++)
+		{
+			oSift_Image = pSift_Image_Arr[j];
+			Sift_Feature* pFeature_B = oSift_Image.m_pFeature;
+			oMatch_Item = pSift_Image_Arr[i].m_pMatch[j];
+			int iIndex = iUpper_Triangle_Cord_2_Index(j, i, iImage_Count);
+			//Sift_Simple_Match_Item oMatch_Item_1 = poMap->m_pMatch[i * iImage_Count + j];
+			Sift_Simple_Match_Item oMatch_Item_1 = poMap->m_pMatch[iIndex];
+			oMatch_Item_1.m_iImage_A = i;
+			oMatch_Item_1.m_iImage_B = j;
+			oMatch_Item_1.m_iMatch_Count = oMatch_Item.m_iMatch_Count;
+			oMatch_Item_1.m_pPoint_1 = (float(*)[2])pCur;
+			oMatch_Item_1.m_pPoint_2 = oMatch_Item_1.m_pPoint_1 + oMatch_Item.m_iMatch_Count;
+			//oMatch_Item_1.m_pMatch =(float(*)[2][2])pCur;
+			for (int k = 0; k < oMatch_Item.m_iMatch_Count; k++)
+			{
+				oMatch_Item_1.m_pPoint_1[k][0] = pFeature_A[oMatch_Item.m_Match[k][0]].x;
+				oMatch_Item_1.m_pPoint_1[k][1] = pFeature_A[oMatch_Item.m_Match[k][0]].y;
+				oMatch_Item_1.m_pPoint_2[k][0] = pFeature_B[oMatch_Item.m_Match[k][1]].x;
+				oMatch_Item_1.m_pPoint_2[k][1] = pFeature_B[oMatch_Item.m_Match[k][1]].y;
+			}
+			//poMap->m_pMatch[j*iImage_Count + i]= poMap->m_pMatch[i * iImage_Count + j] = oMatch_Item_1;
+			poMap->m_pMatch[iIndex] = oMatch_Item_1;
+			pCur += oMatch_Item.m_iMatch_Count * 4 * sizeof(float);
+		}
+	}
+	iSize = (int)(pCur - poMap->m_pBuffer);	
+	Shrink(poMem_Mgr, poMap->m_pBuffer, iSize);	
+	//再将Sift_Image_Arr删除
+
+END:
+	if(pNeighbour_B)
+		Free(poMem_Mgr, pNeighbour_B);
+	Free(poMem_Mgr, pSift_Image_Arr[0].m_pMatch);
+	for (i = 0; i < iImage_Count; i++)
+		Free(poMem_Mgr, pSift_Image_Arr[i].m_pFeature);
+	Free(poMem_Mgr, pSift_Image_Arr);
+	Free(poMem_Mgr, pSift_Image_Arr[0].m_pFile_Name);
+	//Disp_Mem(poMem_Mgr, 0);
 	poMap->m_iImage_Count = iImage_Count;
 	return;
 }
@@ -2313,7 +2568,7 @@ void Sift_Match_Path(const char* pcPath, Sift_Match_Map* poMap, int o_min)
 
 	//大约，不精确估计
 	Init_Mem_Mgr(&oMem_Mgr, (unsigned long long)(iSize * 1.2 + iImage_Count * MAX_KEY_POINT_COUNT * sizeof(Sift_Feature)), 1024, 997);
-	Sift_Match_Path(pcPath, &oMatch_Map, &oMem_Mgr);
+	Sift_Match_Path_1(pcPath, &oMatch_Map, &oMem_Mgr);
 
 	Copy_Match_Map(oMatch_Map, poMap);
 

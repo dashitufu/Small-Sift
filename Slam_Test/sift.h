@@ -73,3 +73,6 @@ void Sift_Match_Path(const char* pcPath, Sift_Match_Map* poMap, Mem_Mgr* poMem_M
 
 //如果不想沾Mem_Mgr，以下接口更清爽
 void Sift_Match_Path(const char* pcPath, Sift_Match_Map* poMap, int o_min = -1);
+void Sift_Match_Path_1(const char* pcPath, Sift_Match_Map* poMap, Mem_Mgr* poMem_Mgr, int o_min = -1);
+//临时实验
+void Sift_Temp_Test_1();
