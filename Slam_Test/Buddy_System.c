@@ -166,9 +166,13 @@ void Init_Mem_Mgr(Mem_Mgr* poMem_Mgr, unsigned long long iSize, int iBlock_Size,
 	struct Mem_Mgr_Layer* poLayer;
 	int iRemain, iCur_Layer, iIndex_Size, bRet = 1;
 
-	iSize_To_Allocate = ((iSize + iBlock_Size - 1) / iBlock_Size) * iBlock_Size;
+	iSize_To_Allocate = ((iSize + iBlock_Size - 1) / iBlock_Size ) * iBlock_Size;
 	memset(poMem_Mgr, 0, sizeof(Mem_Mgr));
-	poMem_Mgr->m_pBuffer = (unsigned char*)malloc(iSize_To_Allocate);
+	
+	//此处再改改，改成iMax_Piece_Count字节对齐才能真正快
+	poMem_Mgr->m_pOrg_Buffer = (unsigned char*)malloc(iSize_To_Allocate + iBlock_Size);	//突出一点，用于对齐
+	poMem_Mgr->m_pBuffer = ((unsigned long long)poMem_Mgr->m_pOrg_Buffer / iBlock_Size +1) * iBlock_Size;
+
 	poMem_Mgr->m_iSize = iSize_To_Allocate;
 	if (!poMem_Mgr->m_pBuffer)
 	{
@@ -269,8 +273,8 @@ END:
 //释放整个内存池
 void Free_Mem_Mgr(Mem_Mgr* poMem_Mgr)
 {
-	if (poMem_Mgr->m_pBuffer)
-		free(poMem_Mgr->m_pBuffer);
+	if (poMem_Mgr->m_pOrg_Buffer)
+		free(poMem_Mgr->m_pOrg_Buffer);
 	if (poMem_Mgr->m_pIndex_Buffer)
 		free(poMem_Mgr->m_pIndex_Buffer);
 	if (poMem_Mgr->m_pHash_Item)

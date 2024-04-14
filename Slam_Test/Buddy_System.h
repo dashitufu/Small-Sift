@@ -71,8 +71,8 @@ typedef struct Mem_Mgr {
 	int m_iBytes_Per_Bottom_Sub_Block;	//最底层的一位对应所分配的字节数
 	unsigned char* m_pIndex_Buffer;		//所有层的索引数据
 	unsigned long long m_iSize;			//整个Mem_Mgr共申请多少内存
-	unsigned char* m_pBuffer;			//最后向系统分配的内存
-
+	unsigned char* m_pBuffer;			//对齐的分配的内存
+	unsigned char* m_pOrg_Buffer;		//系统分配的内存开始位置
 	
 	Mem_Mgr_Hash_Item *m_pHash_Item;
 	int m_iHash_Size;	//最多可以分配多少片内存。为了缩小Index的占用，用散列表来组织

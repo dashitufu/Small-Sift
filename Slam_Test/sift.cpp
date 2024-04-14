@@ -102,6 +102,7 @@ int iGet_Sift_Match_Size(Sift_Image Sift_Image_Arr[], int iImage_Count)
 
 	//第三部分，Match， 一共有 iImage_Count*(iImage_Count-1)/2 组比较，大概开个空间
 	iSize += ALIGN_SIZE_128(iImage_Count * (MAX_KEY_POINT_COUNT * 4));
+	iSize += 128;	//留有余地供其对齐
 	return iSize;
 }
 int iGet_Sift_Detect_Size(int iWidth, int iHeight,int o_min)
@@ -1596,17 +1597,17 @@ static void Copy_Desc(Sift_Image Sift_Image_Arr[], int iImage_Count, unsigned ch
 
 int iGet_Distance_AVX512(unsigned char A[], unsigned char  B[])
 {//计算欧氏距离
-	__m512i Value_32;
-	union {
-		__m512i Sum;
-		//int Sum_4[4];
-	};
+#pragma pack(128)
+	register __m512i Value_32;
+	register __m512i Sum;
 	union {
 		__m512i Sum_32;
 		__m256i Sum_16[2];
-	};	
-	
-	Value_32 = _mm512_sub_epi16(_mm512_cvtepu8_epi16(*(__m256i*) & A[0]), _mm512_cvtepu8_epi16(*(__m256i*) & B[0]));
+	};
+#pragma pack()
+
+	//此处还要改一改，改成128字节对齐，可能会快些
+	Value_32 = _mm512_sub_epi16(_mm512_cvtepu8_epi16(*(__m256i*) &A[0]), _mm512_cvtepu8_epi16(*(__m256i*) & B[0]));
 	Sum_32 = _mm512_mullo_epi16(Value_32, Value_32);
 
 	Value_32 = _mm512_sub_epi16(_mm512_cvtepu8_epi16(*(__m256i*) & A[32]), _mm512_cvtepu8_epi16(*(__m256i*) & B[32]));
@@ -1621,10 +1622,6 @@ int iGet_Distance_AVX512(unsigned char A[], unsigned char  B[])
 	Sum = _mm512_add_epi32(Sum, _mm512_add_epi32(_mm512_cvtepu16_epi32(Sum_16[0]), _mm512_cvtepu16_epi32(Sum_16[1])));
 
 	return _mm512_reduce_add_epi32(Sum);	//快些
-
-	//Sum_1[0] = _mm256_add_epi32(Sum_1[0], Sum_1[1]);
-	//Sum_2[0] = _mm_add_epi32(Sum_2[0], Sum_2[1]);
-	//return Sum_4[0]+Sum_4[1]+Sum_4[2]+Sum_4[3];
 }
 
 void Get_Nearest_2_Point_1(unsigned char Pos[128], unsigned char(*Point)[128], int iPoint_Count, Neighbour_K* poNeighbour, int iIndex_A, Neighbour_K Neighbour_B[])
@@ -1995,6 +1992,9 @@ template<typename _T>void Sift_Match_2_Image(const char* pcFile_1, const char* p
 		pBuffer += 2 * sizeof(Sift_Match_Item);
 	}//出来以后，内存移到 pStart + iImage_Count*iImage_Count*sizeof(Sift_Match_Item)
 
+	 //将pBuffer向前移动对齐128字节
+	pBuffer = (unsigned char*) (((unsigned long long)pBuffer / 128 + 1) * 128);
+
 	//再分配一次Desc, 整齐点以便于后面提速
 	for (i = 0; i < 2; i++)
 	{
@@ -2213,6 +2213,9 @@ void Sift_Match_Path_1(const char* pcPath, Sift_Match_Map* poMap, Mem_Mgr* poMem
 		pCur += iImage_Count * sizeof(Sift_Match_Item);
 	}//出来以后，内存移到 pStart + iImage_Count*iImage_Count*sizeof(Sift_Match_Item)
 
+	//将pBuffer向前移动对齐128字节
+	pCur = (unsigned char*)(((unsigned long long)pCur / 128 + 1) * 128);
+
 	//再分配一次Desc, 整齐点以便于后面提速
 	iMax_Size = 0;
 	for (i = 0; i < iImage_Count; i++)
@@ -2249,12 +2252,11 @@ void Sift_Match_Path_1(const char* pcPath, Sift_Match_Map* poMap, Mem_Mgr* poMem
 			Sift_Match_2_Image_1(pSift_Image_Arr[i], pSift_Image_Arr[j], i, j, &oMatch_Item, pNeighbour_B);
 			pCur += ALIGN_SIZE_128(oMatch_Item.m_iMatch_Count * 2 * sizeof(unsigned short));
 			pSift_Image_Arr[j].m_pMatch[i] = pSift_Image_Arr[i].m_pMatch[j] = oMatch_Item;
-			printf("i:%d j:%d Match_Count:%d \n", i, j, oMatch_Item.m_iMatch_Count);
+			//printf("i:%d j:%d Match_Count:%d \n", i, j, oMatch_Item.m_iMatch_Count);
 		}
 	}
 
 	//最后将Feature 抄到 Match_Map
-	//pCur = (unsigned char*)poMap->m_pMatch[0].m_pMatch;
 	pCur = (unsigned char*)poMap->m_pMatch[0].m_pPoint_1;
 	for (i = 0; i < iImage_Count; i++)
 	{
