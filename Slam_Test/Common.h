@@ -23,8 +23,10 @@ using namespace std;
 #define Clip3(x,y,z)  ( (z)<(x)?(x): (z)>(y)?(y):(z))
 #endif
 
-#define ALIGN_SIZE_128(iSize) ((( (int)(iSize)+127)>>7)<<7) 
-#define ALIGN_SIZE_1024(iSize) ((( (int)(iSize)+1023)>>10)<<10) 
+#define ALIGN_SIZE_8(iSize) ((( (unsigned long long)(iSize)+7)>>3)<<3) 
+#define ALIGN_SIZE_128(iSize) ((( (unsigned long long)(iSize)+127)>>7)<<7) 
+#define ALIGN_SIZE_1024(iSize) ((( (unsigned long long)(iSize)+1023)>>10)<<10) 
+#define ALIGN_ADDR_128(pAddr) (((((unsigned long long)(pAddr))+127)>>7)<<7)
 
 #define bGet_Bit(pBuffer, iBit_Pos) (pBuffer)[(iBit_Pos) >> 3] & (1 << ((iBit_Pos) & 0x7))
 //int bGet_Bit(unsigned char* pBuffer, int iBit_Pos)
@@ -40,15 +42,45 @@ template<typename _T> struct Point_2D {
 	_T m_Pos[2];
 };
 
+typedef struct BitPtr {
+	unsigned char* m_pBuffer;
+	int m_iCur;		//当前字节,位于m_oBuffer[]中的第m_iCur Byte.
+	int m_iBitPtr;	//当前字节中的当前位
+	int m_iEnd;		//m_Buffer的合法数据是有范围的, 合法数据的最后一个字节位于m_iEnd-1, 如果m_iCur>=m_iEnd则为越界
+}BitPtr;
+
+
 //void Set_Bit(unsigned char* pBuffer, int iBit_Pos)
 //{	pBuffer[iBit_Pos >> 3] |= (1 << (iBit_Pos & 0x7)); }
+const int WriteBitsMask[] = { 0,0x80,0xC0,0xE0,0xF0,0xF8,0xFC,0xFE,0xFF };
+const int WriteBitsMask2[] = { 0xFF,0x7F,0x3F,0x1F,0x0F,0x07,0x03,0x01 };
+
+#define WriteBits2(oBitPtr,iLen,iValue1)	\
+{\
+	unsigned int iValue=(iValue1)<<(32- (oBitPtr).m_iBitPtr-(iLen));	\
+	unsigned char *pCur=(oBitPtr).m_pBuffer+ (oBitPtr).m_iCur;	\
+	unsigned int iTemp1=(oBitPtr).m_iBitPtr+iLen;\
+	*pCur= (*pCur &WriteBitsMask[(oBitPtr).m_iBitPtr]) | ((iValue>>24)&WriteBitsMask2[(oBitPtr).m_iBitPtr]);	\
+	if(iTemp1>=8)									\
+	{											\
+		pCur[1]=(iValue & 0x00FF0000)>>16;		\
+		pCur[2]=(iValue & 0x0000FF00)>>8;		\
+		pCur[3]=(iValue & 0x000000FF);			\
+		(oBitPtr).m_iCur+=iTemp1>>3;			\
+		(oBitPtr).m_iBitPtr=iTemp1 & 0x7;		\
+	}else										\
+		(oBitPtr).m_iBitPtr=iTemp1;			\
+}
 
 unsigned long long iGet_File_Length(char* pcFile);
 unsigned long long iGet_Tick_Count();
 int iGet_File_Count(const char* pcPath);	//获取一个目录所有文件
 void Get_All_File(const char* pcPath, char* pBuffer);
 int bSave_Bin(const char* pcFile, float* pData, int iSize);
-int bLoad_Raw_Data(const char* pcFile, unsigned char** ppBuffer, int* piSize);
+int bLoad_Raw_Data(const char* pcFile, unsigned char** ppBuffer, int* piSize=NULL);
+int bLoad_Raw_Data(const char* pcFile, unsigned char** ppBuffer, int iSize = 0, int bNeed_Malloc = 1, int iFrame_No = 0);
+int bLoad_Text_File(const char* pcFile, char** ppBuffer, int* piSize=NULL);
+int bSave_Raw_Data(const char* pcFile, unsigned char* pBuffer, int iSize);
 
 //上三角坐标转换为索引值
 int iUpper_Triangle_Cord_2_Index(int x, int y, int w);
@@ -84,6 +116,10 @@ void Temp_Load_Match_Point(_T(**ppPoint_1)[2], _T(**ppPoint_2)[2], int* piCount)
 	*ppPoint_1 = pPoint_1, * ppPoint_2 = pPoint_2;
 	*piCount = iCount;
 }
+
+void Init_BitPtr(BitPtr* poBitPtr, unsigned char* pBuffer, int iSize);
+int iGetBits(BitPtr* poBitPtr, int iLen);
+
 //解决两组基本数据类型的第n大与及快速排序，待优化
 template<typename _T> _T oGet_Nth_Elem(_T Seq[], int iCount, int iNth);
 template<typename _T> void Quick_Sort(_T Seq[], int iStart, int iEnd);

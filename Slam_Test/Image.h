@@ -197,6 +197,7 @@ int bSave_Image(const char* pcFile, float* pImage, int iWidth, int iHeight);
 void Free_Image(Image* poImage);
 void Free_Image(Mem_Mgr* poMem_Mgr, Image oImage);
 void Free_Image(BitMap_8Bit* poBitMap);
+void Attach_Buffer(Image* poImage, unsigned char* pBuffer, int iWidth, int iHeight, int iChannel_Count, int iImage_Type);
 
 void Set_Color(Image oImage, int R = 0, int G = 0, int B = 0, int A = 255);
 void Cal_Line(Line_1* poLine, float x0, float y0, float x1, float y1);
@@ -216,3 +217,10 @@ void Gen_Gauss_Filter(int r, float** ppFilter);		//根据r的大小确定sigma
 void Gauss_Filter_Ref(float* pSource, int iWidth, int iHeight, float* pDest, int r, float* pFilter);
 void Gauss_Filter_AVX512(float* pSource, int iWidth, int iHeight, float* pDest, float* pAux, int r, float* pFilter);
 void Transpose_AVX512(float* pSource, int iWidth, int iHeight, float* pDest);
+
+void Place_Image(Image oTile, Image oScreen, int x, int y);
+
+//拼接图片
+void Concat_Image(Image oA, Image oB, Image* poC, int iFlag = 0);
+template<typename _T>void Draw_Match_Point(_T Point_1[][2], _T Point_2[][2], unsigned char Mask[], int iCount, Image oImage);
+template<typename _T>void Draw_Match_Point(_T Point_1[][2], _T Point_2[][2], int iCount, Image oImage);

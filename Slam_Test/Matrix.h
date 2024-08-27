@@ -34,8 +34,6 @@ extern "C"
 
 #define Get_Homo_Pos(Pos, Homo_Pos) Homo_Pos[0]=Pos[0], Homo_Pos[1]=Pos[1], Homo_Pos[2]=Pos[2],Homo_Pos[3]=1;
 
-
-
 typedef struct Complex_d {//双精度复数
 	double real;	//实部
 	double im;		//虚部 imagary part	
@@ -114,10 +112,9 @@ template<typename _T>void Disp(_T* M, int iHeight, int iWidth,const char* pcCapt
 		{
 			if (std::is_same_v<_T, float> || std::is_same_v<_T,double>)
 				printf("%.8f, ", M[i * iWidth + j]);
-			else if (std::is_same_v<_T, int> || std::is_same_v<_T,short>)
+			else if (std::is_same_v<_T, int> || std::is_same_v<_T,short> || std::is_same_v<_T, unsigned short>)
 				printf("%d,", (int)M[i * iWidth + j]);
 		}
-			
 		printf("\n");
 	}
 	return;
@@ -191,14 +188,15 @@ template<typename _T>void Solve_Linear_LLt(_T A[], int iOrder, _T* B, _T* X, int
 
 void Solve_Linear_Jocabi(float A[], float B[], int iOrder, float X[], int* pbResult);				//雅可比迭代法求解线性方程组
 void Solve_Linear_Gauss_Seidel(float A[], float B[], int iOrder, float X[], int* pbResult);
-void Solve_Linear_Contradictory(float* A, int m, int n, float* B, float* X, int* pbSuccess);	//解矛盾方程组，求最小二乘解
+template<typename _T> void Solve_Linear_Contradictory(_T* A, int m, int n, _T* B, _T* X, int* pbSuccess);
+//void Solve_Linear_Contradictory(float* A, int m, int n, float* B, float* X, int* pbSuccess);	//解矛盾方程组，求最小二乘解
 //void Solve_Linear_Solution_Construction(float* A, int m, int n, float B[], int* pbSuccess, float* pBasic_Solution = NULL, int* piBasic_Solution_Count = NULL, float* pSpecial_Solution = NULL);
 template<typename _T> void Solve_Linear_Solution_Construction(_T* A, int m, int n, _T B[], int* pbSuccess, _T* pBasic_Solution=NULL, int* piBasic_Solution_Count=NULL, _T* pSpecial_Solution=NULL);
+template<typename _T> void Solve_Linear_Solution_Construction_1(_T* A, int m, int n, _T B[], int* pbSuccess, _T* pBasic_Solution = NULL, int* piBasic_Solution_Count = NULL, _T* pSpecial_Solution = NULL);
 
 void Get_Linear_Solution_Construction(float A[], int m, int n, float B[]);//看解的结构
 
 template<typename _T>void Elementary_Row_Operation(_T A[], int m, int n, _T A_1[], int* piRank=NULL, _T** ppBasic_Solution=NULL, _T** ppSpecial_Solution=NULL);
-
 template<typename _T>void Elementary_Row_Operation_1(_T A[], int m, int n, _T A_1[], int* piRank=NULL, _T** ppBasic_Solution=NULL, _T** ppSpecial_Solution=NULL);
 
 int bIs_Linearly_Dependent(float A[], int m, int n);	//判断向量组A是否线性相关
@@ -343,6 +341,8 @@ void QR_Decompose(float* A, int ma, int na, float* Q, float* R);
 void QR_Decompose(float* A, int na, float* R, float* Q, int* pbSuccess = NULL, int* pbDup_Root = NULL);
 
 template<typename _T> void Normalize(_T V[], int n, _T V_1[]);
+template<typename _T>void Softmax(_T A[], int n, _T B[]);
+template<typename _T>void Softmax(_T A[], int m, int n, int iPadding, _T B[]);
 template<typename _T>void Homo_Normalize(_T V0[], int n, _T V1[]);	//这就是个傻逼方法，用来欺骗template
 
 template<typename _T> void Get_Inv_Matrix_Row_Op(_T* pM, _T* pInv, int iOrder, int* pbSuccess=NULL);	//矩阵求逆
@@ -365,7 +365,7 @@ template<typename _T>_T fDot(_T V0[], _T V1[], int iDim);		//求内积，点积
 template<typename _T> void Gen_Roation_Matrix_2D(_T Rotation_Center[2], _T theta, _T R[3 * 3]);
 template<typename _T>void Gen_Rotation_Matrix_2D(_T R[2 * 2], float fTheta);
 
-void Gen_Rotation_Matrix(float Axis[3], float fTheta, float R[]);//根据旋转轴与旋转角度生成一个旋转矩阵，此处用列向量，往后一路左乘
+template<typename _T>void Gen_Rotation_Matrix(_T Axis[3], _T fTheta, _T R[]);//根据旋转轴与旋转角度生成一个旋转矩阵，此处用列向量，往后一路左乘
 template<typename _T>void Gen_Translation_Matrix(_T Offset[3], _T T[]);	//平移变换
 void Gen_Scale_Matrix(float Scale[3], float T[]);			//比例变换
 
@@ -393,7 +393,7 @@ template<typename _T>void SE3_2_se3(_T Rotation_Vector[4], _T t[3], _T Ksi[6]);	
 
 void SIM3_2_sim3(float Rotation_Vector[], float t[], float s, float zeta[7]);
 void sim3_2_SIM3(float zeta[7], float Rotation_Vector[4], float t[], float* ps);
-template<typename _T>void Get_J_by_Rotation_Vector(_T Rotation_Vector[4], _T J[]);
+template<typename _T>void Get_J_by_Rotation_Vector(_T Rotation_Vector_4[4], _T J[]);
 template<typename _T> void Gen_Ksi_by_Rotation_Vector_t(_T Rotation_Vector[4], _T t[3], _T Ksi[6], int n=4);
 
 template<typename _T> void Exp_Ref(_T A[], int n, _T B[]);
@@ -413,6 +413,7 @@ template<typename _T> void svd_3(_T* A,SVD_Info oInfo, int* pbSuccess=NULL, doub
 template<typename _T>void Test_SVD(_T A[], SVD_Info oSVD, int* piResult=NULL, double eps= 2.2204460492503131e-15);
 void Free_SVD(SVD_Info* poInfo);
 
+//注意，用法为 SVD_Alloc<_T>(...)
 template<typename _T>void SVD_Alloc(int h, int w, SVD_Info* poInfo, _T* A=NULL);
 
 //一组多元多项式函数
@@ -426,4 +427,6 @@ float fGet_Polynormial_Value(Polynormial oPoly, float x[]);	//代入x求多项�
 template<typename _T>void Copy_Matrix_Partial(_T Source[], int m, int n, _T Dest[], int iDest_Stride, int x, int y);
 float fGet_e();
 void* pMalloc(unsigned int iSize);
+void Shrink(void* p, unsigned int iSize);
 void Free(void* p);
+template<typename _T>_T fGet_Tr(_T M[], int iOrder);

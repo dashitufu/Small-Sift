@@ -28,6 +28,37 @@
 
 #ifdef WIN32
 
+void Init_BitPtr(BitPtr* poBitPtr, unsigned char* pBuffer, int iSize)
+{
+	poBitPtr->m_iBitPtr = poBitPtr->m_iCur = 0;
+	poBitPtr->m_iEnd = iSize;
+	poBitPtr->m_pBuffer = pBuffer;
+}
+
+
+int iGetBits(BitPtr* poBitPtr, int iLen)
+{
+	unsigned int iValue, iCur = poBitPtr->m_iCur, iShiftBits;
+	int iBitLeft = iLen;
+	//先搞定第一字节
+	iValue = ((poBitPtr->m_pBuffer[poBitPtr->m_iCur] << poBitPtr->m_iBitPtr) & 0xFF) << 24;
+	iBitLeft -= (8 - poBitPtr->m_iBitPtr);
+	iCur++;
+	iShiftBits = 16 + poBitPtr->m_iBitPtr;
+	while (iBitLeft > 0)
+	{
+		if (iShiftBits > 0)
+			iValue |= (poBitPtr->m_pBuffer[iCur] & 0xFF) << iShiftBits;
+		iBitLeft -= 8;
+		iShiftBits -= 8;
+		iCur++;
+	}
+	iValue = iLen ? iValue >> (32 - iLen) : 0;
+	poBitPtr->m_iCur += (poBitPtr->m_iBitPtr + iLen) >> 3;
+	poBitPtr->m_iBitPtr = (iLen + poBitPtr->m_iBitPtr) & 7;
+	return iValue;
+}
+
 void Get_All_File(const char* pcPath,char *pBuffer)
 {//取一个目录所有文件 例: c:\\tmp\\*.bin
 	intptr_t handle;
@@ -271,7 +302,121 @@ void SB_Common()
 	Quick_Sort((float*)NULL, 0, 0);
 	Quick_Sort((int*)NULL, 0, 0);
 }
+int bLoad_Text_File(const char* pcFile, char** ppBuffer, int* piSize)
+{
+	FILE* pFile = fopen(pcFile, "rb");
+	int bRet = 0, iResult, iSize;
+	char* pBuffer;
+	iSize = (int)iGet_File_Length((char*)pcFile);
+	pBuffer = (char*)malloc(iSize+1);
 
+	if (!pFile)
+	{
+		printf("Fail to open file:%s\n", pcFile);
+		goto END;
+	}
+	if (!pBuffer)
+	{
+		printf("Fail to allocate memory\n");
+		goto END;
+	}
+
+	iResult = (int)fread(pBuffer, 1, iSize, pFile);
+	if (iResult != iSize)
+	{
+		if (pBuffer)
+			free(pBuffer);
+		*ppBuffer = NULL;
+		printf("Fail to read data\n");
+		goto END;
+	}
+	pBuffer[iSize] = '\0';
+	*ppBuffer = pBuffer;
+	if (piSize)
+		*piSize = iSize;
+	bRet = 1;
+END:
+	if (pFile)
+		fclose(pFile);
+	if (!bRet)
+	{
+		if (pBuffer)
+			free(pBuffer);
+	}
+	return bRet;
+}
+int bSave_Raw_Data(const char* pcFile, unsigned char* pBuffer, int iSize)
+{
+	FILE* pFile = fopen(pcFile, "wb");
+	if (!pFile)
+	{
+		printf("Fail to save file:%s\n", pcFile);
+		return 0;
+	}
+	int iResult=fwrite(pBuffer, 1, iSize, pFile);
+	if (iResult != iSize)
+	{
+		printf("Fail to save file:%s %d\n", pcFile,GetLastError());
+		fclose(pFile);
+		return 0;
+	}
+	fclose(pFile);
+	return 1;
+}
+int bLoad_Raw_Data(const char* pcFile, unsigned char** ppBuffer, int iSize, int bNeed_Malloc, int iFrame_No)
+{
+	FILE* pFile = fopen(pcFile, "rb");
+	unsigned long long iPos;
+	int bRet = 0, iResult;
+	iPos = (unsigned long long)iSize * iFrame_No;
+	unsigned char* pBuffer;
+
+	if (!iSize)
+		iSize = (int)iGet_File_Length((char*)pcFile);
+
+	if (bNeed_Malloc)
+		pBuffer = (unsigned char*)malloc(iSize);
+	else
+		pBuffer = *ppBuffer;
+
+	if (!pFile)
+	{
+		printf("Fail to open file:%s\n", pcFile);
+		goto END;
+	}
+	if (!pBuffer)
+	{
+		printf("Fail to allocate memory\n");
+		goto END;
+	}
+#ifdef WIN32
+	_fseeki64(pFile, iPos, SEEK_SET);
+#else
+	fseeko64(pFile, (unsigned long long)iPos, SEEK_SET);
+#endif
+
+	iResult = (int)fread(pBuffer, 1, iSize, pFile);
+	if (iResult != iSize)
+	{
+		if (pBuffer)
+			free(pBuffer);
+		*ppBuffer = NULL;
+		printf("Fail to read data\n");
+		bRet = 0;
+		goto END;
+	}
+	*ppBuffer = pBuffer;
+	bRet = 1;
+END:
+	if (pFile)
+		fclose(pFile);
+	if (!bRet)
+	{
+		if (pBuffer && bNeed_Malloc)
+			free(pBuffer);
+	}
+	return bRet;
+}
 int bLoad_Raw_Data(const char* pcFile, unsigned char** ppBuffer,int *piSize)
 {
 	FILE* pFile = fopen(pcFile, "rb");

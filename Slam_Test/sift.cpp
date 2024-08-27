@@ -88,6 +88,9 @@ void SB_sift()
 {
 	Sift_Match_2_Image("", "", (float(**)[2])NULL, (float(**)[2])NULL, NULL);
 	Sift_Match_2_Image("", "", (double(**)[2])NULL, (double(**)[2])NULL, NULL);
+
+	Shrink_Match_Point((float((**)[2]))NULL, (float((**)[2]))NULL, NULL, 0);
+	Shrink_Match_Point((double((**)[2]))NULL, (double((**)[2]))NULL, NULL, 0);
 }
 
 int iGet_Sift_Match_Size(Sift_Image Sift_Image_Arr[], int iImage_Count)
@@ -2023,7 +2026,7 @@ template<typename _T>void Sift_Match_2_Image(const char* pcFile_1, const char* p
 	Sift_Match_2_Image_1(pSift_Image_Arr[0], pSift_Image_Arr[1], 0, 1, &oMatch_Item,pNeighbour_B);
 	pBuffer += ALIGN_SIZE_128(oMatch_Item.m_iMatch_Count * 2 * sizeof(unsigned short));
 	pSift_Image_Arr[1].m_pMatch[0] = pSift_Image_Arr[0].m_pMatch[1] = oMatch_Item;
-	printf("Match_Count:%d \n", oMatch_Item.m_iMatch_Count);
+	//printf("Match_Count:%d \n", oMatch_Item.m_iMatch_Count);
 
 	pPoint_1 = (_T(*)[2])malloc(oMatch_Item.m_iMatch_Count * 4 * sizeof(_T));
 	pPoint_2 = pPoint_1 + oMatch_Item.m_iMatch_Count;
@@ -2252,7 +2255,7 @@ void Sift_Match_Path_1(const char* pcPath, Sift_Match_Map* poMap, Mem_Mgr* poMem
 			Sift_Match_2_Image_1(pSift_Image_Arr[i], pSift_Image_Arr[j], i, j, &oMatch_Item, pNeighbour_B);
 			pCur += ALIGN_SIZE_128(oMatch_Item.m_iMatch_Count * 2 * sizeof(unsigned short));
 			pSift_Image_Arr[j].m_pMatch[i] = pSift_Image_Arr[i].m_pMatch[j] = oMatch_Item;
-			//printf("i:%d j:%d Match_Count:%d \n", i, j, oMatch_Item.m_iMatch_Count);
+			printf("i:%d j:%d Match_Count:%d \n", i, j, oMatch_Item.m_iMatch_Count);
 		}
 	}
 
@@ -2575,5 +2578,28 @@ void Sift_Match_Path(const char* pcPath, Sift_Match_Map* poMap, int o_min)
 	Copy_Match_Map(oMatch_Map, poMap);
 
 	Free_Mem_Mgr(&oMem_Mgr);
+	return;
+}
+
+template<typename _T>void Shrink_Match_Point(_T(**ppPoint_1)[2], _T(**ppPoint_2)[2], unsigned char Mask[], int iCount)
+{//将匹配的点留下，其他废掉，缩内存
+	_T(*pPoint_1)[2], (*pPoint_2)[2], (*pCur_1)[2], (*pCur_2)[2];
+	pCur_1 = pPoint_1 = *ppPoint_1, pCur_2 = pPoint_2 = *ppPoint_2;
+	int i, iInlier_Count;
+	for (iInlier_Count = i = 0; i < iCount; i++)
+	{
+		if (Mask[i])
+		{
+			pCur_1[iInlier_Count][0] = pPoint_1[i][0];
+			pCur_1[iInlier_Count][1] = pPoint_1[i][1];
+			pCur_2[iInlier_Count][0] = pPoint_2[i][0];
+			pCur_2[iInlier_Count][1] = pPoint_2[i][1];
+			iInlier_Count++;
+		}
+	}
+	memcpy(pCur_1 + iInlier_Count, pCur_2, iInlier_Count * 2 * sizeof(_T));
+	realloc(pPoint_1, iInlier_Count * 2 * 2 * sizeof(_T));
+	*ppPoint_1 = pCur_1;
+	*ppPoint_2 = pCur_1 + iInlier_Count;
 	return;
 }

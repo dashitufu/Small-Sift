@@ -74,5 +74,8 @@ void Sift_Match_Path(const char* pcPath, Sift_Match_Map* poMap, Mem_Mgr* poMem_M
 //如果不想沾Mem_Mgr，以下接口更清爽
 void Sift_Match_Path(const char* pcPath, Sift_Match_Map* poMap, int o_min = -1);
 void Sift_Match_Path_1(const char* pcPath, Sift_Match_Map* poMap, Mem_Mgr* poMem_Mgr, int o_min = -1);
+
+//对匹配点挑出有用，释放多余内存
+template<typename _T>void Shrink_Match_Point(_T(**ppPoint_1)[2], _T(**ppPoint_2)[2], unsigned char Mask[], int iCount);
 //临时实验
 void Sift_Temp_Test_1();

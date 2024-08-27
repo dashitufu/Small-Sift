@@ -532,7 +532,7 @@ static void E_Test_1()
 	
 	//Disp((_T*)Norm_Point_1, 8, 2);	
 	E_2_R_t(E, Norm_Point_1, Norm_Point_2,8, R, t);
-
+	
 	//R,t再验算一下
 	_T I[4*4],New_Point[8][4];
 	Gen_Homo_Matrix(R, t, Rt);
@@ -966,8 +966,8 @@ static void Sift_Test_2()
 	float(*pPoint_1)[2] = NULL, (*pPoint_2)[2];
 	int iMatch_Count;
 
-	Sift_Match_2_Image("C:\\Users\\Administrator\\Desktop\\colmap-dev\\ComputerVisionDatasets-master\\Datasets\\Ajay\\A16.bmp",
-		"C:\\Users\\Administrator\\Desktop\\colmap-dev\\ComputerVisionDatasets-master\\Datasets\\Ajay\\A17.bmp", &pPoint_1, &pPoint_2, &iMatch_Count);
+	Sift_Match_2_Image("C:\\Users\\admin\\Desktop\\colmap-dev\\ComputerVisionDatasets-master\\Datasets\\Ajay\\A16.bmp",
+		"C:\\Users\\admin\\Desktop\\colmap-dev\\ComputerVisionDatasets-master\\Datasets\\Ajay\\A17.bmp", &pPoint_1, &pPoint_2, &iMatch_Count);
 
 	//for (int i = 0; i < iMatch_Count; i++)
 		//printf("%f %f %f %f\n", pPoint_1[i][0], pPoint_1[i][1], pPoint_2[i][0], pPoint_2[i][1]);
@@ -980,7 +980,7 @@ static void Sift_Test_3()
 	Sift_Simple_Match_Item oMatch;
 	Mem_Mgr oMem_Mgr;
 	Init_Mem_Mgr(&oMem_Mgr, 128000000, 1024, 997);
-	Sift_Match_Path_1("C:\\Users\\Administrator\\Desktop\\colmap-dev\\ComputerVisionDatasets-master\\Datasets\\ET\\bmp", &oMatch_Map, &oMem_Mgr);
+	Sift_Match_Path_1("C:\\Users\\admin\\Desktop\\colmap-dev\\ComputerVisionDatasets-master\\Datasets\\ET\\bmp", &oMatch_Map, &oMem_Mgr);
 	int y, x, iIndex;
 	for (y = 0; y < oMatch_Map.m_iImage_Count; y++)
 	{
@@ -1004,7 +1004,7 @@ static void Sift_Test_4()
 	Sift_Match_Map oMatch_Map;
 	Sift_Simple_Match_Item oMatch;
 
-	Sift_Match_Path("C:\\Users\\Administrator\\Desktop\\colmap-dev\\ComputerVisionDatasets-master\\Datasets\\Ajay", &oMatch_Map);
+	Sift_Match_Path("C:\\Users\\admin\\Desktop\\colmap-dev\\ComputerVisionDatasets-master\\Datasets\\Ajay", &oMatch_Map);
 	int y, x, iIndex;
 	for (y = 0; y < oMatch_Map.m_iImage_Count; y++)
 	{
@@ -5097,6 +5097,117 @@ static void Epipolar_Search_Test()
 	return;
 }
 
+void Sift_And_Estimate_E_Test_1()
+{//本例子为最简例子，通过两图匹配估计出一个E矩阵
+	typedef float _T;
+	_T(*pPoint_1)[2], (*pPoint_2)[2], R[9], t[3];
+	int iCount;
+	Ransac_Report oReport;
+	char File_1[] = "C:\\Users\\admin\\Desktop\\colmap-dev\\ComputerVisionDatasets-master\\Ajay\\A01.bmp",
+		File_2[] = "C:\\Users\\admin\\Desktop\\colmap-dev\\ComputerVisionDatasets-master\\Ajay\\A02.bmp";
+	Image oImage_1, oImage_2, oImage = {};
+	bLoad_Image(File_1, &oImage_1), bLoad_Image(File_2, &oImage_2);
+	Concat_Image(oImage_1, oImage_2, &oImage);
+	Free_Image(&oImage_1), Free_Image(&oImage_2);
+
+	Sift_Match_2_Image(File_1, File_2, &pPoint_1, &pPoint_2, &iCount);
+	//此处把查出来的点对存起来，下次避免再次匹配
+	//bSave_Raw_Data("c:\\tmp\\Point.bin", (unsigned char*)pPoint_1, iCount * 2 *2* sizeof(_T));
+
+	//此处可以替代上面的匹配，直接从文件装入
+	//bLoad_Raw_Data("c:\\tmp\\Point.bin", (unsigned char**)&pPoint_1, &iCount);
+	//iCount /= 2 * 2 * sizeof(float);
+	//pPoint_2 = pPoint_1 + iCount;
+
+	//E矩阵估计
+	Ransac_Estimate_E(pPoint_1, pPoint_2, iCount, 640, 240, 320, &oReport);
+	//Disp(oReport.m_Modal_f, 3, 3);
+	//printf("Residual Sum: %f\n", oReport.m_oSupport.m_fResidual_Sum);
+
+	//估计完了释放多余内存
+	Shrink_Match_Point(&pPoint_1, &pPoint_2, oReport.m_pInlier_Mask, iCount);
+	iCount = oReport.m_oSupport.m_iInlier_Count;
+	//画出点对
+	Draw_Match_Point(pPoint_1, pPoint_2, iCount, oImage);
+
+	//可以看一下匹配结果
+	//Draw_Match_Point(pPoint_1, pPoint_2,oReport.m_pInlier_Mask, iCount, oImage);
+	//bSave_Image("c:\\tmp\\1.bmp", oImage);
+
+	//归一化
+	_T(*pNorm_Point_1)[2] = (_T(*)[2])pMalloc(oReport.m_oSupport.m_iInlier_Count * 2 * sizeof(_T) * 2),
+		(*pNorm_Point_2)[2] = pNorm_Point_1 + oReport.m_oSupport.m_iInlier_Count;
+	Normalize_Point(pPoint_1, pPoint_2, iCount, pNorm_Point_1, pNorm_Point_2, 320, 240, 320);
+
+	//unsigned long long tStart = iGet_Tick_Count();
+	//for(int i=0;i<1000;i++)
+	_T(*pPoint_3D)[3] = (_T(*)[3])pMalloc(iCount * 3 * sizeof(_T));
+	E_2_R_t((_T*)oReport.m_Modal, pNorm_Point_1, pNorm_Point_2, iCount, R, t, pPoint_3D, &iCount);
+	Disp(R, 3, 3, "R_E");
+	Disp(t, 1, 3, "t_E");
+	//Disp((_T*)pPoint_3D, iCount, 3, "Point_3D");
+	//printf("%lld\n", iGet_Tick_Count() - tStart);
+	//Test_E((_T*)oReport.m_Modal, pNorm_Point_1, pNorm_Point_2, iCount);
+
+	//释放内存
+	if (pPoint_1)free(pPoint_1);
+	if (pNorm_Point_1)Free(pNorm_Point_1);
+	Free_Report(oReport);
+	Free_Image(&oImage);
+	Free(pPoint_3D);
+	return;
+}
+void Sift_And_Estimate_H_Test_1()
+{//本例子为最简例子，通过两图匹配估计出一个H矩阵
+	typedef float _T;
+	_T(*pPoint_1)[2], (*pPoint_2)[2];
+
+	int iCount;
+	Ransac_Report oReport;
+	char File_1[] = "C:\\Users\\admin\\Desktop\\colmap-dev\\ComputerVisionDatasets-master\\Ajay\\A01.bmp",
+		File_2[] = "C:\\Users\\admin\\Desktop\\colmap-dev\\ComputerVisionDatasets-master\\Ajay\\A02.bmp";
+	Image oImage_1, oImage_2, oImage = {};
+	bLoad_Image(File_1, &oImage_1), bLoad_Image(File_2, &oImage_2);
+	Concat_Image(oImage_1, oImage_2, &oImage);
+	Free_Image(&oImage_1), Free_Image(&oImage_2);
+
+	//Sift_Match_2_Image(File_1, File_2, &pPoint_1, &pPoint_2, &iCount);
+	//此处把查出来的点对存起来，下次避免再次匹配
+	//bSave_Raw_Data("c:\\tmp\\Point.bin", (unsigned char*)pPoint_1, iCount * 2 *2* sizeof(_T));
+
+	//此处可以替代上面的匹配，直接从文件装入
+	bLoad_Raw_Data("c:\\tmp\\Point.bin", (unsigned char**)&pPoint_1, &iCount);
+	iCount /= 2 * 2 * sizeof(float);
+	pPoint_2 = pPoint_1 + iCount;
+
+	//E矩阵估计
+	Ransac_Estimate_H(pPoint_1, pPoint_2, iCount, &oReport);
+	//估计完了释放多余内存
+	Shrink_Match_Point(&pPoint_1, &pPoint_2, oReport.m_pInlier_Mask, iCount);
+	iCount = oReport.m_oSupport.m_iInlier_Count;
+
+	_T K[] = { 640,   0, 240,  0, 640, 320 ,  0 ,  0,   1 };
+	_T R1[9], R2[9], t1[3], t2[3];
+
+	Decompose_H((_T*)oReport.m_Modal, R1, R2, t1, t2, K, K);
+	Disp(R1, 3, 3, "R1_H");
+	Disp(R2, 3, 3, "R2_H");
+	Disp(t1, 1, 3, "t1_H");
+	Disp(t2, 1, 3, "t2_H");
+
+	/*Disp(R1, 3, 3, "R1");
+	Disp(t1, 1, 3, "t1");
+	Disp(R2, 3, 3, "R2");
+	Disp(t2, 1, 3, "t2");*/
+
+	//画出点对
+	//Draw_Match_Point(pPoint_1, pPoint_2, iCount, oImage);
+	if (pPoint_1)free(pPoint_1);
+	Free_Report(oReport);
+	Free_Image(&oImage);
+	return;
+}
+
 void Test_Main()
 {
 	//Point_Cloud_Test();				//点云重建最简例子，没营养
@@ -5122,8 +5233,9 @@ void Test_Main()
 	//Least_Square_Test_5();	//二阶梯度法
 	//Least_Square_Test_6();	//高斯牛顿法
 
+	//E_Test_1();	
 	//E_Test_2();	//对E矩阵进行验算实验
-	//E_Test_3;		//自己生成一个球数据测试E矩阵
+	//E_Test_3();		//自己生成一个球数据测试E矩阵
 
 	//H_Test_1();		//单应矩阵实验，验证归一化平面与像素平面下H矩阵的有效性
 	//H_Test_2();		//反面例子，球面点估计不出一个H矩阵
@@ -5133,7 +5245,7 @@ void Test_Main()
 	//Sift_Test_1();
 	//Sift_Test_2();
 	//Sift_Test_3();
-	Sift_Test_4();
+	//Sift_Test_4();
 
 	//SVD_Test_1();		//作为SVD分解实验还是不错的
 	//E_Test_2();		//这个例子非常简洁
@@ -5150,5 +5262,8 @@ void Test_Main()
 	//Epipolar_Search_Test();	//极线搜索实验
 
 	//Cholosky_Test();	//Cholosky分解实验
-	
+
+	//从以下两个试验看出，同样的数据不同的方法做出来的误差很大
+	Sift_And_Estimate_E_Test_1();	//通过两图匹配估计出一个E矩阵
+	Sift_And_Estimate_H_Test_1();	//通过两图匹配估计出一个H矩阵
 }

@@ -171,7 +171,7 @@ void Init_Mem_Mgr(Mem_Mgr* poMem_Mgr, unsigned long long iSize, int iBlock_Size,
 	
 	//此处再改改，改成iMax_Piece_Count字节对齐才能真正快
 	poMem_Mgr->m_pOrg_Buffer = (unsigned char*)malloc(iSize_To_Allocate + iBlock_Size);	//突出一点，用于对齐
-	poMem_Mgr->m_pBuffer = ((unsigned long long)poMem_Mgr->m_pOrg_Buffer / iBlock_Size +1) * iBlock_Size;
+	poMem_Mgr->m_pBuffer =(unsigned char*)(((unsigned long long)poMem_Mgr->m_pOrg_Buffer / iBlock_Size +1) * iBlock_Size);
 
 	poMem_Mgr->m_iSize = iSize_To_Allocate;
 	if (!poMem_Mgr->m_pBuffer)

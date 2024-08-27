@@ -296,6 +296,7 @@ int bLoad_Image(const char* pcFile, Image* poImage, int iWidth, int iHeight, int
 	{
 		iResult = bLoad_Image(pcFile, &poImage->m_oBitMap, bNeed_Malloc, poMem_Mgr);
 		poImage->m_iImage_Type = Image::IMAGE_TYPE_BMP;
+		return iResult;
 	}
 	else if (bStricmp((char*)pcFile + strlen(pcFile) - 3, (char*)"yuv") == 0)
 	{
@@ -308,12 +309,15 @@ int bLoad_Image(const char* pcFile, Image* poImage, int iWidth, int iHeight, int
 		return iResult;
 
 	//YUV还要进一步处理
-	Init_Image(poImage, iWidth, iHeight, Image::IMAGE_TYPE_YUV_444, 24);
+	if(bNeed_Malloc)
+		Init_Image(poImage, iWidth, iHeight, Image::IMAGE_TYPE_YUV_444, 24);
+
 	if (!poImage->m_oYUV.m_pYUV[0])
 	{
 		iResult = 0;
 		goto END;
 	}
+	
 
 END:
 	return iResult;
@@ -1364,4 +1368,147 @@ int iGet_Image_Size(int iWidth, int iHeight, int iChannel_Count)
 	if (iSize_With_Remain - iMax_Buffer_Size < 64)
 		iSize_With_Remain += 128;
 	return ALIGN_SIZE_1024(iSize_With_Remain);	//最后对齐内存管理器的块
+}
+void Attach_Buffer(Image* poImage, unsigned char* pBuffer, int iWidth, int iHeight, int iChannel_Count, int iImage_Type)
+{
+	if (!poImage || iWidth * iHeight == 0)
+	{
+		printf("Invalid parameter in Attach_Buffer_GPU\n");
+		if (poImage)
+			*poImage = { {0 } };
+		return;
+	}
+
+	poImage->m_iWidth = iWidth;
+	poImage->m_iHeight = iHeight;
+	poImage->m_iBit_Count = iChannel_Count << 3;
+	poImage->m_iChannel_Count = iChannel_Count;
+	poImage->m_iMax_Buffer_Size = iWidth * iHeight * poImage->m_iChannel_Count;
+	poImage->m_iMem_Src = Mem_Src::CPU;
+	poImage->m_bIs_Attached = 1;
+	poImage->m_iImage_Type = iImage_Type;
+
+	int i;
+	for (i = 0; i < poImage->m_iChannel_Count; i++)
+		poImage->m_pChannel[i] = pBuffer + i * iWidth * iHeight;
+	for (; i < 4; i++)
+		poImage->m_pChannel[i] = NULL;
+}
+
+void Place_Image(Image oTile, Image oScreen, int x, int y)
+{//x,y可以是负数，也可以超越屏幕以外
+	int i,w,w_Align_8, h,
+		iTile_Cur, iScreen_Cur,
+		x_Screen_Start, y_Screen_Start,x_Screen_End,y_Screen_End,
+		x_Tile_Start,y_Tile_Start,x_Tile_End,y_Tile_End;	//真正oScreen开始位置
+	unsigned char* pTile_Cur, * pScreen_Cur;
+	if (x < 0)
+		x_Screen_Start = 0,x_Tile_Start = -x;
+	else
+		x_Tile_Start = 0,	x_Screen_Start = x;
+	w = oTile.m_iWidth - x_Tile_Start;
+	if (x_Screen_Start + w > oScreen.m_iWidth)
+		w -= x_Screen_Start + w - oScreen.m_iWidth;
+	x_Tile_End = x_Tile_Start + w;
+	x_Screen_End = x_Screen_Start + w;	
+	w_Align_8 = (w >> 3) << 3;
+
+	if (y < 0)
+		y_Screen_Start = 0, y_Tile_Start = -y;
+	else
+		y_Tile_Start = 0,	y_Screen_Start = y;
+	h = oTile.m_iHeight - y_Tile_Start;
+	if (y_Screen_Start + h > oScreen.m_iHeight)
+		h -= y_Screen_Start + h - oScreen.m_iHeight;
+	y_Tile_End =y_Tile_Start+ h, y_Screen_End =y_Screen_Start+ h;
+	
+	
+	iTile_Cur = y_Tile_Start * oTile.m_iWidth + x_Tile_Start;
+	iScreen_Cur = y_Screen_Start * oScreen.m_iWidth + x_Screen_Start;
+	for (y = y_Tile_Start; y < y_Tile_End; y++,iTile_Cur+=oTile.m_iWidth,iScreen_Cur+=oScreen.m_iWidth)
+	{
+		for (i = 0; i < 3; i++)
+		{
+			pTile_Cur = &oTile.m_pChannel[i][iTile_Cur];
+			pScreen_Cur = &oScreen.m_pChannel[i][iScreen_Cur];
+			for (x = 0; x < w_Align_8; x += 8, pTile_Cur+=8,pScreen_Cur +=8)
+				*(unsigned long long*)pScreen_Cur = *(unsigned long long*)pTile_Cur;
+			for (; x < w; x++)
+				*pScreen_Cur++ = *pTile_Cur++;
+		}
+	}
+	return;
+}
+void Concat_Image(Image oA, Image oB, Image* poC, int iFlag)
+{//两图拼一图C = A + B, iFlag =0, 水平。 iFlat=1: 垂直
+	Image oC = *poC;
+	int i, iBit_Count;
+	iBit_Count = Min(oA.m_iBit_Count, oB.m_iBit_Count);
+	iBit_Count = Min(iBit_Count, 24);
+
+	if (!oC.m_pBuffer)
+		if (iFlag == 0)   //水平
+			Init_Image(&oC, oA.m_iWidth + oB.m_iWidth, Max(oA.m_iHeight, oB.m_iHeight), Image::IMAGE_TYPE_BMP, iBit_Count);
+		else
+			Init_Image(&oC, Max(oA.m_iWidth, oB.m_iWidth), oA.m_iHeight + oB.m_iHeight, Image::IMAGE_TYPE_BMP, iBit_Count);
+
+	if (iFlag == 0)
+	{//水平拼接
+		for (i = 0; i < iBit_Count / 8; i++)
+		{
+			int y, x, iDest_Pos, iSource_Pos;
+			for (iSource_Pos = 0, y = 0; y < oA.m_iHeight; y++)
+			{
+				iDest_Pos = y * oC.m_iWidth;
+				for (x = 0; x < oA.m_iWidth; x++, iDest_Pos++, iSource_Pos++)
+					oC.m_pChannel[i][iDest_Pos] = oA.m_pChannel[i][iSource_Pos];
+			}
+			for (iSource_Pos = 0, y = 0; y < oB.m_iHeight; y++)
+			{
+				iDest_Pos = y * oC.m_iWidth + oA.m_iWidth;
+				for (x = 0; x < oB.m_iWidth; x++, iDest_Pos++, iSource_Pos++)
+					oC.m_pChannel[i][iDest_Pos] = oB.m_pChannel[i][iSource_Pos];
+			}
+		}
+	}
+	*poC = oC;
+	return;
+}
+template<typename _T>void Draw_Match_Point(_T Point_1[][2], _T Point_2[][2], int iCount, Image oImage)
+{
+	int iOrg_Image_Width = oImage.m_iWidth / 2;
+	int i;
+	for (i = 0; i < iCount; i++)
+	{
+		Draw_Point(oImage, (int)Point_1[i][0], (int)Point_1[i][1], 5, 255, 0, 0);
+		Draw_Point(oImage, (int)Point_2[i][0] + iOrg_Image_Width, (int)Point_1[i][1], 5, 0, 255, 0);
+		Mid_Point_Line(oImage, (int)Point_1[i][0], (int)Point_1[i][1],
+			(int)Point_2[i][0] + iOrg_Image_Width, (int)Point_1[i][1]);
+	}
+	return;
+}
+template<typename _T>void Draw_Match_Point(_T Point_1[][2], _T Point_2[][2], unsigned char Mask[], int iCount, Image oImage)
+{//oImage通常是两张图拼接而成
+	int iOrg_Image_Width = oImage.m_iWidth / 2;
+	int i;
+	for (i = 0; i < iCount; i++)
+	{
+		if (Mask[i])
+		{
+			Draw_Point(oImage, (int)Point_1[i][0], (int)Point_1[i][1], 5, 255, 0, 0);
+			Draw_Point(oImage, (int)Point_2[i][0] + iOrg_Image_Width, (int)Point_1[i][1], 5, 0, 255, 0);
+			Mid_Point_Line(oImage, (int)Point_1[i][0], (int)Point_1[i][1],
+				(int)Point_2[i][0] + iOrg_Image_Width, (int)Point_1[i][1]);
+		}
+	}
+	return;
+}
+void SB_Image()
+{
+	Draw_Match_Point((double(*)[2])NULL, (double(*)[2])NULL, 0, {});
+	Draw_Match_Point((float(*)[2])NULL, (float(*)[2])NULL, 0, {});
+
+	Draw_Match_Point((double(*)[2])NULL, (double(*)[2])NULL, NULL, 0, {});
+	Draw_Match_Point((float(*)[2])NULL, (float(*)[2])NULL, NULL, 0, {});
+
 }
