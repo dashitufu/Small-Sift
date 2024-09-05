@@ -5239,7 +5239,7 @@ void DLT_Test_1()
 	printf("svd DLT Loss:%f Time Span:%lldms\n", fGet_Error(oParam.m_pPoint_3D_0, oParam.m_pPoint_3D_1, T, iCount), iGet_Tick_Count() - tStart);
 
 	tStart = iGet_Tick_Count();
-	//for (int i = 0; i < 1000; i++)
+	for (int i = 0; i < 1000; i++)
 	DLT(oParam.m_pPoint_3D_0, oParam.m_pPoint_3D_1, iCount, T);
 	printf("Ours Loss:%f Time Span:%lldms\n", fGet_Error(oParam.m_pPoint_3D_0, oParam.m_pPoint_3D_1, T, iCount), iGet_Tick_Count() - tStart);
 	

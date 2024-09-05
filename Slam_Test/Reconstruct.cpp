@@ -2357,15 +2357,16 @@ template<typename _T>void ICP_SVD(_T P_1[][3], _T P_2[][3], int iCount, _T Pose[
 		Matrix_Multiply(q2, 3, 1, q1, 3, q2q1t);
 		Matrix_Add(w, q2q1t, 3, w);
 	}
-	//Disp(w, 3, 3, "w");
 
+	//Disp(w, 3, 3, "w");
+	_T R[3 * 3];
+		
 	SVD_Info oSVD;
 	SVD_Alloc<_T>(3, 3, &oSVD);
 	svd_3(w, oSVD);
-
-	_T R[3 * 3];
 	Matrix_Multiply((_T*)oSVD.U, 3, 3, (_T*)oSVD.Vt, 3, R);
 	Free_SVD(&oSVD);
+
 	//此处要做一个行列式的判断
 	if (fGet_Determinant(R, 3) < 0)
 		Matrix_Multiply(R, 3, 3, (_T)(-1.f), R);
