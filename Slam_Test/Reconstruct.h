@@ -102,6 +102,16 @@ template<typename _T> struct Pose_Graph_Sigma_H {
 	int m_iCamera_Count;        //一共有多少个相机
 };
 
+template<typename _T>struct Image_Match_Param {
+	_T(*m_pImage_Point_0)[2];
+	_T(*m_pImage_Point_1)[2];   //像素平面点对
+	_T(*m_pNorm_Point_0)[2];
+	_T(*m_pNorm_Point_1)[2];     //归一化平面点对
+	_T(*m_pPoint_3D_0)[3];
+	_T(*m_pPoint_3D_1)[3];
+	Image m_oImage;
+};
+
 //对于E,F,H三个矩阵的估计，有一个Report，此处要有内存分配
 void Free_Report(Ransac_Report oReport, Mem_Mgr* poMem_Mgr = NULL);
 void Disp_Report(Ransac_Report oReport);
@@ -136,6 +146,10 @@ template<typename _T> void Determine_Confg(Two_View_Geometry* poGeo, _T Point_1[
 //从RGBD图恢复空间点
 template<typename _T> void RGBD_2_Point_3D(Image oImage, unsigned short* pDepth, _T K[][3], _T fDepth_Factor, _T Point_3D[][3], int* piPoint_Count, unsigned char Color[][3] = 0);
 template<typename _T>void Image_Pos_2_3D(_T Image_Pos[][3], int iCount, _T K[], _T fDepth_Factor, _T Pos_3D[][3]);
+template<typename _T>void Image_Pos_2_3D(_T Image_Pos[][2], unsigned short Depth[], int iCount, int iWidth, _T K[], _T fDepth_Factor, _T Pos_3D[][3]);
+
+////将屏幕左边转换为归一化平面坐标
+template<typename _T>void Image_Pos_2_Norm(_T Image_Pos[][2], int iCount, _T K[], _T(*pNorm_Point)[2]);
 
 //Bundle_Adjust，这是估计的关键，估计有很多种变种
 template<typename _T>void Bundle_Adjust_3D2D_1(_T Point_3D_1[][3], _T Point_2D_2[][2], int iCount, _T K[], _T Pose[], int* piResult);
@@ -184,3 +198,16 @@ template<typename _T>void Gen_Pose(_T T[4 * 4], _T v0, _T v1, _T v2, _T theta, _
 //Temp Code
 template<typename _T> int bTemp_Load_Data(const char* pcFile, _T(**ppT)[7], int* piPoint_Count,
 	Measurement<_T>** ppMeasurement, int* piMeasure_Count);
+template<typename _T>void Match_2_Image(const char* pcFile_0, const char* pDepth_File_0, const char* pcFile_1, const char* pDepth_File_1,
+	_T fDepth_Factor, //深度量化银子
+	_T K[],    //内参，可以是NULL
+	int* piCount,  //点对数量
+	_T(**ppImage_Point_0)[2], _T(**ppImage_Point_1)[2],   //像素平面点对
+	_T(**ppNorm_Point_0)[2], _T(**ppNorm_Point_1)[2],     //归一化平面点对
+	_T(**ppPoint_3D_0)[3], _T(**ppPoint_3D_1)[3],          //空间点对
+	Image* poImage);
+
+template<typename _T>_T fGet_Error(_T Point_3D_0[][3], _T Point_3D_1[][3], _T T[], int iCount);
+template<typename _T>void DLT_svd(_T Point_3D_0[][3], _T Point_3D_1[][3], _T Norm_Point_1[][2], int iCount, _T T[]);
+template<typename _T>void DLT(_T Point_3D_0[][3], _T Point_3D_1[][3], int iCount, _T T[]);
+template<typename _T>_T fGet_Error(_T A[], int m, int n, _T X[]);

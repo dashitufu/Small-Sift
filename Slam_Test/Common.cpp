@@ -12,7 +12,7 @@
 //	if (!pFile)
 //		return -1;
 //
-//#ifdef WIN32
+//#if…Ó∂»f WIN32
 //	_fseeki64(pFile, 0, SEEK_END);
 //	iLen = _ftelli64(pFile);
 //#else
@@ -353,7 +353,7 @@ int bSave_Raw_Data(const char* pcFile, unsigned char* pBuffer, int iSize)
 		printf("Fail to save file:%s\n", pcFile);
 		return 0;
 	}
-	int iResult=fwrite(pBuffer, 1, iSize, pFile);
+	int iResult=(int)fwrite(pBuffer, 1, iSize, pFile);
 	if (iResult != iSize)
 	{
 		printf("Fail to save file:%s %d\n", pcFile,GetLastError());

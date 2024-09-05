@@ -20,7 +20,7 @@ extern "C"
 		fAbs_Max = Abs(V[1]), fMax = V[1]; \
 		i=1;	\
 	} \
-	if (Abs(V[2] > fAbs_Max)) \
+	if ((Abs(V[2]) > fAbs_Max)) \
 	{ \
 		fAbs_Max = Abs(V[2]), fMax = V[2]; \
 		i=2;	\
@@ -125,14 +125,18 @@ template<typename _T>void Matrix_Transpose(_T* A, int ma, int na, _T* At)
 {//矩阵转置
 	int y, x;
 	_T* At_1;
-	//Light_Ptr oPtr = oMatrix_Mem;
-	//Malloc_1(oPtr, ma * na * sizeof(_T), At_1);
-	At_1 = (_T*)pMalloc(&oMatrix_Mem, ma * na * sizeof(_T));
+	if (abs((int)(A -At))<ma*na )
+		At_1 = (_T*)pMalloc(&oMatrix_Mem, ma * na * sizeof(_T));
+	else
+		At_1 = At;
 	for (y = 0; y < ma; y++)
 		for (x = 0; x < na; x++)
 			At_1[x * ma + y] = A[y * na + x];
-	memcpy(At, At_1, ma * na * sizeof(_T));
-	Free(&oMatrix_Mem, At_1);
+	if (abs((int)(A - At)) < ma * na)
+	{
+		memcpy(At, At_1, ma * na * sizeof(_T));
+		Free(&oMatrix_Mem, At_1);
+	}
 	return;
 }
 template<typename _T>void Matrix_Multiply_3x3(_T A[3*3], _T B[3*3], _T C[3*3])
@@ -201,6 +205,7 @@ template<typename _T>void Elementary_Row_Operation_1(_T A[], int m, int n, _T A_
 
 int bIs_Linearly_Dependent(float A[], int m, int n);	//判断向量组A是否线性相关
 template<typename _T>int bIs_Orthogonal(_T* A, int h, int w=0);
+template<typename _T>int bIs_R(_T R[9], _T eps = 1e-6);
 template<typename _T>void Gen_I_Matrix(_T M[], int h, int w);	//生成对角阵
 
 void Gen_Iterate_Matrix(float A[], int n, float B[], float B_1[], float C[]);	//生成迭代中的B
@@ -340,6 +345,14 @@ void QR_Decompose(double A1[3][3], double Q[3][3], double R[3][3]);
 void QR_Decompose(float* A, int ma, int na, float* Q, float* R);
 void QR_Decompose(float* A, int na, float* R, float* Q, int* pbSuccess = NULL, int* pbDup_Root = NULL);
 
+template<typename _T>int bInverse_Power(_T A[], int n, _T* pfEigen_Value, _T Eigen_Vector[], _T eps = 1e-9f);
+template<typename _T>int bInverse_Power(_T A[3][3], _T* pfEigen_Value, _T Eigen_Vector[3], _T eps = 1e-9f);
+
+template<typename _T>void LU_Decompose(_T A[], _T L[], _T U[], int n, int* pbSuccess=NULL);
+template<typename _T>int bTest_LU(_T* A, _T* L, _T* U, int n);
+template<typename _T>void Power_Method(_T A[], int n, _T Eigen_Vector[], _T* pfEigen_Value);
+template<typename _T>int bTest_Eigen(_T A[], int n, _T fEigen_Value, _T Eigen_Vector[], _T eps = 1e-7);
+
 template<typename _T> void Normalize(_T V[], int n, _T V_1[]);
 template<typename _T>void Softmax(_T A[], int n, _T B[]);
 template<typename _T>void Softmax(_T A[], int m, int n, int iPadding, _T B[]);
@@ -402,6 +415,7 @@ template<typename _T>void Gen_Homo_Matrix(_T R[3*3], _T t[3], _T c2w[3*3]);			//
 template<typename _T>void Gen_Homo_Matrix_1(_T Rotation_Vector[3], _T t[3], _T c2w[]);
 
 template<typename _T>void Get_R_t(_T T[4 * 4], _T R[3 * 3]=NULL, _T t[3]=NULL);
+template<typename _T>void Matrix_2_R(_T Hr[3 * 3], _T R[3 * 3]);
 
 void Gen_Homo_Matrix(float R[], float t[], float s, float M[]);	//用旋转,位移，缩放构成一个变换矩阵
 

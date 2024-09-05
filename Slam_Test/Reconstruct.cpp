@@ -1154,7 +1154,7 @@ template<typename _T>void Decompose_H(_T H[3 * 3], _T R1[3 * 3], _T R2[3 * 3], _
 	_T* n1 = np1, * n2 = np2;
 	Normalize(n1,3,n1); Normalize(n2, 3, n2);
 
-	_T half_nt = 0.5 * n_t;
+	_T half_nt = 0.5f * n_t;
 	_T esii_t_r = ESii * r;
 	_T fValue_1, fValue_2;
 	fValue_1 = half_nt * esii_t_r;
@@ -1288,8 +1288,43 @@ template<typename _T>void Get_Adj(_T Rt[4 * 4], _T Adj[6 * 6])
 	return;
 }
 
+//应该搞一组损失函数，专门计算估计出来的参数的误差
+template<typename _T>_T fGet_Error(_T Point_3D_0[][3], _T Point_3D_1[][3], _T T[], int iCount)
+{//算一个变换的误差
+	int i;
+	_T R[3 * 3], t[3], fTotal;
+	Get_R_t(T, R, t);
+
+	for (fTotal = 0, i = 0; i < iCount; i++)
+	{
+		_T Temp[3];
+		Matrix_Multiply(R, 3, 3, Point_3D_0[i], 1, Temp);
+		Vector_Add(Temp, t, 3, Temp);
+		_T fDist = fGet_Distance(Temp, Point_3D_1[i], 3);
+		fTotal += fDist;
+		//printf("Expected:%f %f %f   Actural:%f %f %f    Error:%f\n", Point_3D_1[i][0], Point_3D_1[i][1], Point_3D_1[i][2], Temp[0], Temp[1], Temp[2], fDist);
+	}
+	return fTotal / iCount;
+}
+
+
 void SB_Reconstruct()
 {//这就是个傻逼方法，用来欺骗template
+	fGet_Error((double*)NULL, 0, 0, (double*)NULL);
+	fGet_Error((float*)NULL, 0, 0, (float*)NULL);
+
+	DLT((double(*)[3])NULL, (double(*)[3])NULL, 0, (double*)NULL);
+	DLT((float(*)[3])NULL, (float(*)[3])NULL, 0, (float*)NULL);
+
+	DLT_svd((double(*)[3])NULL, (double(*)[3])NULL, (double(*)[2])NULL, 0, (double*)NULL);
+	DLT_svd((float(*)[3])NULL, (float(*)[3])NULL, (float(*)[2])NULL, 0, (float*)NULL);
+
+	fGet_Error((double(*)[3])NULL, (double(*)[3])NULL,(double*)NULL,0);
+	fGet_Error((float(*)[3])NULL, (float(*)[3])NULL, (float*)NULL, 0);
+
+	Match_2_Image((const char*)NULL, (const char*)NULL, (const char*)NULL, (const char*)NULL, (double)0.f, (double*)NULL, NULL, (double(**)[2])NULL, (double(**)[2])NULL, (double(**)[2])NULL, (double(**)[2])NULL, (double(**)[3])NULL, (double(**)[3])NULL, NULL);
+	Match_2_Image((const char*)NULL, (const char*)NULL, (const char*)NULL, (const char*)NULL, (float)0.f, (float*)NULL, NULL, (float(**)[2])NULL, (float(**)[2])NULL, (float(**)[2])NULL, (float(**)[2])NULL, (float(**)[3])NULL, (float(**)[3])NULL, NULL);
+
 	Gen_Pose((double*)NULL, (double)0.f, (double)0.f, (double)0.f, (double)0.f, (double)0.f, (double)0.f, (double)0.f);
 	Gen_Pose((float*)NULL, (float)0.f, (float)0.f, (float)0.f, (float)0.f, (float)0.f, (float)0.f, (float)0.f);
 
@@ -1376,6 +1411,12 @@ void SB_Reconstruct()
 
 	Bundle_Adjust_3D2D_1((double(*)[3])NULL, (double(*)[2])NULL, 0, (double*)NULL, (double*)NULL, NULL);
 	Bundle_Adjust_3D2D_1((float(*)[3])NULL, (float(*)[2])NULL, 0, (float*)NULL, (float*)NULL, NULL);
+
+	Image_Pos_2_Norm((double(*)[2])NULL, 0, (double*)NULL, (double(*)[2])NULL);
+	Image_Pos_2_Norm((float(*)[2])NULL, 0, (float*)NULL, (float(*)[2])NULL);
+
+	Image_Pos_2_3D((double(*)[2])NULL,NULL,0, 0, (double*)NULL, (double)0, (double(*)[3])NULL);
+	Image_Pos_2_3D((float(*)[2])NULL, NULL,0,0, (float*)NULL, (float)0, (float(*)[3])NULL);
 
 	Image_Pos_2_3D((double(*)[3])NULL, 0, (double*)NULL,(double)0, (double(*)[3])NULL);
 	Image_Pos_2_3D((float(*)[3])NULL, 0, (float*)NULL, (float)0, (float(*)[3])NULL);
@@ -1996,6 +2037,43 @@ template<typename _T> void RGBD_2_Point_3D(Image oImage, unsigned short* pDepth,
 		*piPoint_Count = iPoint_Count;
 	return;
 }
+template<typename _T>void Image_Pos_2_Norm(_T Image_Pos[][2], int iCount, _T K[], _T(*pNorm_Point)[2])
+{//将屏幕左边转换为归一化平面坐标
+	//	x1 = (p1x - cx) / fx
+	//	y1 = (p1y - cy) / fy
+	_T fx = K[0], fy = K[4],
+		cx = K[2], cy = K[5];
+
+	for (int i = 0; i < iCount; i++)
+	{
+		pNorm_Point[i][0] = (Image_Pos[i][0] - cx) / fx;
+		pNorm_Point[i][1] = (Image_Pos[i][1] - cy) / fy;
+	}
+	return;
+}
+template<typename _T>void Image_Pos_2_3D(_T Image_Pos[][2], unsigned short Depth[], int iCount, int iWidth, _T K[], _T fDepth_Factor, _T Pos_3D[][3])
+{//之所以要用这个，是因为很多时候，Impage_Pos[2] = 1, 故此Impage_Pos只有x,y两项
+	//Image_Pos: 像素平面上的点坐标(x,y)及深度图上的d信息, K 相机内参； fDepth_Factor:深度图量化因子
+	//感觉这个函数也很实用，很多时候只关心几何信息，从第一手信息恢复空间坐标很重要
+	for (int i = 0; i < iCount; i++)
+	{
+		int iPos =(int)( ((int)Image_Pos[i][1]) * iWidth + Image_Pos[i][0]);
+		int iDepth = (unsigned short)((Depth[iPos] >> 8) + (Depth[iPos] << 8));
+		Pos_3D[i][2] = (_T)iDepth / fDepth_Factor;
+		//根据 p' = KP	,其中p'为像素平面上的点，P为空间点
+		//p'x = K[0,0]*Px + K[0,1]
+		//p'y = K[1,1]*Py + K[1,2]
+		//Px = (p'x - K[0,1])/K[0,0]
+		//Py = (p'y - K[1,2])/K[1,1]
+		Pos_3D[i][0] = (Image_Pos[i][0] - K[2]) * Pos_3D[i][2] / K[0];
+		Pos_3D[i][1] = (Image_Pos[i][1] - K[5]) * Pos_3D[i][2] / K[4];
+		/*if (Depth[iPos] != 0)
+			Disp(Pos_3D[i], 1, 3, "Point");*/
+	}
+	//Disp((_T*)Pos_3D,iCount,3);
+	return;
+}
+
 template<typename _T>void Image_Pos_2_3D(_T Image_Pos[][3], int iCount,_T K[], _T fDepth_Factor,_T Pos_3D[][3])
 {//Image_Pos: 像素平面上的点坐标(x,y)及深度图上的d信息, K 相机内参； fDepth_Factor:深度图量化因子
 	//感觉这个函数也很实用，很多时候只关心几何信息，从第一手信息恢复空间坐标很重要
@@ -2003,6 +2081,11 @@ template<typename _T>void Image_Pos_2_3D(_T Image_Pos[][3], int iCount,_T K[], _
 	for (i = 0; i < iCount; i++)
 	{
 		Pos_3D[i][2] = (_T)Image_Pos[i][2] / fDepth_Factor;
+		//根据 p' = KP	,其中p'为像素平面上的点，P为空间点
+		//p'x = K[0,0]*Px + K[0,1]
+		//p'y = K[1,1]*Py + K[1,2]
+		//Px = (p'x - K[0,1])/K[0,0]
+		//Py = (p'y - K[1,2])/K[1,1]
 		Pos_3D[i][0] = ((Image_Pos[i][0] - K[2]) * Image_Pos[i][2]) / K[0];
 		Pos_3D[i][1] = ((Image_Pos[i][1] - K[5]) * Image_Pos[i][2]) / K[4];
 	}
@@ -2203,7 +2286,9 @@ template<typename _T>void ICP_BA_2_Image_1(_T P1[][3], _T P2[][3], int iCount, _
 		E[3], JJt[6 * 6], H_Inv[6 * 6];
 	_T P_11[4]; //P1'
 	int i, iResult, iIter;
-	Gen_I_Matrix(Pose_Estimate, 4, 4);
+	//Gen_I_Matrix(Pose_Estimate, 4, 4);
+	memcpy(Pose_Estimate, Pose, 4 * 4 * sizeof(_T));
+
 	for (iIter = 0;; iIter++)
 	{
 		fSum_e = 0;
@@ -3442,4 +3527,324 @@ template<typename _T>void Gen_Pose(_T T[4 * 4], _T v0, _T v1, _T v2, _T theta, _
 	//Disp(T, 4, 4, "T");
 	if (piResult)
 		*piResult = iResult;
+}
+template<typename _T>void Match_2_Image(const char* pcFile_0, const char* pDepth_File_0,
+	const char* pcFile_1, const char* pDepth_File_1,
+	_T fDepth_Factor, //深度量化银子
+	_T K[],    //内参，可以是NULL
+	int* piCount,  //点对数量
+	_T(**ppImage_Point_0)[2], _T(**ppImage_Point_1)[2],   //像素平面点对
+	_T(**ppNorm_Point_0)[2], _T(**ppNorm_Point_1)[2],     //归一化平面点对
+	_T(**ppPoint_3D_0)[3], _T(**ppPoint_3D_1)[3],          //空间点对
+	Image* poImage)
+{//尝试搞个大一统，以后转入两张图就直接来
+
+	Image oImage_0, oImage_1, oImage_2;
+	unsigned short* pDepth_0, * pDepth_1;
+	_T(*pPoint_0)[2], (*pPoint_1)[2];
+	_T(*pNorm_Point_0)[2], (*pNorm_Point_1)[2]; //归一化平面坐标
+	_T(*pPoint_3D_0)[3], (*pPoint_3D_1)[3];
+
+	int i, j, iCount;
+
+	//装入两个图像
+	bLoad_Image(pcFile_0, &oImage_0);
+	bLoad_Image(pcFile_1, &oImage_1);
+	Init_Image(&oImage_2, oImage_0.m_iWidth * 2, oImage_0.m_iHeight, Image::IMAGE_TYPE_BMP, 24);
+	Concat_Image(oImage_0, oImage_1, &oImage_2, 0);
+
+	//装入图像1的深度
+	bLoad_Raw_Data(pDepth_File_0, (unsigned char**)&pDepth_0, NULL);
+	bLoad_Raw_Data(pDepth_File_1, (unsigned char**)&pDepth_1, NULL);
+	Sift_Match_2_Image(pcFile_0,
+		pcFile_1, &pPoint_0, &pPoint_1, &iCount, 0);
+
+	pPoint_3D_0 = (_T(*)[3])pMalloc(iCount * 3 * sizeof(_T));
+	pPoint_3D_1 = (_T(*)[3])pMalloc(iCount * 3 * sizeof(_T));
+
+	Image_Pos_2_3D(pPoint_0, pDepth_0, iCount, oImage_0.m_iWidth, K, fDepth_Factor, pPoint_3D_0);
+	Image_Pos_2_3D(pPoint_1, pDepth_1, iCount, oImage_1.m_iWidth, K, fDepth_Factor, pPoint_3D_1);
+
+	//Disp((_T*)pPoint_0_3D, iCount, 3, "Point_3D");
+	//Disp((_T*)pPoint_1_3D, iCount, 3, "Point_3D");
+
+	for (i = j = 0; i < iCount; i++)
+	{
+		if (pPoint_3D_0[i][2] != 0 && pPoint_3D_1[i][2] != 0)
+		{
+			pPoint_0[j][0] = pPoint_0[i][0];
+			pPoint_0[j][1] = pPoint_0[i][1];
+			pPoint_3D_0[j][0] = pPoint_3D_0[i][0];
+			pPoint_3D_0[j][1] = pPoint_3D_0[i][1];
+			pPoint_3D_0[j][2] = pPoint_3D_0[i][2];
+
+			pPoint_1[j][0] = pPoint_1[i][0];
+			pPoint_1[j][1] = pPoint_1[i][1];
+			pPoint_3D_1[j][0] = pPoint_3D_1[i][0];
+			pPoint_3D_1[j][1] = pPoint_3D_1[i][1];
+			pPoint_3D_1[j][2] = pPoint_3D_1[i][2];
+			j++;
+		}
+	}
+	iCount = j;
+
+	pNorm_Point_0 = (_T(*)[2])pMalloc(iCount * 2 * sizeof(_T));
+	pNorm_Point_1 = (_T(*)[2])pMalloc(iCount * 2 * sizeof(_T));
+	Image_Pos_2_Norm(pPoint_0, iCount, K, pNorm_Point_0);
+	Image_Pos_2_Norm(pPoint_1, iCount, K, pNorm_Point_1);
+
+
+	////验算一下
+	//for (i = 0; i < iCount; i++)
+	//{
+	//    _T Temp[3];
+	//    _T eps = 1e-7;
+	//    Matrix_Multiply(pPoint_3D_0[i], 1, 2, 1.f / pPoint_3D_0[i][2], Temp);
+	//    if (abs(Temp[0] -pNorm_Point_0[i][0])>eps || abs(Temp[1] - pNorm_Point_0[i][1])>eps)
+	//        printf("err");
+	//    
+	//    Matrix_Multiply(pPoint_3D_1[i], 1, 2, 1.f / pPoint_3D_1[i][2], Temp);
+	//    if (abs(Temp[0] - pNorm_Point_1[i][0]) > eps || abs(Temp[1] - pNorm_Point_1[i][1]) > eps)
+	//        printf("err");
+
+	//    Matrix_Multiply(K, 3, 3, pPoint_3D_0[i],1, Temp);
+	//    Matrix_Multiply(Temp, 1, 2, 1.f/Temp[2], Temp);
+	//    eps = 1e-4;
+	//    if (abs(Temp[0] - pPoint_0[i][0]) > eps )
+	//        printf("err");
+
+	//    Matrix_Multiply(K, 3, 3, pPoint_3D_1[i], 1, Temp);
+	//    Matrix_Multiply(Temp, 1, 2, 1.f / Temp[2], Temp);
+	//    eps = 1e-4;
+	//    if (abs(Temp[0] - pPoint_1[i][0]) > eps)
+	//        printf("err");
+	//}
+
+	if (ppImage_Point_0)
+		*ppImage_Point_0 = pPoint_0;
+	if (ppImage_Point_1)
+		*ppImage_Point_1 = pPoint_1;
+
+	if (ppNorm_Point_0)
+		*ppNorm_Point_0 = pNorm_Point_0;
+	if (ppNorm_Point_1)
+		*ppNorm_Point_1 = pNorm_Point_1;
+
+	if (ppPoint_3D_0)
+		*ppPoint_3D_0 = pPoint_3D_0;
+	if (ppPoint_3D_1)
+		*ppPoint_3D_1 = pPoint_3D_1;
+	if (piCount)
+		*piCount = iCount;
+	if (poImage)
+		*poImage = oImage_2;
+	Free_Image(&oImage_0);
+	Free_Image(&oImage_1);
+	free(pDepth_0);
+	free(pDepth_1);
+	return;
+}
+
+template<typename _T>void DLT(_T Point_3D_0[][3], _T Point_3D_1[][3], int iCount, _T T[])
+{//估计出一个位姿，其实这个方法毫无意义，因为根本没有ICP快，也不见得有ICP准
+
+	//_T A[12 * 12] = {};
+	_T* A = (_T*)pMalloc(iCount * 3 * 12 * sizeof(_T)),
+		* B = (_T*)pMalloc(iCount * 3 * sizeof(_T));
+	_T H[12];
+	int i, j, k, iPos_2 = 0, iResult;
+	memset(A, 0, iCount * 3 * 12 * sizeof(_T));
+	memset(B, 0, iCount * 3 * sizeof(_T));
+	for (i = 0; i < iCount; i++, iPos_2 += 3)
+	{
+		int iPos_0 = i * 3 * 12;
+		for (j = 0; j < 3; j++, iPos_0 += 12)
+		{
+			int iPos_1 = iPos_0 + j * 4;
+			for (k = 0; k < 3; k++)
+				A[iPos_1 + k] = Point_3D_0[i][k];
+			A[iPos_1 + k] = 1;
+		}
+		B[iPos_2 + 0] = Point_3D_1[i][0];
+		B[iPos_2 + 1] = Point_3D_1[i][1];
+		B[iPos_2 + 2] = Point_3D_1[i][2];
+	}
+	//Disp(A, iCount, 12, "A");
+	if (iCount == 4)
+		Solve_Linear_Gause(A, 12, B, H, &iResult);
+	else//注意，解矛盾方程组基本上数据一致，但有些许误差
+		Solve_Linear_Contradictory(A, iCount * 3, 12, B, H, &iResult);	//慢就慢在这
+
+	//Disp(H, 3, 4, "H");
+	//Matrix_Multiply(A, 12, 12, H, 1, Temp);
+
+	//还得盐酸一把
+	_T Temp[4 * 4];
+	_T eps = 1e-7f;
+	Normalize(H, 12, H);
+
+	//以下估计R,t
+	union {
+		_T Hr[3 * 3];
+		_T R[3 * 3];
+	};
+	_T t[3] = { 0 };
+	Crop_Matrix(H, 3, 4, 0, 0, 3, 3, Hr);
+	//Disp(H, 3, 4, "H");
+	//Disp(Hr, 3, 3, "Hr");
+	Matrix_2_R(Hr, R);
+	//Disp(R, 3, 3, "R");
+
+	//剩下搞t,两种方法，方法1，自己推导
+	for (i = 0; i < iCount; i++)
+	{
+		Matrix_Multiply(R, 3, 3, Point_3D_0[i], 1, Temp);
+		Vector_Minus(Point_3D_1[i], Temp, 3, Temp);
+		//Disp(Temp, 1, 3, "Diff");
+		Vector_Add(t, Temp, 3, t);
+	}
+	t[0] /= iCount, t[1] /= iCount, t[2] /= iCount;
+
+	////方法2，R与H有个Scale,数据差很远，但更快
+	//Temp[0] = H[0], Temp[1] = H[4], Temp[2] = H[8];
+	////printf("%f\n", fGet_Mod(Temp, 3));
+	//_T fScale = 1.f / fGet_Mod(Temp, 3);
+	////printf("H Mod %f\n", fGet_Mod(H, 12));
+	//t[0] = H[3] * fScale, t[1] = H[7] * fScale, t[2] = H[11] * fScale;
+
+	//Disp(t, 1, 3, "t");
+	/*for (i = 0; i < 4; i++)
+	{
+		Matrix_Multiply(R, 3, 3, Point_3D_0[i], 1, Temp);
+		Vector_Add(Temp, t, 3, Temp);
+		Disp(Point_3D_1[i], 1, 3, "p1");
+		Disp(Temp, 1, 3, "Rp0 + t");
+	}*/
+
+	Gen_Homo_Matrix(R, t, T);
+	Free(A);
+	Free(B);
+	return;
+}
+template<typename _T>_T fGet_Error(_T A[], int m, int n, _T X[])
+{//返回齐次矛盾方程组的误差
+	_T fTotal = 0;
+	int i, iPos = 0;
+	for (i = 0; i < m; i++, iPos += n)
+	{
+		_T fValue = fDot(&A[iPos], X, n);
+		fTotal += fValue*fValue;
+	}
+	return fTotal / m;
+}
+template<typename _T>void DLT_svd(_T Point_3D_0[][3], _T Point_3D_1[][3], _T Norm_Point_1[][2], int iCount, _T T[])
+{//6点组成一个A矩阵
+	_T* A = (_T*)pMalloc(iCount * 2 * 12 * sizeof(_T));
+	int i, k, iPos_0,iResult;
+	_T H[12];
+	memset(A, 0, iCount * 2 * 12 * sizeof(_T));
+	for (iPos_0 = i = 0; i < iCount; i++, iPos_0 += 2 * 12)
+	{
+		int iPos_1 = iPos_0;
+		for (k = 0; k < 3; k++)
+			A[iPos_1 + k] = Point_3D_0[i][k];
+		A[iPos_1 + 3] = 1;
+
+		//以下用符号
+		iPos_1 = iPos_0 + 8;
+		for (k = 0; k < 3; k++)
+			A[iPos_1 + k] = -Point_3D_0[i][k] * Norm_Point_1[i][0];
+		A[iPos_1 + 3] = -Norm_Point_1[i][0];
+		//Disp(A, 1, 12, "A");
+
+		iPos_1 = iPos_0 + 12 + 4;
+		for (k = 0; k < 3; k++)
+			A[iPos_1 + k] = Point_3D_0[i][k];
+		A[iPos_1 + 3] = 1;
+
+		iPos_1 = iPos_0 + 12 + 8;
+		for (k = 0; k < 3; k++)
+			A[iPos_1 + k] = -Point_3D_0[i][k] * Norm_Point_1[i][1];
+		A[iPos_1 + 3] = -Norm_Point_1[i][1];
+	}
+
+	//求齐次矛盾方程的两种方法
+	////方法1，SVD分解
+	//SVD_Info oSVD;
+	//SVD_Alloc(iCount * 2, 12, &oSVD, A);
+	//svd_3(A, oSVD, &iResult);
+	//for (i = 0; i < 12; i++)
+	//	H[i] = ((_T*)oSVD.Vt)[11 * 12 + i];
+	//Free_SVD(&oSVD);
+
+	//方法2,求A'A的最小特征值对应的特征向量，用反幂法，快无数
+	//这其实是一个解矛盾方程组问题，只是矛盾方程组乃齐次方程
+	//基于一个理论，对A的svd分解得到的的解等价于A'A最小特征值对应的特征向量，用反幂法
+	Solve_Linear_Contradictory(A, iCount * 2, 12, (_T*)NULL, H,&iResult);
+			
+	//此处不知需不需要给H矩阵做一次验算，如果Hp的z<0,要对整个H取反
+	//然而如果只有部分z<0，怎么办？
+	//还得验算一把
+	_T Temp[12] = { 0 };
+	//_T eps = 1e-7f;
+	////Disp(H, 12, 1, "H");
+	//for (i = 0; i < 6; i++)
+	//{
+	//	//memcpy(&Temp[i * 4], Point_3D_1[i], 3 * sizeof(_T));
+	//	//Temp[i * 4 + 3] = 1;
+	//	memcpy(Temp, Point_3D_0[i], 3 * sizeof(_T));
+	//	Temp[3] = 1;
+	//	Matrix_Multiply(H, 3, 4, Temp, 1, Temp);
+	//	//实际上，H与变换阵差了一个wcale
+	//	Temp[0] /= Temp[2], Temp[1] /= Temp[2];
+	//	if (abs(Temp[0] - Norm_Point_1[i][0]) > eps || abs(Temp[1] - Norm_Point_1[i][1]) > eps)
+	//	{
+	//		/*Disp(Temp, 1, 2, "err: HP/z");
+	//		Disp(Norm_Point_1[i], 1, 2, "Norm Point");*/
+	//	}
+	//}
+
+	//以下估计R,t
+	union {
+		_T Hr[3 * 3];
+		_T R[3 * 3];
+	};
+	_T t[3] = { 0 };
+	Crop_Matrix(H, 3, 4, 0, 0, 3, 3, Hr);
+	//Disp(H, 3, 4, "H");
+	//Disp(Hr, 3, 3, "Hr");
+	Matrix_2_R(Hr, R);
+	//Disp(R, 3, 3, "R");
+
+	//出来以后，R与H有个Scale
+	Temp[0] = H[0], Temp[1] = H[4], Temp[2] = H[8];
+	//printf("%f\n", fGet_Mod(Temp, 3));
+	_T fScale = 1.f / fGet_Mod(Temp, 3);
+
+	//printf("H Mod %f\n", fGet_Mod(H, 12));
+	t[0] = H[3] * fScale, t[1] = H[7] * fScale, t[2] = H[11] * fScale;
+	//Disp(t, 3, 1, "t");
+
+	/*for (i = 0; i < 6; i++)
+	{
+		Matrix_Multiply(R, 3, 3, Point_3D_0[i], 1, Temp);
+		Vector_Add(Temp, t, 3, Temp);
+		Disp(Temp, 1, 3, "Temp");
+		Disp(Point_3D_1[i], 1, 3, "p1");
+	}*/
+	/*memset(T, 0, 4 * 4 * sizeof(_T));
+	for (i = 0; i < 3; i++)
+	{
+		for (j = 0; j < 3; j++)
+			T[i * 4 + j] = R[i * 3 + j];
+		T[i * 4 + 3] = t[i];
+	}
+	T[15] = 1;*/
+	Gen_Homo_Matrix(R, t, T);
+	/* Disp(R, 3, 3, "R");
+	 Disp(t, 1, 3, "t");
+	 Disp(T, 4, 4, "T");*/
+
+	Free(A);
+	return;
 }

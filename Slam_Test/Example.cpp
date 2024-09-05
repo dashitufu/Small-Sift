@@ -5208,6 +5208,60 @@ void Sift_And_Estimate_H_Test_1()
 	return;
 }
 
+void DLT_Test_1()
+{//此处用RGBD数据搞一个位位姿估计
+	typedef float _T;
+	_T K[] = { 520.9f, 0, 325.1f, 0, 521.0f, 249.7f, 0, 0, 1 };
+	int iCount,iResult;
+	Image_Match_Param<_T> oParam = {};
+
+	Match_2_Image("D:\\Software\\3rdparty\\slambook2\\ch7\\1.bmp", "D:\\Software\\3rdparty\\slambook2\\ch7\\1.Depth",
+		"D:\\Software\\3rdparty\\slambook2\\ch7\\2.bmp", "D:\\Software\\3rdparty\\slambook2\\ch7\\2.Depth",
+		5000.f, K, &iCount,
+		&oParam.m_pImage_Point_0, &oParam.m_pImage_Point_1,
+		&oParam.m_pNorm_Point_0, &oParam.m_pNorm_Point_1,
+		&oParam.m_pPoint_3D_0, &oParam.m_pPoint_3D_1, &oParam.m_oImage);
+
+	//用图像A的归一化平面坐标与图像B的空间坐标来推导出一个位姿
+	_T T[16];
+
+	//bSave_Raw_Data("c:\\tmp\\temp\\Point_3D.bin", (unsigned char*)oParam.m_pPoint_3D_0, iCount * 3 * sizeof(_T));
+	//bSave_Raw_Data("c:\\tmp\\temp\\Point_2D.bin", (unsigned char*)oParam.m_pImage_Point_1, iCount * 2 * sizeof(_T));
+	//bSave_Raw_Data("c:\\tmp\\temp\\K.bin", (unsigned char*)K, 3 * 3 * sizeof(_T));
+
+	//Disp((_T*)oParam.m_pNorm_Point_1, 6, 2);
+	//iCount = 100;
+	unsigned long long tStart;
+
+	tStart = iGet_Tick_Count();
+	for (int i = 0; i < 1000; i++)
+	DLT_svd(oParam.m_pPoint_3D_0, (_T(*)[3])NULL, oParam.m_pNorm_Point_1, iCount, T);
+	printf("svd DLT Loss:%f Time Span:%lldms\n", fGet_Error(oParam.m_pPoint_3D_0, oParam.m_pPoint_3D_1, T, iCount), iGet_Tick_Count() - tStart);
+
+	tStart = iGet_Tick_Count();
+	//for (int i = 0; i < 1000; i++)
+	DLT(oParam.m_pPoint_3D_0, oParam.m_pPoint_3D_1, iCount, T);
+	printf("Ours Loss:%f Time Span:%lldms\n", fGet_Error(oParam.m_pPoint_3D_0, oParam.m_pPoint_3D_1, T, iCount), iGet_Tick_Count() - tStart);
+	
+	tStart = iGet_Tick_Count();
+	for (int i = 0; i < 1000; i++)
+	ICP_SVD(oParam.m_pPoint_3D_0, oParam.m_pPoint_3D_1, iCount, T, &iResult);
+	printf("ICP Loss:%f Time Span:%lldms\n", fGet_Error(oParam.m_pPoint_3D_0, oParam.m_pPoint_3D_1, T, iCount), iGet_Tick_Count() - tStart);
+	
+	ICP_BA_2_Image_1(oParam.m_pPoint_3D_0, oParam.m_pPoint_3D_1, iCount, T, &iResult);
+	printf("ICP BA Loss:%f\n", fGet_Error(oParam.m_pPoint_3D_0, oParam.m_pPoint_3D_1, T, iCount));
+
+	//printf("%lld\n", iGet_Tick_Count() - tStart);
+
+	//至此，三种位置全在
+	Free_Image(&oParam.m_oImage);
+	free(oParam.m_pImage_Point_0);
+	Free(oParam.m_pNorm_Point_0);
+	Free(oParam.m_pNorm_Point_1);
+	Free(oParam.m_pPoint_3D_0);
+	Free(oParam.m_pPoint_3D_1);
+	return;
+}
 void Test_Main()
 {
 	//Point_Cloud_Test();				//点云重建最简例子，没营养
@@ -5241,6 +5295,8 @@ void Test_Main()
 	//H_Test_2();		//反面例子，球面点估计不出一个H矩阵
 	//H_Test_3();			//验证张定友标定法中的特殊H矩阵，与一般H矩阵只差一个scale，即等价
 
+	DLT_Test_1();		//此处DLT做了优化，目前小范围内优化版本精度与速度更好
+	
 	////4个Sift实验，各种接口场合
 	//Sift_Test_1();
 	//Sift_Test_2();
@@ -5264,6 +5320,8 @@ void Test_Main()
 	//Cholosky_Test();	//Cholosky分解实验
 
 	//从以下两个试验看出，同样的数据不同的方法做出来的误差很大
-	Sift_And_Estimate_E_Test_1();	//通过两图匹配估计出一个E矩阵
-	Sift_And_Estimate_H_Test_1();	//通过两图匹配估计出一个H矩阵
+	//Sift_And_Estimate_E_Test_1();	//通过两图匹配估计出一个E矩阵
+	//Sift_And_Estimate_H_Test_1();	//通过两图匹配估计出一个H矩阵
+
+	
 }
