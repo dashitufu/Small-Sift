@@ -1328,8 +1328,14 @@ void RGB_2_Gray(Image oImage, float* pImage)
 {//RGB 转换灰度图，grey=0.299r+0.587g+0.114b, 再/255.f, 对不上
 //另一条转换公式： grey=0.2126r +0.7152g +0.0722b
 	int i,iSize = oImage.m_iWidth * oImage.m_iHeight;
-	for (i = 0; i < iSize; i++)
-		pImage[i] = ((float)round(0.2126f * oImage.m_pChannel[0][i] + 0.7152 * oImage.m_pChannel[1][i] + 0.0722f * oImage.m_pChannel[2][i])) / 255.f;
+	if (oImage.m_iChannel_Count >= 3)
+		for (i = 0; i < iSize; i++)
+			pImage[i] = ((float)round(0.2126f * oImage.m_pChannel[0][i] + 0.7152 * oImage.m_pChannel[1][i] + 0.0722f * oImage.m_pChannel[2][i])) / 255.f;
+	else if (oImage.m_iChannel_Count == 1)
+		for (i = 0; i < iSize; i++)
+			pImage[i] = oImage.m_pChannel[0][i]/255.f;
+
+	
 		//pImage[i] = (0.2126f / 255.f) * oImage.m_pChannel[0][i] + (0.7152 / 255.f) * oImage.m_pChannel[1][i] + (0.0722f / 255.f) * oImage.m_pChannel[2][i];
 		//pImage[i] = (0.299f/255.f) * oImage.m_pChannel[0][i] + (0.587 / 255.f)* oImage.m_pChannel[1][i] + (0.114f / 255.f)* oImage.m_pChannel[2][i];
 	return;

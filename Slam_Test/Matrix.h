@@ -139,11 +139,12 @@ template<typename _T>void Matrix_Transpose(_T* A, int ma, int na, _T* At)
 	}
 	return;
 }
+
 template<typename _T>void Matrix_Multiply_3x3(_T A[3*3], _T B[3*3], _T C[3*3])
 {//计算C=AxB
-	Light_Ptr oPtr = oMatrix_Mem;
-	_T* C_1;
-	Malloc_1(oPtr, 3 * 3 * sizeof(_T),C_1);
+	//Light_Ptr oPtr = oMatrix_Mem;
+	_T C_1[9];
+	//Malloc_1(oPtr, 3 * 3 * sizeof(_T),C_1);
 	C_1[0] = A[0] * B[0] + A[1] * B[3] + A[2] * B[6];
 	C_1[1] = A[0] * B[1] + A[1] * B[4] + A[2] * B[7];
 	C_1[2] = A[0] * B[2] + A[1] * B[5] + A[2] * B[8];
@@ -169,6 +170,7 @@ unsigned int iGet_Random_No();
 unsigned long long iGet_Random_No_cv();
 unsigned long long iGet_Random_No_cv(unsigned long long* piState);
 int iGet_Random_No_cv(int a, int b);
+template<typename _T> _T fGet_Random_No(_T mean, _T sigma);
 
 //void Schmidt_Orthogon(float* A, int m, int n, float* B);	//施密特正交化
 template<typename _T>void Schmidt_Orthogon(_T* A, int m, int n, _T* B);
@@ -334,6 +336,7 @@ template<typename _T>void Get_Inv_Matrix_Row_Op(Sparse_Matrix<_T> oA, Sparse_Mat
 template<typename _T>void Vector_Add(_T A[], _T B[], int n, _T C[]);
 template<typename _T>void Vector_Minus(_T A[], _T B[], int n, _T C[]);
 template<typename _T> void Matrix_Multiply(_T* A, int ma, int na, _T a, _T* C);
+template<typename _T>void Matrix_Multiply_3x1(_T A[3 * 3], _T B[3], _T C[3]);
 
 template<typename _T> void Matrix_Multiply(_T* A, int ma, int na, _T* B, int nb, _T* C);
 template<typename _T> void Transpose_Multiply(_T A[], int m, int n, _T B[], int bAAt=1);
@@ -384,7 +387,7 @@ void Gen_Scale_Matrix(float Scale[3], float T[]);			//比例变换
 
 //四元数,旋转矩阵，旋转向量互换函数
 template<typename _T>void Quaternion_2_Rotation_Matrix(_T Q[4], _T R[]);	//四元数转旋转矩阵
-void Quaternion_2_Rotation_Vector(float Q[4], float V[4]);	//四元数转旋转向量
+template<typename _T>void Quaternion_2_Rotation_Vector(_T Q[4], _T V[4]);	//四元数转旋转向量
 void Quaternion_Add(float Q_1[], float Q_2[], float Q_3[]);	//四元数加
 void Quaternion_Minus(float Q_1[], float Q_2[], float Q_3[]);	//四元数减，其实这两个函数可以用普通向量加减
 void Quaternion_Conj(float Q_1[], float Q_2[]);				//简单求个共轭
@@ -438,6 +441,7 @@ void Add_Poly_Term(Polynormial* poPoly, float fCoeff, int first, ...);
 void Get_Derivation(Polynormial* poSource, int iElem, Polynormial* poDest=NULL);	//多项式对xi求导
 float fGet_Polynormial_Value(Polynormial oPoly, float x[]);	//代入x求多项式值
 
+template<typename _T>void Copy_Matrix_Partial(_T Source[], int iSource_Stride, int x, int y, _T Dest[], int m, int n);
 template<typename _T>void Copy_Matrix_Partial(_T Source[], int m, int n, _T Dest[], int iDest_Stride, int x, int y);
 float fGet_e();
 void* pMalloc(unsigned int iSize);

@@ -1,12 +1,14 @@
 //这个文件管所有独立于特殊平台的通用函数
 #pragma once
+#define WIN32
+
 #include "stdio.h"
 #include "stdlib.h"
 #include "memory.h"
 #include "sys/timeb.h"
 #include "math.h"
 #include <mutex>
-using namespace std;
+//using namespace std;
 
 #ifndef WIN32
 #include <unistd.h>	//给sleep用
@@ -128,7 +130,6 @@ template<typename _T>int bSave_PLY(const char* pcFile, _T Point[][3], int iPoint
 //Temp code 
 template<typename _T>void Temp_Load_File(const char* pcFile, _T(**ppPoint_3D_1)[3], _T(**ppPoint_3D_2)[3], int* piCount);
 template<typename _T>void Temp_Load_File_1(const char* pcFile, _T(**ppPoint_3D_1)[3], _T(**ppPoint_3D_2)[3], int* piCount);
-template<typename _T>void Temp_Load_File_2(int* piCameta_Count, int* piPoint_Count, int* piObservation_Count,
-	Point_2D<_T>** ppPoint_2D, float(**ppPoint_3D)[3], float(**ppCamera)[3 * 3]);
+template<typename _T>void Temp_Load_File_2(int* piCameta_Count, int* piPoint_Count, int* piObservation_Count, Point_2D<_T>** ppPoint_2D, _T(**ppPoint_3D)[3], _T(**ppCamera)[3 * 3]);
 //以下函数也没啥用，第九讲用
 template<typename _T>void Normalize(_T Point_3D[][3], Point_2D<_T> Point_2D[], int iPoint_Count, _T Camera[][9], int iCamera_Count);

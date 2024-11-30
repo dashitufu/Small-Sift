@@ -3,9 +3,19 @@
 #include "Matrix.h"
 #include "Image.h"
 
-typedef struct Plane {
+typedef struct Plane {	//表示一个平面？没弄好
 	float a, b, d;
 }Plane;
+
+//尝试做一个可以增加增加删除点的结构
+template<typename _T> struct Point_Cloud {
+	_T(*m_pPoint)[3];				//记录点的位置(x,y,z)
+	unsigned char (*m_pColor)[3];	//RGB
+	unsigned char *m_pBuffer;		//内存所在
+	unsigned char m_bHas_Color : 1;	//标志是否有颜色
+	int m_iMax_Count;				//m_pBuffer最多容纳多少点
+	int m_iCount;					//目前有多少点
+};
 
 typedef struct Recon_Image {	//轮到重建阶段一张图的信息
 	void* m_poFeature_Image;	//本图对应的Feature匹配图情况
@@ -28,6 +38,8 @@ typedef struct Ransac_Report {	//该结构表示Ransac结果，暂时只做到Ransac估计
 		float m_Modal_f[3 * 3];
 		unsigned char m_Modal[3 * 3 * 8];
 	};
+	//float s;	//只对求H矩阵时有效，p2 = sHp1
+
 	Ransac_Support m_oSupport;
 	unsigned char* m_pInlier_Mask;	//凡是Residual落在范围内则为1
 }Ransac_Report;
@@ -104,31 +116,63 @@ template<typename _T> struct Pose_Graph_Sigma_H {
 
 template<typename _T>struct Image_Match_Param {
 	_T(*m_pImage_Point_0)[2];
-	_T(*m_pImage_Point_1)[2];   //像素平面点对
-	_T(*m_pNorm_Point_0)[2];
-	_T(*m_pNorm_Point_1)[2];     //归一化平面点对
-	_T(*m_pPoint_3D_0)[3];
+	_T(*m_pImage_Point_1)[2];	//像素平面点对
+
+	union {
+		_T(*m_pPoint_3D_0)[3];
+		_T(*m_pPoint_3D)[3];
+	};
 	_T(*m_pPoint_3D_1)[3];
-	Image m_oImage;
+	_T(*m_pNorm_Point_0)[2];
+	_T(*m_pNorm_Point_1)[2];	//归一化平面点对
+	int m_iMatch_Count;
+	_T K[3 * 3],				//内参
+		T[4 * 4];				//外参，Image_0相对于Image_1的位姿
+	Ransac_Report m_oReport;
+	Image m_oImage_0, m_oImage_1, m_oImage_2;
+};
+
+template<typename _T> struct LM_Param {
+	unsigned short m_iIter;	//第几轮的迭代
+	unsigned char m_bStop;	//外部停止信号
+	_T Lamda;			//关键参数
+	_T m_fLoss;			//总体误差
+	_T _ni;
+	_T* m_pOrg_X;			//原来的参数
+
+	void(*Get_J)(_T*, _T*, _T*, _T*, _T*, ...);
+	_T* m_pSample_In;
+	_T* Y;
+	int m_iSample_Count;
+	unsigned char m_iIn_Dim, m_iOut_Dim;
+};
+
+template<typename _T> struct Point_2D_N_Cam {    //加上相机ID的2D点
+	_T m_Pos[2];    //位置
+	unsigned short m_iPoint_3D_ID;
+	unsigned short m_iCamera_ID;    
 };
 
 //对于E,F,H三个矩阵的估计，有一个Report，此处要有内存分配
 void Free_Report(Ransac_Report oReport, Mem_Mgr* poMem_Mgr = NULL);
 void Disp_Report(Ransac_Report oReport);
+void Disp_Ransac_Report(Ransac_Report oReport);
+
 template<typename _T>void Normalize_Point(_T(*pPoint_1)[2], _T(*pPoint_2)[2], int iCount, _T(*pNorm_Point_1)[2], _T(*pNorm_Point_2)[2], float f, float c1, float c2);
 
 template<typename _T> void Estimate_F(_T Point_1[][2], _T Point_2[][2], int iCount, _T E[3 * 3], _T(*Norm_Point_1)[2] = NULL, _T(*Norm_Point_2)[2] = NULL, Light_Ptr oPtr = { 0 });
 template<typename _T> void Estimate_E(_T Point_1[][2], _T Point_2[][2], int iCount, _T E[3 * 3], _T(*Norm_Point_1)[2] = NULL, _T(*Norm_Point_2)[2] = NULL, Light_Ptr oPtr = { 0 });
 template<typename _T> void Estimate_H(_T Point_1[][2], _T Point_2[][2], int iCount, _T H[3 * 3], _T(*Norm_Point_1)[2] = NULL, _T(*Norm_Point_2)[2] = NULL, Light_Ptr oPtr = { 0 });
 
-template<typename _T> void Ransac_Estimate_H(_T Point_1[][2], _T Point_2[][2], int iCount, Ransac_Report* poReport, Mem_Mgr* pMem_Mgr = NULL);
+template<typename _T> void Ransac_Estimate_H(_T Point_1[][2], _T Point_2[][2], int iCount, Ransac_Report* poReport, Mem_Mgr* pMem_Mgr = NULL, _T fMax_Residual = 4 * 4);
 template<typename _T> void Ransac_Estimate_E(_T Point_1[][2], _T Point_2[][2], int iCount, float f, float c1, float c2, Ransac_Report* poReport, Mem_Mgr* pMem_Mgr = NULL);
 template<typename _T> void Ransac_Estimate_F(_T Point_1[][2], _T Point_2[][2], int iCount, Ransac_Report* poReport, Mem_Mgr* pMem_Mgr = NULL);
 
 template<typename _T>void Decompose_E(_T E[3 * 3], _T R1[3 * 3], _T R2[3 * 3], _T t1[3], _T t2[3], int bNormalize_t = 1);
 template<typename _T>void Decompose_H(_T H[3 * 3], _T R1[3 * 3], _T R2[3 * 3], _T t1[3], _T t2[3], _T K1[], _T K2[]=NULL);
 
-template<typename _T>void E_2_R_t(_T E[3 * 3], _T Norm_Point_1[][2], _T Norm_Point_2[][2], int iCount, _T R[3 * 3], _T t[3], _T Point_3D[][3]=NULL, int* piCount=NULL);
+template<typename _T>void Check_Cheirality(_T Point_1[][2], _T Point_2[][2], int* piCount, _T R[], _T t[], _T Point_3d[][3], unsigned char* pInlier_Mask = NULL);
+template<typename _T>void E_2_R_t(_T E[3 * 3], _T Norm_Point_1[][2], _T Norm_Point_2[][2], int iCount, _T R[3 * 3], _T t[3], _T Point_3D[][3]=NULL, int* piCount=NULL, unsigned char *pInlier_Mask=NULL);
 template<typename _T>void E_2_R_t_Pixel_Pos(_T E[3 * 3], _T Point_1[][2], _T Point_2[][2], _T K[], int iCount, _T R[3 * 3], _T t[3], _T Point_3D[][3]);
 
 template<typename _T> void Compute_Squared_Sampson_Error(_T Point_1[][2], _T Point_2[][2], int iCount, _T E[3 * 3], _T Residual[]);
@@ -158,11 +202,14 @@ template<typename _T>void ICP_BA_2_Image_2(_T P1[][3], _T P2[][3], int iCount, _
 template<typename _T>void ICP_SVD(_T P_1[][3], _T P_2[][3], int iCount, _T Pose[], int* piResult);
 
 //此处可能要积累一大堆雅可比
+template<typename _T>void Get_Deriv_E_P(_T K[3 * 3], _T Camera[4 * 4], _T TP[3], _T J[2 * 6]);
+template<typename _T>void Get_Deriv_E_Ksi(_T K[3 * 3], _T TP[3], _T J[2 * 6]);
 template<typename _T>void Get_Deriv_TP_Ksi(_T T[4 * 4], _T P[3], _T Deriv[4 * 6]);
 template<typename _T>void Get_Drive_UV_P(_T fx, _T fy, _T P[3], _T J[2 * 3]);
 template<typename _T>void Get_Drive_UV_P(_T K[3 * 3], _T P[3], _T J[2 * 3]);
 
 template<typename _T>void Get_Delta_Pose(_T Pose_1[4 * 4], _T Pose_2[4 * 4], _T Delta_Pose[4 * 4]);
+template<typename _T>void Get_T_Inv(_T T[4 * 4], _T T_Inv[4 * 4]);//对一个位姿进行快速求逆
 
 //一组专用于存相机与点关系的函数
 template<typename _T>void Init_All_Camera_Data(Schur_Camera_Data<_T>* poData, int Point_Count_Each_Camera[], int iCamera_Count, int iPoint_Count);
@@ -186,6 +233,7 @@ template<typename _T>void Solve_Linear_Schur(Schur_Camera_Data<_T> oData, _T Sig
 template<typename _T> void Optical_Flow_1(Image oImage_1, Image oImage_2, _T KP_1[][2], _T KP_2[][2], int iCount, int* piMatch_Count, int bHas_Initial = 0, int bInverse = false);
 
 template<typename _T>void Disp_Error(_T P1[][3], _T P2[][3], int iCount, _T Pose[4 * 4]);
+template<typename _T>void Disp_T(_T T[4 * 4]);
 
 template<typename _T> void Gen_Cube(_T Cube[][4], float fScale, _T x_Center = 0, _T y_Center = 0, _T z_Center = 0);//生成一个Cube
 template<typename _T>void Gen_Cube(_T(**ppCube)[3], int* piCount, float fScale, _T x_Center = 0, _T y_Center = 0, _T z_Center = 0);
@@ -198,16 +246,32 @@ template<typename _T>void Gen_Pose(_T T[4 * 4], _T v0, _T v1, _T v2, _T theta, _
 //Temp Code
 template<typename _T> int bTemp_Load_Data(const char* pcFile, _T(**ppT)[7], int* piPoint_Count,
 	Measurement<_T>** ppMeasurement, int* piMeasure_Count);
-template<typename _T>void Match_2_Image(const char* pcFile_0, const char* pDepth_File_0, const char* pcFile_1, const char* pDepth_File_1,
+template<typename _T>void Match_2_Image(const char* pcFile_0, const char* pDepth_File_0,
+	const char* pcFile_1, const char* pDepth_File_1,
 	_T fDepth_Factor, //深度量化银子
 	_T K[],    //内参，可以是NULL
 	int* piCount,  //点对数量
 	_T(**ppImage_Point_0)[2], _T(**ppImage_Point_1)[2],   //像素平面点对
 	_T(**ppNorm_Point_0)[2], _T(**ppNorm_Point_1)[2],     //归一化平面点对
 	_T(**ppPoint_3D_0)[3], _T(**ppPoint_3D_1)[3],          //空间点对
-	Image* poImage);
+	Image* poImage_0, Image* poImage_1, Image* poImage_2);
+template<typename _T>void Estimate_2_Image_T(const char* pcFile_0, const char* pcFile_1, _T K[3 * 3], Image_Match_Param<_T>* poParam);
 
-template<typename _T>_T fGet_Error(_T Point_3D_0[][3], _T Point_3D_1[][3], _T T[], int iCount);
+template<typename _T>void Free_2_Image_Match(Image_Match_Param<_T>* poParam);
+
+template<typename _T>void Test_T(_T Point_3D[][3], _T Norm_Point_0[][2], _T T0[4 * 4], int iCount);
+template<typename _T>_T Test_T(_T Point_3D_0[][3], _T Point_3D_1[][3], _T T[], int iCount);
 template<typename _T>void DLT_svd(_T Point_3D_0[][3], _T Point_3D_1[][3], _T Norm_Point_1[][2], int iCount, _T T[]);
 template<typename _T>void DLT(_T Point_3D_0[][3], _T Point_3D_1[][3], int iCount, _T T[]);
 template<typename _T>_T fGet_Error(_T A[], int m, int n, _T X[]);
+template<typename _T>void Test_Triangulate(_T Point_3D[][3], _T Norm_Point_0[][2], _T Norm_Point_1[][2], int iCount, _T T[4 * 4], _T* pfError=NULL);
+
+//统一的BA接口
+template<typename _T>void Bundle_Adjust(_T Sample_In[], const int iIn_Dim, _T Y[], const int iOut_Dim, int iSample_Count, _T X[], int iParam_Count, _T eps,int iMax_Iter_Count,
+	void(*Get_J)(_T*, _T*, _T*, _T*, _T*,...),...);
+template<typename _T>void Init_LM_Param(LM_Param<_T>* poParam);
+template<typename _T>void Solve_Linear_LM(_T A[], int iOrder, _T b[], _T x[], int* pbResult, LM_Param<_T>* poParam);
+
+//临时声明
+template<typename _T>int bTemp_Load_Data(char* pcFile, _T(**ppCamera)[4 * 4], int* piCamera_Count, _T** ppDepth);;
+template<typename _T>_T NCC(Image oRef, Image oCur, int x1, int y1, _T x2, _T y2);

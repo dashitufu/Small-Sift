@@ -1,9 +1,10 @@
+#include "Common.h"
 #ifdef WIN32
 	#include "io.h"
 	#include "windows.h"
 #endif
 
-#include "Common.h"
+
 
 //unsigned long long iGet_File_Length(char* pcFile)
 //{//return: >-0 if success; -1 if fail
@@ -34,7 +35,6 @@ void Init_BitPtr(BitPtr* poBitPtr, unsigned char* pBuffer, int iSize)
 	poBitPtr->m_iEnd = iSize;
 	poBitPtr->m_pBuffer = pBuffer;
 }
-
 
 int iGetBits(BitPtr* poBitPtr, int iLen)
 {
@@ -237,7 +237,7 @@ template<typename _T>int iAdjust_Left(_T* pStart, _T* pEnd)
 	return (int)(pCur_Right - pStart);
 }
 
-template<typename _T> _T oGet_Nth_Elem(_T Seq[],int iCount, int iStart, int iEnd, int iNth)
+template<typename _T> _T oGet_Nth_Elem(_T Seq[],int iCount, int iStart, int iEnd, int iNth,int bAdjust_Pos=0)
 {//取第n大元素，用Quick_Sort的Partition做
 	int iPos;
 	if (iStart < iEnd)
@@ -251,7 +251,7 @@ template<typename _T> _T oGet_Nth_Elem(_T Seq[],int iCount, int iStart, int iEnd
 			return Seq[iPos];
 	}else
 	{//此时又分奇偶两种情况
-		if(iCount&1)
+		if(iCount&1 || !bAdjust_Pos)
 			return Seq[iStart];	//奇数好办，返回便是
 		else //偶数的还要往前找最大值
 		{

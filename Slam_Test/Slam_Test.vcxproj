@@ -222,7 +222,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>Default</ConformanceMode>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions512</EnableEnhancedInstructionSet>
       <CCppSupport>
@@ -278,7 +278,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <FloatingPointModel>Precise</FloatingPointModel>
     </ClCompile>
@@ -315,7 +315,7 @@
     <ClCompile Include="Image.cpp" />
     <ClCompile Include="Matrix.cpp" />
     <ClCompile Include="Reconstruct.cpp" />
-    <ClCompile Include="Reconstruct_Test_1.cpp" />
+    <ClCompile Include="Lie_Test.cpp" />
     <ClCompile Include="sift.cpp" />
     <ClCompile Include="Slam_Test.cpp" />
   </ItemGroup>

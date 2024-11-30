@@ -39,7 +39,7 @@
     <ClCompile Include="Example.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Reconstruct_Test_1.cpp">
+    <ClCompile Include="Lie_Test.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

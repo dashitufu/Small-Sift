@@ -4,6 +4,7 @@
 #include "Common.h"		
 #include "sift.h"
 #include "Image.h"
+using namespace std;
 
 #define VL_SIFT_BILINEAR_ORIENTATIONS 1
 typedef struct Sift_Keypoint {//πÿº¸µ„
@@ -1600,7 +1601,7 @@ static void Copy_Desc(Sift_Image Sift_Image_Arr[], int iImage_Count, unsigned ch
 
 int iGet_Distance_AVX512(unsigned char A[], unsigned char  B[])
 {//º∆À„≈∑ œæ‡¿Î
-#pragma pack(128)
+#pragma pack(16)
 	register __m512i Value_32;
 	register __m512i Sum;
 	union {
@@ -1947,7 +1948,7 @@ template<typename _T>void Sift_Match_2_Image(const char* pcFile_1, const char* p
 	float* pImage;
 	int i, iSift_Size, iMax_Size;
 	unsigned char* pBuffer;
-	Init_Mem_Mgr(&oMem_Mgr, 100000000, 1024, 997);
+	Init_Mem_Mgr(&oMem_Mgr, 1000000000, 1024, 997);
 	if (!oMem_Mgr.m_pBuffer)
 		return;
 
