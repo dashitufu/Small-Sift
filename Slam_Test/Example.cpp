@@ -29,10 +29,7 @@ void SB_Sample()
 
 	Temp_Load_File_1(NULL, (double(**)[3])NULL, (double(**)[3])NULL, NULL);
 	Temp_Load_File_1(NULL, (float(**)[3])NULL, (float(**)[3])NULL, NULL);
-
-	Temp_Load_File_2(NULL, NULL, NULL, (Point_2D<double>**)NULL,(double(**)[3])NULL,(double(**)[9])NULL);
-	Temp_Load_File_2(NULL, NULL, NULL, (Point_2D<float>**)NULL, (float(**)[3])NULL, (float(**)[9])NULL);
-
+	
 }
 
 //static void Test_2()
@@ -2031,49 +2028,7 @@ template<typename _T>void Temp_Load_File(const char* pcFile, _T(**ppPoint_3D_1)[
 	return;
 }
 
-template<typename _T>void Temp_Load_File_2(int* piCameta_Count, int* piPoint_Count, int* piObservation_Count, Point_2D<_T>** ppPoint_2D, _T(**ppPoint_3D)[3], _T(**ppCamera)[3 * 3])
-{//这次装入problem-16-22106-pre.txt。搞个好点的数据结构指出匹配关系
 
-	int i, iCamera_Count, iPoint_Count, iObservation_Count;
-	_T(*pPoint_3D)[3], (*pCamera)[3 * 3];
-	Point_2D<_T>* pPoint_2D;
-	char* pcFile = (char*)"c:\\tmp\\temp\\problem-16-22106-pre.txt";	//"Sample\\problem-16-22106-pre.txt";
-	FILE* pFile = fopen(pcFile, "rb");
-	i = fscanf(pFile, "%d %d %d\n", &iCamera_Count, &iPoint_Count, &iObservation_Count);
-	pPoint_2D = (Point_2D<_T>*)malloc(iObservation_Count * 2 * sizeof(Point_2D<_T>));
-	pPoint_3D = (_T(*)[3])malloc(iPoint_Count * 3 * sizeof(_T));
-	pCamera = (_T(*)[3 * 3])malloc(iCamera_Count * 16 * sizeof(_T));
-
-	for (i = 0; i < iObservation_Count; i++)
-	{
-		float xy[2];
-		fscanf(pFile, "%d %d %f %f", &pPoint_2D[i].m_iCamera_Index, &pPoint_2D[i].m_iPoint_Index, &xy[0], &xy[1]);
-		pPoint_2D[i].m_Pos[0] = xy[0], pPoint_2D[i].m_Pos[1] = xy[1];
-		//fscanf(pFile, "%d %d %f %f", &pPoint_2D[i].m_iCamera_Index, &pPoint_2D[i].m_iPoint_Index, &pPoint_2D[i].m_Pos[0], &pPoint_2D[i].m_Pos[1]);
-	}
-		
-	int iResult;
-	for (i = 0; i < iCamera_Count; i++)
-		for (int j = 0; j < 9; j++)
-			if(sizeof(_T)==4)
-				iResult=fscanf(pFile, "%f", (float*)&pCamera[i][j]);
-			else
-				iResult=fscanf(pFile, "%lf", (double*)&pCamera[i][j]);
-	for (i = 0; i < iPoint_Count; i++)
-		if(sizeof(_T)==4)
-			fscanf(pFile, "%f %f %f ",(float*)&pPoint_3D[i][0], (float*)&pPoint_3D[i][1], (float*)&pPoint_3D[i][2]);
-		else
-			fscanf(pFile, "%lf %lf %lf ", (double*)&pPoint_3D[i][0], (double*)&pPoint_3D[i][1], (double*)&pPoint_3D[i][2]);
-	fclose(pFile);
-	*piCameta_Count = iCamera_Count;
-	*piPoint_Count = iPoint_Count;
-	*piObservation_Count = iObservation_Count;
-	*ppPoint_2D = pPoint_2D;
-	*ppPoint_3D = pPoint_3D;
-	*ppCamera = pCamera;
-	//Disp((_T*)pCamera, 16, 9, "Camera");
-	return;
-}
 template<typename _T>void Normalize(_T Point_3D[][3], Point_2D<_T> Point_2D[], int iPoint_Count, _T Camera[][9], int iCamera_Count)
 {
 	_T fScale, Mid[3], * pPoint_1D = (_T*)pMalloc(&oMatrix_Mem, iPoint_Count * sizeof(_T));
@@ -5512,7 +5467,7 @@ template<typename _T>void BA_PnP_3D_2D_Pose_Get_J(_T Point_3D[3],_T Camera[4*4],
 template<typename _T>void BA_PnP_3D_2D_Pose_LM(
 	_T A[],int iOrder, _T b[],  _T x[],  LM_Param<_T> *poParam,int *pbResult,  //第一部分参数，解方程必备
 	//第二部分参数，该问题的额外需要数据
-	_T Camera_4x4[][16],int iCamera_Count, _T K[], _T Point_3D[][3], int iPoint_3D_Count, Point_2D_N_Cam<_T> Point_2D[],int iPoint_2D_Count)
+	_T Camera_4x4[][16],int iCamera_Count, _T K[], _T Point_3D[][3], int iPoint_3D_Count, Point_2D<_T> Observation_2D[],int iPoint_2D_Count)
 {//为BA_PnP_3D_2D_Pose提供LM解线性方程
  //先用g2o验证一下收敛与精度
 	int i, bResult = 1;
@@ -5521,6 +5476,7 @@ template<typename _T>void BA_PnP_3D_2D_Pose_LM(
 	_T Buffer[iMax_Size],
 		*f = Buffer;
 
+	//Disp(A, iOrder, iOrder, "A");
 	//Disp(b, 1, 3, "b");
 	if (oParam.m_iIter == 0)
 	{//第一次，特殊对待,取对角线最大值		
@@ -5561,10 +5517,10 @@ template<typename _T>void BA_PnP_3D_2D_Pose_LM(
 		_T fSum_e = 0;
 		for (i = 0; i < iPoint_2D_Count; i++)
 		{
-			Point_2D_N_Cam<_T> oPoint_2D = Point_2D[i];
+			Point_2D<_T> oPoint_2D = Observation_2D[i];
 			_T E[2];
-			BA_PnP_3D_2D_Pose_Get_J(Point_3D[oPoint_2D.m_iPoint_3D_ID],
-				pCamera_1[oPoint_2D.m_iCamera_ID], K, oPoint_2D.m_Pos, (_T*)NULL, E);
+			BA_PnP_3D_2D_Pose_Get_J(Point_3D[oPoint_2D.m_iPoint_Index],
+				pCamera_1[oPoint_2D.m_iCamera_Index], K, oPoint_2D.m_Pos, (_T*)NULL, E);
 			fSum_e += E[0] * E[0] + E[1] * E[1];    //得到误差
 		}
 		//printf("%f\n",fSum_e);
@@ -5618,7 +5574,7 @@ template<typename _T>void BA_PnP_3D_2D_Pose_LM(
 	return;
 }
 
-template<typename _T>void BA_PnP_3D_2D_Pose(_T Camera[][16], int iCamera_Count,_T K[],_T Point_3D[][3],int iPoint_3D_Count, Point_2D_N_Cam<_T> Observation_2D[],int iObservation_Count, _T fLoss_eps = (_T)1e-10)
+template<typename _T>void BA_PnP_3D_2D_Pose(_T Camera[][16], int iCamera_Count,_T K[],_T Point_3D[][3],int iPoint_3D_Count, Point_2D<_T> Observation_2D[],int iObservation_Count, _T fLoss_eps = (_T)1e-10)
 {//一个BA的标准形式，专门解决位姿估计
  //Camera: 所有的相机位姿，以4x4矩阵表示 
  //Point_3D： 可能有噪声的空间点位置
@@ -5650,15 +5606,15 @@ template<typename _T>void BA_PnP_3D_2D_Pose(_T Camera[][16], int iCamera_Count,_
 		memset(Sigma_JtE, 0, iJ_w * sizeof(_T));
 		for (i = 0; i < iObservation_Count; i++)
 		{
-			Point_2D_N_Cam<_T> oPoint_2D = Observation_2D[i];
+			Point_2D<_T> oPoint_2D = Observation_2D[i];
 			_T E[2],J_E_Ksi[2*6];
-			BA_PnP_3D_2D_Pose_Get_J(Point_3D[oPoint_2D.m_iPoint_3D_ID],
-				Camera[oPoint_2D.m_iCamera_ID],K, oPoint_2D.m_Pos,J_E_Ksi, E);
-			//Disp(J, 2, 6, "J");
+			BA_PnP_3D_2D_Pose_Get_J(Point_3D[oPoint_2D.m_iPoint_Index],
+				Camera[oPoint_2D.m_iCamera_Index],K, oPoint_2D.m_Pos,J_E_Ksi, E);
+			//Disp(J_E_Ksi, 2, 6, "de/dksi");
 			fSum_e += E[0] * E[0] + E[1] * E[1];    //得到误差
 
 			memset(J, 0, 2 * iJ_w * sizeof(_T));
-			Copy_Matrix_Partial(J_E_Ksi, 2, 6, J, iJ_w, oPoint_2D.m_iCamera_ID * 6, 0);
+			Copy_Matrix_Partial(J_E_Ksi, 2, 6, J, iJ_w, oPoint_2D.m_iCamera_Index * 6, 0);
 
 			//累加Sigma_H，可以证明，步步求和和最后将全部J进行A'A计算相等
 			Transpose_Multiply(J, 2, iJ_w, JtJ, 0);
@@ -5739,7 +5695,7 @@ void Pose_Estimate_Test_1()
 
 	//_T(*pPoint_2D_Ref)[iCamera_Count][2] = //空间点在每个相机像素平面上的投影
 	//    (_T(*)[iCamera_Count][2])pMalloc(iPoint_Count * iCamera_Count * 2 * sizeof(_T));
-	Point_2D_N_Cam<_T>* pObservation_2D = (Point_2D_N_Cam<_T>*)pMalloc(iPoint_Count * iCamera_Count * sizeof(Point_2D_N_Cam<_T>));
+	Point_2D<_T>* pObservation_2D = (Point_2D<_T>*)pMalloc(iPoint_Count * iCamera_Count * sizeof(Point_2D<_T>));
 	for (i = 0; i < iPoint_Count; i++)
 	{
 		const int Recip = 1234567;
@@ -5761,8 +5717,8 @@ void Pose_Estimate_Test_1()
 			Point_2D[0] += (_T)((int)iGet_Random_No() % Recip) / Recip,
 				Point_2D[1] += (_T)((int)iGet_Random_No() % Recip) / Recip;
 			//Disp(Point_2D, 1, 2, "Point_2D");
-			pObservation_2D[i*iCamera_Count+j].m_iCamera_ID = j;
-			pObservation_2D[i*iCamera_Count+j].m_iPoint_3D_ID = i;
+			pObservation_2D[i*iCamera_Count+j].m_iCamera_Index = j;
+			pObservation_2D[i*iCamera_Count+j].m_iPoint_Index = i;
 			memcpy(pObservation_2D[i*iCamera_Count+j].m_Pos, Point_2D, 2 * sizeof(_T));
 		}
 	}
@@ -5811,7 +5767,7 @@ template<typename _T>void BA_PnP_3D_2D_Pose_N_Point_Get_J(_T Point_3D[3],_T Came
 template<typename _T>void BA_PnP_3D_2D_Pose_N_Point_LM(
 	_T A[], int iOrder, _T b[], _T x[], LM_Param<_T>* poParam, int* pbResult,  //第一部分参数，解方程必备
 	//第二部分参数，该问题的额外需要数据
-	_T Camera_4x4[][16], int iCamera_Count, _T K[], _T Point_3D[][3], int iPoint_3D_Count, Point_2D_N_Cam<_T> Point_2D[], int iPoint_2D_Count)
+	_T Camera_4x4[][16], int iCamera_Count, _T K[], _T Point_3D[][3], int iPoint_3D_Count, Point_2D<_T> Observation_2D[], int iPoint_2D_Count)
 {//对位姿与点联合优化解LM
 
 	int i, bResult = 1;
@@ -5871,10 +5827,10 @@ template<typename _T>void BA_PnP_3D_2D_Pose_N_Point_LM(
 		_T fSum_e = 0;
 		for (i = 0; i < iPoint_2D_Count; i++)
 		{
-			Point_2D_N_Cam<_T> oPoint_2D = Point_2D[i];
+			Point_2D<_T> oPoint_2D = Observation_2D[i];
 			_T E[2];
-			BA_PnP_3D_2D_Pose_N_Point_Get_J(pPoint_3D_1[oPoint_2D.m_iPoint_3D_ID],
-				pCamera_1[oPoint_2D.m_iCamera_ID],K, oPoint_2D.m_Pos,(_T*)NULL,(_T*)NULL, E);
+			BA_PnP_3D_2D_Pose_N_Point_Get_J(pPoint_3D_1[oPoint_2D.m_iPoint_Index],
+				pCamera_1[oPoint_2D.m_iCamera_Index],K, oPoint_2D.m_Pos,(_T*)NULL,(_T*)NULL, E);
 			fSum_e += E[0] * E[0] + E[1] * E[1];    //得到误差
 		}
 		//printf("%f\n",fSum_e);
@@ -5929,7 +5885,7 @@ template<typename _T>void BA_PnP_3D_2D_Pose_N_Point_LM(
 	return;
 }
 
-template<typename _T>void BA_PnP_3D_2D_Pose_N_Point(_T Camera[][16], int iCamera_Count, _T K[], _T Point_3D[][3], int iPoint_3D_Count, Point_2D_N_Cam<_T> Observation_2D[], int iObservation_Count, _T fLoss_eps = (_T)1e-10)
+template<typename _T>void BA_PnP_3D_2D_Pose_N_Point(_T Camera[][16], int iCamera_Count, _T K[], _T Point_3D[][3], int iPoint_3D_Count, Point_2D<_T> Observation_2D[], int iObservation_Count, _T fLoss_eps = (_T)1e-10)
 {//一个BA的标准形式，专门解决位姿估计
  //Camera: 所有的相机位姿，以4x4矩阵表示 
  //Point_3D： 可能有噪声的空间点位置
@@ -5960,18 +5916,18 @@ template<typename _T>void BA_PnP_3D_2D_Pose_N_Point(_T Camera[][16], int iCamera
 		memset(Sigma_JtE, 0, iJ_w * sizeof(_T));
 		for (i = 0; i < iObservation_Count; i++)
 		{
-			Point_2D_N_Cam<_T> oPoint_2D = Observation_2D[i];
+			Point_2D<_T> oPoint_2D = Observation_2D[i];
 			_T E[2],J_E_Ksi[2*6], J_E_P[2*3];
-			BA_PnP_3D_2D_Pose_N_Point_Get_J(Point_3D[oPoint_2D.m_iPoint_3D_ID],
-				Camera[oPoint_2D.m_iCamera_ID],K, oPoint_2D.m_Pos,J_E_Ksi,J_E_P, E);
+			BA_PnP_3D_2D_Pose_N_Point_Get_J(Point_3D[oPoint_2D.m_iPoint_Index],
+				Camera[oPoint_2D.m_iCamera_Index],K, oPoint_2D.m_Pos,J_E_Ksi,J_E_P, E);
 			/*Disp(J_E_Ksi, 2, 6, "de/dksi");
 			Disp(J_E_P, 2, 3, "de/dP");*/
 			//Disp(J, 2, 6, "J");
 			fSum_e += E[0] * E[0] + E[1] * E[1];    //得到误差
 
 			memset(J, 0, 2 * iJ_w * sizeof(_T));
-			Copy_Matrix_Partial(J_E_Ksi, 2, 6, J, iJ_w, oPoint_2D.m_iCamera_ID * 6, 0);
-			Copy_Matrix_Partial(J_E_P, 2, 3, J, iJ_w, iCamera_Count * 6 + oPoint_2D.m_iPoint_3D_ID * 3, 0);
+			Copy_Matrix_Partial(J_E_Ksi, 2, 6, J, iJ_w, oPoint_2D.m_iCamera_Index * 6, 0);
+			Copy_Matrix_Partial(J_E_P, 2, 3, J, iJ_w, iCamera_Count * 6 + oPoint_2D.m_iPoint_Index * 3, 0);
 			/*if(i==2)
 			Disp(J, 2, iJ_w, "J");*/
 
@@ -6058,7 +6014,7 @@ void Pose_Estimate_Test_2()
 
 	//_T(*pPoint_2D_Ref)[iCamera_Count][2] = //空间点在每个相机像素平面上的投影
 	//    (_T(*)[iCamera_Count][2])pMalloc(iPoint_Count * iCamera_Count * 2 * sizeof(_T));
-	Point_2D_N_Cam<_T>* pObservation_2D = (Point_2D_N_Cam<_T>*)pMalloc(iPoint_Count * iCamera_Count * sizeof(Point_2D_N_Cam<_T>));
+	Point_2D<_T>* pObservation_2D = (Point_2D<_T>*)pMalloc(iPoint_Count * iCamera_Count * sizeof(Point_2D<_T>));
 	for (i = 0; i < iPoint_Count; i++)
 	{
 		const int Recip = 1234567;
@@ -6080,8 +6036,8 @@ void Pose_Estimate_Test_2()
 			Point_2D[0] += (double)((int)iGet_Random_No() % Recip) / Recip,
 				Point_2D[1] += (double)((int)iGet_Random_No() % Recip) / Recip;
 			//Disp(Point_2D, 1, 2, "Point_2D");
-			pObservation_2D[i*iCamera_Count+j].m_iCamera_ID = j;
-			pObservation_2D[i*iCamera_Count+j].m_iPoint_3D_ID = i;
+			pObservation_2D[i*iCamera_Count+j].m_iCamera_Index = j;
+			pObservation_2D[i*iCamera_Count+j].m_iPoint_Index = i;
 			memcpy(pObservation_2D[i*iCamera_Count+j].m_Pos, Point_2D, 2 * sizeof(_T));
 		}
 	}
@@ -6097,6 +6053,853 @@ void Pose_Estimate_Test_2()
 	Free(pObservation_2D);
 }
 
+//template<typename _T>static void BA_PnP_3D_2D_Pose_N_Point_1_Get_J(_T Point_3D[3],_T Camera[4*4],_T K[3*3],_T Point_2D[2],_T J_E_Ksi[2*6], _T J_E_P[2*3], _T E[2])
+//{//根据相机位置，观察点，观察数据算个雅可比与误差
+//	_T Point_4D[4] = {Point_3D[0],Point_3D[1],Point_3D[2],1};
+//	_T Point_3D_1[4];
+//	union {
+//		_T Point_2D_1[3];
+//		_T J_UV_TP[2 * 3];  //duv/dP'
+//	};    
+//	Matrix_Multiply(Camera, 4, 4, Point_4D, 1, Point_3D_1);
+//	if (E)
+//	{
+//		Matrix_Multiply(K, 3, 3, Point_3D_1, 1, Point_2D_1);
+//		Point_2D_1[0] /= Point_2D_1[2];
+//		Point_2D_1[1] /= Point_2D_1[2];
+//		E[0] = Point_2D_1[0] - Point_2D[0];
+//		E[1] = Point_2D_1[1] - Point_2D[1];
+//	}
+//
+//	if (J_E_Ksi && J_E_P)
+//	{//再算位姿的雅可比
+//	 //方法2，一步到位， = de/dP' * dP'/dksi = duv/dP' * dP'/dksi
+//		Get_Deriv_E_Ksi(K, Point_3D_1, J_E_Ksi);
+//		Get_Deriv_E_P(K, Camera, Point_3D_1, J_E_P);        
+//		//留心看两个雅可比，可以看出有大量重合数据，还可以对求导进一步优化计算
+//	}
+//	/*Disp(J_E_Ksi, 2, 6, "de/dksi");
+//	Disp(J_E_P, 2, 3, "de/dP");*/
+//	return;
+//}
+//
+//template<typename _T>static void BA_PnP_3D_2D_Pose_N_Point_1_LM(
+//	_T A[], int iOrder, _T b[], _T x[], LM_Param<_T>* poParam, int* pbResult,  //第一部分参数，解方程必备
+//	//第二部分参数，该问题的额外需要数据
+//	_T Camera_4x4[][16], int iCamera_Count, _T K[][3*3], _T Point_3D[][3], int iPoint_3D_Count, Point_2D<_T> Observation_2D[], int iPoint_2D_Count)
+//{//对位姿与点联合优化解LM
+//
+//	int i, bResult = 1;
+//	LM_Param<_T> oParam = *poParam;
+//	const int iMax_Size = 256;
+//	_T Buffer[iMax_Size],
+//		*f = Buffer;
+//
+//	//Disp(b, 1, 3, "b");
+//	if (oParam.m_iIter == 0)
+//	{//第一次，特殊对待,取对角线最大值		
+//		_T tau = (_T)1e-5, fMax = (_T)0.f;
+//		for (i = 0; i < iOrder; i++)
+//			if (Abs(A[i * iOrder + i]) > fMax)
+//				fMax = Abs(A[i * iOrder + i]);
+//		//第一次迭代的时候，Lamda定位 0.00001*对角线最大元
+//		oParam.Lamda = tau * fMax;
+//		oParam._ni = 2;
+//	}
+//
+//	_T rho = 0;
+//	int	qmax = 0;
+//	_T(*pCamera_1)[4 * 4] = (_T(*)[4 * 4])pMalloc(iCamera_Count * 16 * sizeof(_T));
+//	_T(*pPoint_3D_1)[3] = (_T(*)[3])pMalloc(iPoint_3D_Count * 3 * sizeof(_T));
+//
+//	do {
+//		//oParam.Lamda = 1;     //临时设置一下
+//
+//		//解分方程看看        
+//		Add_I_Matrix(A, iOrder, oParam.Lamda);
+//		//printf("Lamda:%f\n", oParam.Lamda);
+//		Solve_Linear_Gause(A, iOrder, b, x, &bResult);
+//		//Disp(A, iOrder, iOrder, "A");
+//		//Disp(b, 1, iOrder, "b");
+//		//Disp(x, 1, iOrder, "Delta_X");
+//		// 
+//		//恢复方程
+//		Add_I_Matrix(A, iOrder, -oParam.Lamda);
+//
+//		memcpy(pCamera_1, Camera_4x4, iCamera_Count*16 * sizeof(_T));
+//		memcpy(pPoint_3D_1, Point_3D, iPoint_3D_Count * 3 * sizeof(_T));
+//
+//		//先更新一下Camera,即把x加上去
+//		for (i = 0; i < iCamera_Count; i++)
+//		{
+//			_T* pCamera_Delta_6 = &x[i * 6];
+//			_T Camera_Delta_4x4[4 * 4]; 
+//			se3_2_SE3(pCamera_Delta_6, Camera_Delta_4x4);
+//			Matrix_Multiply(Camera_Delta_4x4, 4, 4, pCamera_1[i], 4, pCamera_1[i]);
+//		}
+//
+//		//再更新一下点位置，把x加上去
+//		_T* x1 = x + iCamera_Count * 6;
+//		for (i = 0; i < iPoint_3D_Count; i++)
+//			Vector_Add(pPoint_3D_1[i], &x1[i * 3], 3,pPoint_3D_1[i] );
+//
+//		//再将所有的点算一遍，求误差
+//		_T fSum_e = 0;
+//		for (i = 0; i < iPoint_2D_Count; i++)
+//		{
+//			Point_2D<_T> oPoint_2D = Observation_2D[i];
+//			_T E[2];
+//			BA_PnP_3D_2D_Pose_N_Point_1_Get_J(pPoint_3D_1[oPoint_2D.m_iPoint_Index],
+//				pCamera_1[oPoint_2D.m_iCamera_Index],K[oPoint_2D.m_iCamera_Index], oPoint_2D.m_Pos, (_T*)NULL, (_T*)NULL, E);
+//			fSum_e += E[0] * E[0] + E[1] * E[1];    //得到误差
+//		}
+//		//printf("%f\n",fSum_e);
+//
+//		if (!bResult)   //没啥营养，就是为了跳出
+//			fSum_e = std::numeric_limits<_T>::max();
+//
+//		//rho不过是个表示发散/收敛程度的参数
+//		rho = (oParam.m_fLoss - fSum_e);
+//
+//		//搞个scale
+//		_T fScale;
+//		if (bResult)
+//		{
+//			fScale = (_T)1e-3;
+//			//从此处可以看出，Scale在解方程成功的时候起作用
+//			//可以想象，x就是增长步长，不断收敛，故此，fScale也不断减少
+//			for (int i = 0; i < iOrder; i++)
+//				fScale += x[i] * (oParam.Lamda * x[i] + b[i]);
+//		}else
+//			fScale = 1;
+//
+//		rho /= fScale;  //显然, rho>0时表示解收敛
+//		if (rho > 0 && std::_Is_finite(fSum_e) && bResult)
+//		{//本次迭代的最后一次
+//		 //fScale递减，rho增大，pow增大，alpha减少，scaleFactor减少
+//			_T alpha = (_T)(1. - pow((2 * rho - 1), 3));
+//			alpha = Min(alpha, 2.f/3.f);
+//			_T scaleFactor = Max(1.f/3.f, alpha);
+//
+//			//可见，scaleFactor在[1/3,2/3]之间，Lamda必然缩小
+//			oParam.Lamda *= scaleFactor;
+//			oParam._ni = 2;
+//			oParam.m_fLoss = fSum_e;
+//		} else
+//		{
+//			//加入对角线调整失败，则继续改下去
+//			oParam.Lamda*=oParam._ni;     //等于将原来的Lamda增大_ni倍，_ni则成倍增大  
+//			oParam._ni *= 2;            //理论上，对_ni加倍增大
+//			if (!std::_Is_finite(oParam.Lamda)) 
+//				break;
+//		}
+//		qmax++;
+//	}while (rho < 0  && qmax<10 && !poParam->m_bStop);	//此处本来还有个外部干涉信号可控制停止
+//	*pbResult = bResult;
+//	//若成功，则直接更新Camera,Point_3D了事，省了后续的更新
+//	memcpy((_T*)Camera_4x4, pCamera_1, iCamera_Count * 16 * sizeof(_T));
+//	memcpy((_T*)Point_3D, pPoint_3D_1, iPoint_3D_Count * 3 * sizeof(_T));
+//	*poParam = oParam;
+//	Free(pCamera_1);
+//	Free(pPoint_3D_1);
+//	return;
+//}
+//
+//template<typename _T>static void BA_PnP_3D_2D_Pose_N_Point_1(_T Camera[][16], int iCamera_Count, _T K[][9], _T Point_3D[][3], int iPoint_3D_Count, Point_2D<_T> Observation_2D[], int iObservation_Count, _T fLoss_eps = (_T)1e-20)
+//{//一个BA的标准形式，专门解决位姿估计
+// //Camera: 所有的相机位姿，以4x4矩阵表示 
+// //Point_3D： 可能有噪声的空间点位置
+// //Point_2D, 各个相机对应的2D点
+//	int i,iIter,iResult;
+//	//for (i = 0; i < iObservation_Count; i++)
+//	//    printf("Camera:%d Point_3D:%d\n", Observation_2D[i].m_iCamera_Index, Observation_2D[i].m_iPoint_Index);
+//
+//	const int iJ_w = iCamera_Count * 6 + iPoint_3D_Count * 3;
+//	_T* J = (_T*)pMalloc(iJ_w * 2 * sizeof(_T)),
+//		* Jt = (_T*)pMalloc(iJ_w * 2 * sizeof(_T)),
+//		* JtE = (_T*)pMalloc(iJ_w * sizeof(_T)),
+//		* Delta_X = (_T*)pMalloc(iJ_w * sizeof(_T)),
+//		* Sigma_JtE = (_T*)pMalloc(iJ_w * sizeof(_T)),
+//		* Sigma_H = (_T*)pMalloc(iJ_w * iJ_w * sizeof(_T)),
+//		* JtJ = (_T*)pMalloc(iJ_w * iJ_w * sizeof(_T));
+//
+//	_T fSum_e = 0, fSum_e_Pre = (_T)1e20;
+//	LM_Param<_T> oLM_Param;
+//	Init_LM_Param(&oLM_Param);
+//
+//	_T fLoss_Diff_eps = 1e-2;
+//	fLoss_Diff_eps*= iObservation_Count;   //两次之间的差，与点数有关，点数越多，eps越大
+//
+//	for (iIter = 0;; iIter++)
+//	{
+//		fSum_e = 0;
+//		memset(Sigma_H, 0, iJ_w * iJ_w * sizeof(_T));
+//		memset(Sigma_JtE, 0, iJ_w * sizeof(_T));
+//		for (i = 0; i < iObservation_Count; i++)
+//		{
+//			Point_2D<_T> oPoint_2D = Observation_2D[i];
+//			_T E[2],J_E_Ksi[2*6], J_E_P[2*3];
+//			/*if (oPoint_2D.m_iPoint_Index > iPoint_3D_Count)
+//			printf("error");*/
+//			BA_PnP_3D_2D_Pose_N_Point_1_Get_J(Point_3D[oPoint_2D.m_iPoint_Index],
+//				Camera[oPoint_2D.m_iCamera_Index],K[oPoint_2D.m_iCamera_Index], oPoint_2D.m_Pos, J_E_Ksi, J_E_P, E);
+//			/*Disp(J_E_Ksi, 2, 6, "de/dksi");
+//			Disp(J_E_P, 2, 3, "de/dP");*/
+//			//Disp(J, 2, 6, "J");
+//			fSum_e += E[0] * E[0] + E[1] * E[1];    //得到误差
+//
+//			memset(J, 0, 2 * iJ_w * sizeof(_T));
+//			Copy_Matrix_Partial(J_E_Ksi, 2, 6, J, iJ_w, oPoint_2D.m_iCamera_Index * 6, 0);
+//			Copy_Matrix_Partial(J_E_P, 2, 3, J, iJ_w, iCamera_Count * 6 + oPoint_2D.m_iPoint_Index * 3, 0);
+//			/*if(i==2)
+//			Disp(J, 2, iJ_w, "J");*/
+//
+//			//累加Sigma_H
+//			Transpose_Multiply(J, 2, iJ_w, JtJ, 0);
+//			Matrix_Add(Sigma_H, JtJ, iJ_w, Sigma_H);
+//			//Disp(Sigma_H, iJ_w, iJ_w, "Sigma_H");
+//
+//			//累加Sigma_JtE;
+//			Matrix_Transpose(J, 2, iJ_w, Jt);
+//			Matrix_Multiply(Jt, iJ_w, 2, E, 1, JtE);
+//			Vector_Add(Sigma_JtE, JtE, iJ_w, Sigma_JtE);
+//		}
+//		printf("iIter:%d %e\n", iIter, 0.5f*fSum_e);
+//
+//		//加上负号，右边才是 -J'E
+//		Matrix_Multiply(Sigma_JtE, 1, iJ_w, (_T)-1, Sigma_JtE);
+//
+//		//Add_I_Matrix(Sigma_H, iJ_w, (_T)1);
+//		////方法1，解方程方法
+//		//Solve_Linear_Gause(Sigma_H, iJ_w, Sigma_JtE, Delta_X, &iResult);
+//		//Disp(Delta_X, 1, iJ_w, "Delta_X");
+//		//Disp(Sigma_H, iJ_w, iJ_w, "Sigma_H");
+//		//Disp(Sigma_JtE, 1, iJ_w, "Sigma_JtE");
+//
+//		//方法2，LM方法
+//		oLM_Param.m_fLoss = fSum_e, oLM_Param.m_iIter = iIter;
+//		BA_PnP_3D_2D_Pose_N_Point_1_LM(Sigma_H, iJ_w, Sigma_JtE, Delta_X, &oLM_Param, &iResult,
+//			Camera,iCamera_Count, K, Point_3D, iPoint_3D_Count, Observation_2D, iObservation_Count);
+//
+//		if (!iResult)
+//		{
+//			printf("Bundle Adjust LM解失败\n");
+//			break;
+//		}
+//		if (fSum_e<=oLM_Param.m_fLoss  || oLM_Param.m_fLoss < fLoss_eps || Abs(oLM_Param.m_fLoss-fSum_e)<fLoss_Diff_eps)
+//			break;
+//		fSum_e_Pre = oLM_Param.m_fLoss;
+//	}
+//
+//	Free(J);
+//	Free(Jt);
+//	Free(JtE);
+//	Free(Delta_X);
+//	Free(Sigma_JtE);
+//	Free(Sigma_H);
+//	Free(JtJ);
+//}
+
+template<typename _T>static void BA_PnP_3D_2D_Pose_N_Point_1_Get_J(_T Point_3D[3], _T Camera[4 * 4], _T Intrinsic[3], _T Point_2D[2], _T J_E_Ksi[2 * 6], _T J_E_Intrin[2 * 3], _T J_E_P[2 * 3], _T E[2])
+{//根据相机位置，观察点，观察数据算个雅可比与误差
+ //这个映射有些奇怪，用反像
+ //P'= TP
+ //u = -f * d * P'x/P'z
+ //v = -f * d * P'y/P'z
+	_T Point_4D[4] = {Point_3D[0],Point_3D[1],Point_3D[2],1};
+	_T TP[4];
+
+	Matrix_Multiply(Camera, 4, 4, Point_4D, 1, TP);	//得P'
+
+	_T TPz_Sqr = TP[2] * TP[2];
+	_T TPx_div_TPz = TP[0] / TP[2],
+		TPy_div_TPz = TP[1] / TP[2];
+
+	//r2 = (P'x^2 + P'y^2)/P'z^2
+	_T r2 = (TP[0] * TP[0] + TP[1] * TP[1]) / TPz_Sqr;
+	_T f=Intrinsic[0], l1 = Intrinsic[1], l2 = Intrinsic[2];
+	//d=1.0 + r2 * (l1 + l2 * r2);
+	_T d = 1.f + r2 * (l1 + l2 * r2);
+
+	_T f_div_TPz = -f / TP[2];
+
+
+	//各种导数
+	//r2 = (P'x/P'z)^2 + (P'y/P'z)^2
+	//dr2/dTPx = 2*(P'x/P'z)* (1/P'z) = 2* P'x/P'z^2
+	_T dr2_TPx = 2 * TP[0] / TPz_Sqr;
+	//dr2/dTPy = 2*P'y/P'z^2
+	_T dr2_TPy = 2 * TP[1] / TPz_Sqr;
+	//dr2/dTPz = (P'x^2 + P'y^2) * (-2) * P'z^(-3) = -2 * r2 /P'z
+	_T dr2_TPz = -2 * r2 / TP[2];
+
+	//d = 1 + r2 * l1 + l2 * r2*r2;  dd/dr2= l1 + 2*l2*r2 
+	_T l2_x_2r2 = 2 * l2 * r2;
+	_T dd_TPx = l1 * dr2_TPx + l2_x_2r2 * dr2_TPx; 
+	_T dd_TPy = l1 * dr2_TPy + l2_x_2r2 * dr2_TPy; 
+	_T dd_TPz = l1 * dr2_TPz + l2_x_2r2 * dr2_TPz; 
+
+	//u = -f * d * P'x/P'z   du/dd = -(TPx*f)/TPz
+	//du/dTPx = -f/P'z * (du/dd * TPx + d)
+	_T du_TPx = f_div_TPz * (dd_TPx * TP[0] + d);
+	//du/dTPy = -f * P'x/P'z  * dd_TPy 
+	_T du_TPy = f_div_TPz * TP[0] * dd_TPy;
+	//dd/dTPz = (dd/dPz* TPz - d)/ TPz^2
+	_T du_TPz = -f * TP[0] * (dd_TPz * TP[2] - d) / TPz_Sqr;
+
+	//v = f * d * -P'y/P'z
+	_T dv_TPx = f_div_TPz * dd_TPx*TP[1];  
+	_T dv_TPy = f_div_TPz * (dd_TPy * TP[1] + d);
+	//dd/dTPz = (dd/dPz* TPz - d)/ TPz^2
+	_T dv_TPz = -f * TP[1] * (dd_TPz * TP[2] - d) / TPz_Sqr;
+	_T J_E_TP[2 * 3] = { du_TPx,du_TPy,du_TPz,
+		dv_TPx,dv_TPy,dv_TPz };
+
+	if (J_E_Intrin)
+	{
+		//u = f * d * (-1)P'x/P'z
+		//v = f * d * (-1)P'y/P'z
+		J_E_Intrin[0] = -d*TPx_div_TPz;
+		J_E_Intrin[3] = -d*TPy_div_TPz;
+
+		//d = 1 + r2 * l1 + l2 * r2*r2
+		J_E_Intrin[1] = -f * TPx_div_TPz * r2;
+		//dv/dl1 = -f*(P'y/P'z)*r2
+		J_E_Intrin[4]= -f * TPy_div_TPz * r2;
+
+		//du/dl2 = f*(P'y/P'z)*r2*r2
+		J_E_Intrin[2] = J_E_Intrin[1] * r2;
+		//dv/dl2 = -f*(P'y/P'z)*r2*r2
+		J_E_Intrin[5] =  J_E_Intrin[4] * r2;
+	}
+	//Disp(J_E_Intrin, 2, 3, "de/dintrinsic");
+	if (E)
+	{
+		//u = f * d * (-1)P'x/P'z
+		//v = f * d * (-1)P'y/P'z
+		_T u = f_div_TPz * d * TP[0];
+		_T v = f_div_TPz * d * TP[1];
+
+		E[0] = u- Point_2D[0];
+		E[1] = v - Point_2D[1];
+	}
+	//Disp(E, 1, 2, "E");
+	if (J_E_Ksi && J_E_P)
+	{//再算位姿的雅可比
+		_T J_TP_Ksi[3 * 6];
+		Get_Deriv_TP_Ksi(Camera, Point_4D, J_TP_Ksi);
+		Matrix_Multiply(J_E_TP, 2, 3, J_TP_Ksi, 6, J_E_Ksi);
+
+		//de/dP
+		_T R[3 * 3];  //dE/dP
+		Get_R_t(Camera, R);
+		Matrix_Multiply(J_E_TP, 2, 3, R, 3, J_E_P);
+		//Disp(J_E_P, 2, 3, "de/dTP");
+	}
+
+	/*Disp(J_E_Ksi, 2, 6, "de/dksi");
+	Disp(J_E_TP, 2, 3, "de/dTP");
+	Disp(J_E_Intrin, 2, 3, "de/dintrinsic");*/
+	return;
+}
+
+template<typename _T>static void BA_PnP_3D_2D_Pose_N_Point_1_LM(
+	_T A[], int iOrder, _T b[], _T x[], LM_Param<_T>* poParam, int* pbResult,  //第一部分参数，解方程必备
+	//第二部分参数，该问题的额外需要数据
+	_T Camera_4x4[][16], int iCamera_Count, _T Intrinsic[][3], _T Point_3D[][3], int iPoint_3D_Count, Point_2D<_T> Observation_2D[], int iPoint_2D_Count)
+{//对位姿与点联合优化解LM
+
+	int i, bResult = 1;
+	LM_Param<_T> oParam = *poParam;
+	const int iMax_Size = 256;
+	_T Buffer[iMax_Size],
+		* f = Buffer;
+
+	//Disp(b, 1, 3, "b");
+	if (oParam.m_iIter == 0)
+	{//第一次，特殊对待,取对角线最大值		
+		_T tau = (_T)1e-5, fMax = (_T)0.f;
+		for (i = 0; i < iOrder; i++)
+			if (Abs(A[i * iOrder + i]) > fMax)
+				fMax = Abs(A[i * iOrder + i]);
+		//第一次迭代的时候，Lamda定位 0.00001*对角线最大元
+		oParam.Lamda = tau * fMax;
+		oParam._ni = 2;
+	}
+
+	_T rho = 0;
+	int	qmax = 0;
+
+	_T(*pCamera_1)[4 * 4] = (_T(*)[4 * 4])pMalloc(iCamera_Count * 16 * sizeof(_T));
+	_T(*pIntrinsic_1)[3] = (_T(*)[3])pMalloc(iCamera_Count * 3 * sizeof(_T));
+	_T(*pPoint_3D_1)[3] = (_T(*)[3])pMalloc(iPoint_3D_Count * 3 * sizeof(_T));
+
+	do {
+		//oParam.Lamda = 1;     //临时设置一下
+
+		//解分方程看看        
+		Add_I_Matrix(A, iOrder, oParam.Lamda);
+		//printf("Lamda:%f\n", oParam.Lamda);
+		Solve_Linear_Gause(A, iOrder, b, x, &bResult);
+		//Disp(A, iOrder, iOrder, "A");
+		//Disp(b, 1, iOrder, "b");
+		//Disp(x, 1, iOrder, "Delta_X");
+		// 
+		//恢复方程
+		Add_I_Matrix(A, iOrder, -oParam.Lamda);
+
+		memcpy(pCamera_1, Camera_4x4, iCamera_Count * 16 * sizeof(_T));
+		memcpy(pIntrinsic_1, Intrinsic, iCamera_Count * 3 * sizeof(_T));
+		memcpy(pPoint_3D_1, Point_3D, iPoint_3D_Count * 3 * sizeof(_T));
+
+		//先更新一下Camera,即把x加上去
+		for (i = 0; i < iCamera_Count; i++)
+		{
+			_T* pCamera_Delta_6 = &x[i * 9];
+			_T Camera_Delta_4x4[4 * 4]; 
+			se3_2_SE3(pCamera_Delta_6, Camera_Delta_4x4);
+			Matrix_Multiply(Camera_Delta_4x4, 4, 4, pCamera_1[i], 4, pCamera_1[i]);
+
+			_T* pIntrinsic_3 = &x[i * 9+6];
+			Vector_Add(pIntrinsic_1[i], pIntrinsic_3, 3, pIntrinsic_1[i]);
+		}
+
+		//再更新一下点位置，把x加上去
+		_T* x1 = x + iCamera_Count * 9;
+		for (i = 0; i < iPoint_3D_Count; i++)
+			Vector_Add(pPoint_3D_1[i], &x1[i * 3], 3,pPoint_3D_1[i] );
+
+		//再将所有的点算一遍，求误差
+		_T fSum_e = 0;
+		for (i = 0; i < iPoint_2D_Count; i++)
+		{
+			Point_2D<_T> oPoint_2D = Observation_2D[i];
+			_T E[2];            
+			BA_PnP_3D_2D_Pose_N_Point_1_Get_J(pPoint_3D_1[oPoint_2D.m_iPoint_Index],
+				pCamera_1[oPoint_2D.m_iCamera_Index],pIntrinsic_1[oPoint_2D.m_iCamera_Index], oPoint_2D.m_Pos, (_T*)NULL, (_T*)NULL,(_T*)NULL, E);
+
+			fSum_e += E[0] * E[0] + E[1] * E[1];    //得到误差
+		}
+
+		if (!bResult)   //没啥营养，就是为了跳出
+			fSum_e = std::numeric_limits<_T>::max();
+
+		//rho不过是个表示发散/收敛程度的参数
+		rho = (oParam.m_fLoss - fSum_e);
+
+		//搞个scale
+		_T fScale;
+		if (bResult)
+		{
+			fScale = (_T)1e-3;
+			//从此处可以看出，Scale在解方程成功的时候起作用
+			//可以想象，x就是增长步长，不断收敛，故此，fScale也不断减少
+			for (int i = 0; i < iOrder; i++)
+				fScale += x[i] * (oParam.Lamda * x[i] + b[i]);
+		}else
+			fScale = 1;
+
+		rho /= fScale;  //显然, rho>0时表示解收敛
+		if (rho > 0 && std::_Is_finite(fSum_e) && bResult)
+		{//本次迭代的最后一次
+		 //fScale递减，rho增大，pow增大，alpha减少，scaleFactor减少
+			_T alpha = (_T)(1. - pow((2 * rho - 1), 3));
+			alpha = Min(alpha, 2.f/3.f);
+			_T scaleFactor = Max(1.f/3.f, alpha);
+
+			//可见，scaleFactor在[1/3,2/3]之间，Lamda必然缩小
+			oParam.Lamda *= scaleFactor;
+			oParam._ni = 2;
+			oParam.m_fLoss = fSum_e;
+		} else
+		{
+			//加入对角线调整失败，则继续改下去
+			oParam.Lamda*=oParam._ni;     //等于将原来的Lamda增大_ni倍，_ni则成倍增大  
+			oParam._ni *= 2;            //理论上，对_ni加倍增大
+			if (!std::_Is_finite(oParam.Lamda)) 
+				break;
+		}
+		qmax++;
+	}while (rho < 0  && qmax<10 && !poParam->m_bStop);	//此处本来还有个外部干涉信号可控制停止
+
+	*pbResult = bResult;
+	//若成功，则直接更新Camera,Intrinsic,Point_3D了事，省了后续的更新
+	memcpy((_T*)Camera_4x4, pCamera_1, iCamera_Count * 16 * sizeof(_T));
+	memcpy((_T*)Intrinsic, pIntrinsic_1, iCamera_Count * 3 * sizeof(_T));
+	memcpy((_T*)Point_3D, pPoint_3D_1, iPoint_3D_Count * 3 * sizeof(_T));
+	*poParam = oParam;
+	Free(pCamera_1);
+	Free(pIntrinsic_1);
+	Free(pPoint_3D_1);
+}
+
+
+template<typename _T>static void BA_PnP_3D_2D_Pose_N_Point_1(_T Camera[][16], int iCamera_Count, _T Intrinsic[][3], _T Point_3D[][3], int iPoint_3D_Count, Point_2D<_T> Observation_2D[], int iObservation_Count, _T fLoss_eps = (_T)1e-20)
+{//优化位姿，点，内参f和两个畸变参数
+ //Camera: 所有的相机位姿，以4x4矩阵表示 
+ //Point_3D： 可能有噪声的空间点位置
+ //Point_2D, 各个相机对应的2D点
+	int i, iIter, iResult=0;
+	//for (i = 0; i < iObservation_Count; i++)
+	//    printf("Camera:%d Point_3D:%d\n", Observation_2D[i].m_iCamera_Index, Observation_2D[i].m_iPoint_Index);
+	const int iJ_w = iCamera_Count * 9 + iPoint_3D_Count * 3;
+	_T* J = (_T*)pMalloc(iJ_w * 2 * sizeof(_T)),
+		* Jt = (_T*)pMalloc(iJ_w * 2 * sizeof(_T)),
+		* JtE = (_T*)pMalloc(iJ_w * sizeof(_T)),
+		* Delta_X = (_T*)pMalloc(iJ_w * sizeof(_T)),
+		* Sigma_JtE = (_T*)pMalloc(iJ_w * sizeof(_T)),
+		* Sigma_H = (_T*)pMalloc(iJ_w * iJ_w * sizeof(_T)),
+		* JtJ = (_T*)pMalloc(iJ_w * iJ_w * sizeof(_T));
+
+
+	_T fSum_e = 0, fSum_e_Pre = (_T)1e20;
+	LM_Param<_T> oLM_Param;
+	Init_LM_Param(&oLM_Param);
+
+	_T fLoss_Diff_eps = 1e-3;
+	fLoss_Diff_eps*= iObservation_Count;   //两次之间的差，与点数有关，点数越多，eps越大
+
+	for (iIter = 0;; iIter++)
+	{
+		fSum_e = 0;
+		memset(Sigma_H, 0, iJ_w * iJ_w * sizeof(_T));
+		memset(Sigma_JtE, 0, iJ_w * sizeof(_T));
+		for (i = 0; i < iObservation_Count; i++)
+		{
+			Point_2D<_T> oPoint_2D = Observation_2D[i];
+			_T E[2], J_E_Ksi[2 * 6], J_E_Intrin[2*3], J_E_P[2 * 3];
+			BA_PnP_3D_2D_Pose_N_Point_1_Get_J(Point_3D[oPoint_2D.m_iPoint_Index],
+				Camera[oPoint_2D.m_iCamera_Index],Intrinsic[oPoint_2D.m_iCamera_Index], oPoint_2D.m_Pos, J_E_Ksi,J_E_Intrin, J_E_P, E);
+			fSum_e += E[0] * E[0] + E[1] * E[1];    //得到误差
+
+			//将三组雅可比拷到目标位置
+			memset(J, 0, 2 * iJ_w * sizeof(_T));
+			Copy_Matrix_Partial(J_E_Ksi, 2, 6, J, iJ_w, oPoint_2D.m_iCamera_Index * 9, 0);
+			Copy_Matrix_Partial(J_E_Intrin, 2, 3, J, iJ_w, oPoint_2D.m_iCamera_Index * 9+6, 0);
+			Copy_Matrix_Partial(J_E_P, 2, 3, J, iJ_w, iCamera_Count * 9 + oPoint_2D.m_iPoint_Index * 3, 0);
+			//Disp(J, 2, iJ_w, "J");
+
+			//累加Sigma_H
+			Transpose_Multiply(J, 2, iJ_w, JtJ, 0);
+			Matrix_Add(Sigma_H, JtJ, iJ_w, Sigma_H);
+			//Disp(Sigma_H, iJ_w, iJ_w, "Sigma_H");
+
+			//累加Sigma_JtE;
+			Matrix_Transpose(J, 2, iJ_w, Jt);
+			Matrix_Multiply(Jt, iJ_w, 2, E, 1, JtE);
+			Vector_Add(Sigma_JtE, JtE, iJ_w, Sigma_JtE);
+		}
+		printf("iIter:%d %e\n", iIter, 0.5f*fSum_e);
+
+		//加上负号，右边才是 -J'E
+		Matrix_Multiply(Sigma_JtE, 1, iJ_w, (_T)-1, Sigma_JtE);
+
+		//方法2，LM方法
+		oLM_Param.m_fLoss = fSum_e, oLM_Param.m_iIter = iIter;
+		BA_PnP_3D_2D_Pose_N_Point_1_LM(Sigma_H, iJ_w, Sigma_JtE, Delta_X, &oLM_Param, &iResult,
+			Camera,iCamera_Count, Intrinsic, Point_3D, iPoint_3D_Count, Observation_2D, iObservation_Count);
+
+		if (!iResult)
+		{
+			printf("Bundle Adjust LM解失败\n");
+			break;
+		}
+		if (fSum_e<=oLM_Param.m_fLoss  || oLM_Param.m_fLoss < fLoss_eps || Abs(oLM_Param.m_fLoss-fSum_e)<fLoss_Diff_eps)
+			break;
+		fSum_e_Pre = oLM_Param.m_fLoss;
+	}
+
+	Free(J);
+	Free(Jt);
+	Free(JtE);
+	Free(Delta_X);
+	Free(Sigma_JtE);    
+	Free(Sigma_H);
+	Free(JtJ);
+
+	return;
+}
+
+void Pose_Estimate_Test_3()
+{//Simple_Bundle_Adjust Test，连f, l1, l2一起优化，用g2o方法进行LM解方程
+	typedef double _T;
+	//先数据
+	_T(*pPoint_3D)[3], (*pCamera_Data)[3 * 3];    //只是个内参
+	_T Camera[16][4 * 4], Rotation_Vector[4], R[16][3 * 3];
+	_T Intrinsic[16][3];    //三个内参，一个焦距f, 两个畸变参数
+	Point_2D<_T>* pPoint_2D;
+
+	//*******************先造数据**************************************************
+	int iCamera_Count, iPoint_Count, iObservation_Count;
+	Temp_Load_File_2(&iCamera_Count, &iPoint_Count, &iObservation_Count, &pPoint_2D, &pPoint_3D, &pCamera_Data);
+	int i;
+
+	for (i = 0; i < iCamera_Count; i++)
+	{    //把相机数据从6元组转换为4x4矩阵
+		Rotation_Vector_3_2_4(pCamera_Data[i], Rotation_Vector);
+		Rotation_Vector_2_Matrix(Rotation_Vector, R[i]);
+		Gen_Homo_Matrix(R[i], &pCamera_Data[i][3], Camera[i]);
+		Intrinsic[i][0] = pCamera_Data[i][6];
+		Intrinsic[i][1] = pCamera_Data[i][7];
+		Intrinsic[i][2] = pCamera_Data[i][8];
+	}
+	//*******************先造数据**************************************************
+
+	iCamera_Count = 16;
+	iPoint_Count = 200;
+	iObservation_Count = 200;
+
+	unsigned long long tStart = iGet_Tick_Count();
+	BA_PnP_3D_2D_Pose_N_Point_1(Camera, iCamera_Count,Intrinsic, pPoint_3D, iPoint_Count,
+		pPoint_2D, iObservation_Count);
+	printf("%lld\n", iGet_Tick_Count() - tStart);
+
+	return;
+}
+
+template<typename _T>static void BA_PnP_3D_2D_Pose_N_Point_2_LM(
+	_T A[], int iOrder, _T b[], _T x[], LM_Param<_T>* poParam, int* pbResult,  //第一部分参数，解方程必备
+	//第二部分参数，该问题的额外需要数据
+	_T Camera_4x4[][16], int iCamera_Count, _T Intrinsic[][3], _T Point_3D[][3], int iPoint_3D_Count, Point_2D<_T> Observation_2D[], int iPoint_2D_Count)
+{//对位姿与点联合优化解LM，用近似ceres方法
+	int i, bResult=0;
+	LM_Param<_T> oParam = *poParam;
+	if (oParam.m_iIter == 0)    //第一次，特殊对待,取对角线最大值
+	{
+		oParam.radius_ = 10000.f;
+		oParam.decrease_factor_ = 2.f;
+	}
+	//Disp(b, 1, 3, "b");
+	_T tau = 1.f / oParam.radius_;    // (_T)1e-4,  //ceres用1e-4    //g2o用1e-5
+	//fMax = (_T)0.f;
+	_T* Diag = (_T*)pMalloc(iOrder * sizeof(_T));
+
+	for (i = 0; i < iOrder; i++)
+	{
+		//Diag[i] = sqrt(tau*Abs(A[i * iOrder + i]));
+		Diag[i] = tau*Abs(A[i * iOrder + i]);
+		//printf("%f\n", sqrt(Diag[i]));
+		//限个幅
+		Diag[i] = Clip3(1e-6, 1e32, Diag[i]);       
+	}
+	
+	int	qmax = 0;
+	_T(*pCamera_1)[4 * 4] = (_T(*)[4 * 4])pMalloc(iCamera_Count * 16 * sizeof(_T));
+	_T(*pIntrinsic_1)[3] = (_T(*)[3])pMalloc(iCamera_Count * 3 * sizeof(_T));
+	_T(*pPoint_3D_1)[3] = (_T(*)[3])pMalloc(iPoint_3D_Count * 3 * sizeof(_T));
+	do {
+		//解分方程看看        
+		for (i = 0; i < iOrder; i++)
+			A[i * iOrder + i] += Diag[i];   // *Diag[i];
+
+		Solve_Linear_Gause(A, iOrder, b, x, &bResult);
+
+		//解分方程看看        
+		for (i = 0; i < iOrder; i++)
+			A[i * iOrder + i] += Diag[i];   // *Diag[i];
+
+		Solve_Linear_Gause(A, iOrder, b, x, &bResult);
+		//Disp(A, iOrder, iOrder, "A");
+		//Disp(x, 1, iOrder, "x");
+
+		//恢复方程
+		for (i = 0; i < iOrder; i++)
+			A[i * iOrder + i] -= Diag[i];   // *Diag[i];
+
+		memcpy(pCamera_1, Camera_4x4, iCamera_Count * 16 * sizeof(_T));
+		memcpy(pIntrinsic_1, Intrinsic, iCamera_Count * 3 * sizeof(_T));
+		memcpy(pPoint_3D_1, Point_3D, iPoint_3D_Count * 3 * sizeof(_T));
+
+		//先更新一下Camera,即把x加上去
+		for (i = 0; i < iCamera_Count; i++)
+		{
+			_T* pCamera_Delta_6 = &x[i * 9];
+			_T Camera_Delta_4x4[4 * 4]; 
+			se3_2_SE3(pCamera_Delta_6, Camera_Delta_4x4);
+			Matrix_Multiply(Camera_Delta_4x4, 4, 4, pCamera_1[i], 4, pCamera_1[i]);
+
+			_T* pIntrinsic_3 = &x[i * 9+6];
+			Vector_Add(pIntrinsic_1[i], pIntrinsic_3, 3, pIntrinsic_1[i]);
+		}
+
+		//再更新一下点位置，把x加上去
+		_T* x1 = x + iCamera_Count * 9;
+		for (i = 0; i < iPoint_3D_Count; i++)
+			Vector_Add(pPoint_3D_1[i], &x1[i * 3], 3,pPoint_3D_1[i] );
+
+		//再将所有的点算一遍，求误差
+		_T fSum_e = 0;
+		for (i = 0; i < iPoint_2D_Count; i++)
+		{
+			Point_2D<_T> oPoint_2D = Observation_2D[i];
+			_T E[2];            
+			BA_PnP_3D_2D_Pose_N_Point_1_Get_J(pPoint_3D_1[oPoint_2D.m_iPoint_Index],
+				pCamera_1[oPoint_2D.m_iCamera_Index],pIntrinsic_1[oPoint_2D.m_iCamera_Index], oPoint_2D.m_Pos, (_T*)NULL, (_T*)NULL,(_T*)NULL, E);
+
+			fSum_e += E[0] * E[0] + E[1] * E[1];    //得到误差
+		}
+
+		if (!bResult)   //没啥营养，就是为了跳出
+			fSum_e = std::numeric_limits<_T>::max();
+		/*else
+		fSum_e *= 0.5f;*/
+
+		if (fSum_e < oParam.m_fLoss)
+		{//本次迭代的最后一次
+			/*_T relative_decrease = (oParam.m_fLoss - fSum_e) / oParam.m_fLoss;
+			_T historical_relative_decrease =
+				(oParam.m_fLoss - fSum_e) /
+				(oParam.accumulated_reference_model_cost_change_ + oParam.m_fLoss);
+
+			relative_decrease = Max(relative_decrease, historical_relative_decrease);*/
+			//printf("%f\n", 1.0 - pow(2.0 * relative_decrease - 1.0, 3));
+			//oParam.radius_ = oParam.radius_ / max(1.0 / 3.0, 1.0 - pow(2.0 * relative_decrease - 1.0, 3));
+			oParam.radius_ *= 3;
+			oParam.accumulated_reference_model_cost_change_ += oParam.m_fLoss;
+			oParam.m_fLoss = fSum_e;
+			oParam.decrease_factor_ = 2.0;  //将放大倍数恢复为2.0
+			break;
+		}else
+		{
+			oParam.radius_ /= 2.f;
+			oParam.decrease_factor_ *= 2;
+		}
+		qmax++;
+	}while (qmax<10 && !poParam->m_bStop);	//此处本来还有个外部干涉信号可控制停止
+	*pbResult = bResult;
+
+	//若成功，则直接更新Camera,Intrinsic,Point_3D了事，省了后续的更新
+	memcpy((_T*)Camera_4x4, pCamera_1, iCamera_Count * 16 * sizeof(_T));
+	memcpy((_T*)Intrinsic, pIntrinsic_1, iCamera_Count * 3 * sizeof(_T));
+	memcpy((_T*)Point_3D, pPoint_3D_1, iPoint_3D_Count * 3 * sizeof(_T));
+	*poParam = oParam;
+	Free(pCamera_1);
+	Free(pIntrinsic_1);
+	Free(pPoint_3D_1);
+	Free(Diag);
+	return;
+}
+template<typename _T>static void BA_PnP_3D_2D_Pose_N_Point_2(_T Camera[][16], int iCamera_Count, _T Intrinsic[][3], _T Point_3D[][3], int iPoint_3D_Count, Point_2D<_T> Observation_2D[], int iObservation_Count, _T fLoss_eps = (_T)1e-20)
+{//优化位姿，点，内参f和两个畸变参数
+ //Camera: 所有的相机位姿，以4x4矩阵表示 
+ //Point_3D： 可能有噪声的空间点位置
+ //Point_2D, 各个相机对应的2D点
+	int i, iIter, iResult=0;
+	//for (i = 0; i < iObservation_Count; i++)
+	//    printf("Camera:%d Point_3D:%d\n", Observation_2D[i].m_iCamera_Index, Observation_2D[i].m_iPoint_Index);
+	const int iJ_w = iCamera_Count * 9 + iPoint_3D_Count * 3;
+	_T* J = (_T*)pMalloc(iJ_w * 2 * sizeof(_T)),
+		* Jt = (_T*)pMalloc(iJ_w * 2 * sizeof(_T)),
+		* JtE = (_T*)pMalloc(iJ_w * sizeof(_T)),
+		* Delta_X = (_T*)pMalloc(iJ_w * sizeof(_T)),
+		* Sigma_JtE = (_T*)pMalloc(iJ_w * sizeof(_T)),
+		* Sigma_H = (_T*)pMalloc(iJ_w * iJ_w * sizeof(_T)),
+		* JtJ = (_T*)pMalloc(iJ_w * iJ_w * sizeof(_T));
+
+
+	_T fSum_e = 0, fSum_e_Pre = (_T)1e20;
+	LM_Param<_T> oLM_Param;
+	Init_LM_Param(&oLM_Param);
+
+	_T fLoss_Diff_eps = 1e-3;
+	fLoss_Diff_eps*= iObservation_Count;   //两次之间的差，与点数有关，点数越多，eps越大
+
+	for (iIter = 0;; iIter++)
+	{
+		fSum_e = 0;
+		memset(Sigma_H, 0, iJ_w * iJ_w * sizeof(_T));
+		memset(Sigma_JtE, 0, iJ_w * sizeof(_T));
+		for (i = 0; i < iObservation_Count; i++)
+		{
+			Point_2D<_T> oPoint_2D = Observation_2D[i];
+			_T E[2], J_E_Ksi[2 * 6], J_E_Intrin[2*3], J_E_P[2 * 3];
+			BA_PnP_3D_2D_Pose_N_Point_1_Get_J(Point_3D[oPoint_2D.m_iPoint_Index],
+				Camera[oPoint_2D.m_iCamera_Index],Intrinsic[oPoint_2D.m_iCamera_Index], oPoint_2D.m_Pos, J_E_Ksi,J_E_Intrin, J_E_P, E);
+			fSum_e += E[0] * E[0] + E[1] * E[1];    //得到误差
+
+			//将三组雅可比拷到目标位置
+			memset(J, 0, 2 * iJ_w * sizeof(_T));
+			Copy_Matrix_Partial(J_E_Ksi, 2, 6, J, iJ_w, oPoint_2D.m_iCamera_Index * 9, 0);
+			Copy_Matrix_Partial(J_E_Intrin, 2, 3, J, iJ_w, oPoint_2D.m_iCamera_Index * 9+6, 0);
+			Copy_Matrix_Partial(J_E_P, 2, 3, J, iJ_w, iCamera_Count * 9 + oPoint_2D.m_iPoint_Index * 3, 0);
+			//Disp(J, 2, iJ_w, "J");
+
+			//累加Sigma_H
+			Transpose_Multiply(J, 2, iJ_w, JtJ, 0);
+			Matrix_Add(Sigma_H, JtJ, iJ_w, Sigma_H);
+			//Disp(Sigma_H, iJ_w, iJ_w, "Sigma_H");
+
+			//累加Sigma_JtE;
+			Matrix_Transpose(J, 2, iJ_w, Jt);
+			Matrix_Multiply(Jt, iJ_w, 2, E, 1, JtE);
+			Vector_Add(Sigma_JtE, JtE, iJ_w, Sigma_JtE);
+		}
+		printf("iIter:%d %e\n", iIter, 0.5f*fSum_e);
+
+		//加上负号，右边才是 -J'E
+		Matrix_Multiply(Sigma_JtE, 1, iJ_w, (_T)-1, Sigma_JtE);
+
+		//方法2，LM方法
+		oLM_Param.m_fLoss = fSum_e, oLM_Param.m_iIter = iIter;
+		BA_PnP_3D_2D_Pose_N_Point_2_LM(Sigma_H, iJ_w, Sigma_JtE, Delta_X, &oLM_Param, &iResult,
+			Camera,iCamera_Count, Intrinsic, Point_3D, iPoint_3D_Count, Observation_2D, iObservation_Count);
+
+		if (!iResult)
+		{
+			printf("Bundle Adjust LM解失败\n");
+			break;
+		}
+		if (fSum_e<=oLM_Param.m_fLoss  || oLM_Param.m_fLoss < fLoss_eps || Abs(oLM_Param.m_fLoss-fSum_e)<fLoss_Diff_eps)
+			break;
+		fSum_e_Pre = oLM_Param.m_fLoss;
+	}
+
+	Free(J);
+	Free(Jt);
+	Free(JtE);
+	Free(Delta_X);
+	Free(Sigma_JtE);    
+	Free(Sigma_H);
+	Free(JtJ);
+
+	return;
+}
+void Pose_Estimate_Test_4()
+{//Simple_Bundle_Adjust Test，连f, l1, l2一起优化
+	typedef double _T;
+	//先数据
+	_T(*pPoint_3D)[3], (*pCamera_Data)[3 * 3];    //只是个内参
+	_T Camera[16][4 * 4], Rotation_Vector[4], R[16][3 * 3];
+	_T Intrinsic[16][3];    //三个内参，一个焦距f, 两个畸变参数
+	Point_2D<_T>* pPoint_2D;
+
+	//*******************先造数据**************************************************
+	int iCamera_Count, iPoint_Count, iObservation_Count;
+	Temp_Load_File_2(&iCamera_Count, &iPoint_Count, &iObservation_Count, &pPoint_2D, &pPoint_3D, &pCamera_Data);
+	int i;
+
+	for (i = 0; i < iCamera_Count; i++)
+	{    //把相机数据从6元组转换为4x4矩阵
+		Rotation_Vector_3_2_4(pCamera_Data[i], Rotation_Vector);
+		Rotation_Vector_2_Matrix(Rotation_Vector, R[i]);
+		Gen_Homo_Matrix(R[i], &pCamera_Data[i][3], Camera[i]);
+		Intrinsic[i][0] = pCamera_Data[i][6];
+		Intrinsic[i][1] = pCamera_Data[i][7];
+		Intrinsic[i][2] = pCamera_Data[i][8];
+	}
+	//*******************先造数据**************************************************
+
+	iCamera_Count = 16;
+	iPoint_Count = 200;
+	iObservation_Count = 200;
+
+	unsigned long long tStart = iGet_Tick_Count();
+	BA_PnP_3D_2D_Pose_N_Point_2(Camera, iCamera_Count,Intrinsic, pPoint_3D, iPoint_Count,
+		pPoint_2D, iObservation_Count);
+	printf("%lld\n", iGet_Tick_Count() - tStart);
+
+	return;
+}
 void Test_Main()
 {
 	//Point_Cloud_Test();				//点云重建最简例子，没营养
@@ -6106,8 +6909,15 @@ void Test_Main()
 	//Pose_Graph_Test_3();			//位姿图优化，用源信息矩阵，无卵用
 
 	//以下两个例子已经基本等价于ceres的精度，只欠cholosky优化
-	Pose_Estimate_Test_1();			//相当于BA_Demo，只估计位姿
-	Pose_Estimate_Test_2();			//相当于BA_Demo，位姿与点一起调整
+	//Pose_Estimate_Test_1();			//相当于BA_Demo，只估计位姿
+	//Pose_Estimate_Test_2();			//相当于BA_Demo，位姿与点一起调整
+	//Pose_Estimate_Test_3();			//用了problem-16-22106-pre中100个样本，但是没有优化到所有参数
+									//这个例子理论上连focal, 两个畸变参数一起优化，远比只优化位姿与点好
+									//但是，优化focal，畸变参数有没有用？这不应该是内参吗
+									//100点已经等价ceres效果
+	Pose_Estimate_Test_4();			//通Pose_Estimate_Test_3，LM用了Ceres类似方法修改对角线
+									//有些许的加速收敛，有了这个原型可以轻易写出schur法
+									
 	//BA_Test_Schur_Ref();
 	//Schur_Test();				//Schur消元法解大样本例
 	//BA_Test_1();

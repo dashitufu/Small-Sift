@@ -135,10 +135,15 @@ template<typename _T>struct Image_Match_Param {
 template<typename _T> struct LM_Param {
 	unsigned short m_iIter;	//第几轮的迭代
 	unsigned char m_bStop;	//外部停止信号
-	_T Lamda;			//关键参数
 	_T m_fLoss;			//总体误差
+	_T Lamda;			//关键参数
 	_T _ni;
 	_T* m_pOrg_X;			//原来的参数
+
+	//ceres参数
+	_T radius_;
+	_T accumulated_reference_model_cost_change_;
+	_T decrease_factor_;
 
 	void(*Get_J)(_T*, _T*, _T*, _T*, _T*, ...);
 	_T* m_pSample_In;
@@ -147,11 +152,11 @@ template<typename _T> struct LM_Param {
 	unsigned char m_iIn_Dim, m_iOut_Dim;
 };
 
-template<typename _T> struct Point_2D_N_Cam {    //加上相机ID的2D点
-	_T m_Pos[2];    //位置
-	unsigned short m_iPoint_3D_ID;
-	unsigned short m_iCamera_ID;    
-};
+//template<typename _T> struct Point_2D_N_Cam {    //加上相机ID的2D点
+//	_T m_Pos[2];    //位置
+//	unsigned short m_iPoint_Index;
+//	unsigned short m_iCamera_Index;    
+//};
 
 //对于E,F,H三个矩阵的估计，有一个Report，此处要有内存分配
 void Free_Report(Ransac_Report oReport, Mem_Mgr* poMem_Mgr = NULL);
@@ -265,6 +270,18 @@ template<typename _T>void DLT_svd(_T Point_3D_0[][3], _T Point_3D_1[][3], _T Nor
 template<typename _T>void DLT(_T Point_3D_0[][3], _T Point_3D_1[][3], int iCount, _T T[]);
 template<typename _T>_T fGet_Error(_T A[], int m, int n, _T X[]);
 template<typename _T>void Test_Triangulate(_T Point_3D[][3], _T Norm_Point_0[][2], _T Norm_Point_1[][2], int iCount, _T T[4 * 4], _T* pfError=NULL);
+
+//用于点云简单画图
+template<typename _T>void bSave_PLY(const char* pcFile, Point_Cloud<_T> oPC);
+template<typename _T>void Init_Point_Cloud(Point_Cloud<_T>* poPC, int iMax_Count, int bHas_Color);
+template<typename _T>void Free_Point_Cloud(Point_Cloud<_T>* poPC);
+template<typename _T>void Draw_Point(Point_Cloud<_T>* poPC, _T x, _T y, _T z, int R = 255, int G = 255, int B = 255);
+template<typename _T>void Draw_Sphere(Point_Cloud<_T>* poPC, _T x, _T y, _T z, _T r = 1.f, int iStep_Count = 40, int R = 255, int G = 255, int B = 255);
+template<typename _T>void Draw_Line(Point_Cloud<_T>* poPC, _T x0, _T y0, _T z0, _T x1, _T y1, _T z1, int iCount = 50, int R = 255, int G = 255, int B = 255);
+template<typename _T>void Draw_Camera(Point_Cloud<_T>* poPC, _T T[4 * 4], int R = 255, int G = 255, int B = 255);
+template<typename _T>void Draw_Image(Point_Cloud<_T>* poPC, Image oImage, _T T[4 * 4], _T K[3 * 3], int iCount);
+template<typename _T>void bSave_PLY(const char* pcFile, Point_Cloud<_T> oPC);
+
 
 //统一的BA接口
 template<typename _T>void Bundle_Adjust(_T Sample_In[], const int iIn_Dim, _T Y[], const int iOut_Dim, int iSample_Count, _T X[], int iParam_Count, _T eps,int iMax_Iter_Count,

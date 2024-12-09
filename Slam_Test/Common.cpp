@@ -291,6 +291,9 @@ template<typename _T> void Quick_Sort(_T Seq[], int iStart, int iEnd)
 }
 void SB_Common()
 {//template实例化，只对vc有效
+	Temp_Load_File_2(NULL, NULL, NULL, (Point_2D<double>**)NULL,(double(**)[3])NULL,(double(**)[9])NULL);
+	Temp_Load_File_2(NULL, NULL, NULL, (Point_2D<float>**)NULL, (float(**)[3])NULL, (float(**)[9])NULL);
+
 	bSave_PLY(NULL, (double(*)[3])NULL, 0);
 	bSave_PLY(NULL, (float(*)[3])NULL, 0);
 
@@ -516,4 +519,48 @@ template<typename _T>int bSave_PLY(const char* pcFile, _T Point[][3], int iPoint
 	}
 	fclose(pFile);
 	return 1;
+}
+
+template<typename _T>void Temp_Load_File_2(int* piCameta_Count, int* piPoint_Count, int* piObservation_Count, Point_2D<_T>** ppPoint_2D, _T(**ppPoint_3D)[3], _T(**ppCamera)[3 * 3])
+{//这次装入problem-16-22106-pre.txt。搞个好点的数据结构指出匹配关系
+
+	int i, iCamera_Count, iPoint_Count, iObservation_Count;
+	_T(*pPoint_3D)[3], (*pCamera)[3 * 3];
+	Point_2D<_T>* pPoint_2D;
+	char* pcFile = (char*)"c:\\tmp\\temp\\problem-16-22106-pre.txt";	//"Sample\\problem-16-22106-pre.txt";
+	FILE* pFile = fopen(pcFile, "rb");
+	i = fscanf(pFile, "%d %d %d\n", &iCamera_Count, &iPoint_Count, &iObservation_Count);
+	pPoint_2D = (Point_2D<_T>*)malloc(iObservation_Count * 2 * sizeof(Point_2D<_T>));
+	pPoint_3D = (_T(*)[3])malloc(iPoint_Count * 3 * sizeof(_T));
+	pCamera = (_T(*)[3 * 3])malloc(iCamera_Count * 16 * sizeof(_T));
+
+	for (i = 0; i < iObservation_Count; i++)
+	{
+		float xy[2];
+		fscanf(pFile, "%d %d %f %f", &pPoint_2D[i].m_iCamera_Index, &pPoint_2D[i].m_iPoint_Index, &xy[0], &xy[1]);
+		pPoint_2D[i].m_Pos[0] = xy[0], pPoint_2D[i].m_Pos[1] = xy[1];
+		//fscanf(pFile, "%d %d %f %f", &pPoint_2D[i].m_iCamera_Index, &pPoint_2D[i].m_iPoint_Index, &pPoint_2D[i].m_Pos[0], &pPoint_2D[i].m_Pos[1]);
+	}
+
+	int iResult;
+	for (i = 0; i < iCamera_Count; i++)
+		for (int j = 0; j < 9; j++)
+			if(sizeof(_T)==4)
+				iResult=fscanf(pFile, "%f", (float*)&pCamera[i][j]);
+			else
+				iResult=fscanf(pFile, "%lf", (double*)&pCamera[i][j]);
+	for (i = 0; i < iPoint_Count; i++)
+		if(sizeof(_T)==4)
+			fscanf(pFile, "%f %f %f ",(float*)&pPoint_3D[i][0], (float*)&pPoint_3D[i][1], (float*)&pPoint_3D[i][2]);
+		else
+			fscanf(pFile, "%lf %lf %lf ", (double*)&pPoint_3D[i][0], (double*)&pPoint_3D[i][1], (double*)&pPoint_3D[i][2]);
+	fclose(pFile);
+	*piCameta_Count = iCamera_Count;
+	*piPoint_Count = iPoint_Count;
+	*piObservation_Count = iObservation_Count;
+	*ppPoint_2D = pPoint_2D;
+	*ppPoint_3D = pPoint_3D;
+	*ppCamera = pCamera;
+	//Disp((_T*)pCamera, 16, 9, "Camera");
+	return;
 }
