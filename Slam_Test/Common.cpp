@@ -190,6 +190,11 @@ template<typename _T>int iQuick_Sort_Partition(_T pBuffer[], int left, int right
 	_T iValue, oTemp;
 	int pos = right;
 
+	//试一下将中间元素交换到头，多一步可能挽救了极端差形态
+	oTemp = pBuffer[right];
+	pBuffer[right] = pBuffer[(left + right) >> 1];
+	pBuffer[(left + right) >> 1] = oTemp;
+
 	right--;
 	iValue = pBuffer[pos];
 	while (left <= right)
